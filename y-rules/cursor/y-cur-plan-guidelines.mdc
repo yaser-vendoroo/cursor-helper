@@ -1,0 +1,103 @@
+---
+description: >-
+  (y-cur-plan-guidelines) Required structure, versioning, and style for plan
+  documents created via CreatePlan or as standalone Markdown.
+alwaysApply: true
+---
+
+# Cursor: plan document guidelines (`y-cur-plan-guidelines`)
+
+This rule is **always applied**. Whenever you create a new plan (via the `CreatePlan` tool or as a standalone `.plan.md` / `.md` file), follow the structure, versioning, and style below. Existing plans in this repo follow this shape; reviewers expect it.
+
+---
+
+## Versioning
+
+The H1 title must carry `<major>.<minor>-<yyyymmdd>-<hhMM>`.
+
+Example: `1.5-20260506-1618`.
+
+### Bump rules (apply on every plan edit)
+
+Whenever you edit a plan, update the version stamp **before saving**:
+
+- **Minor (`x.Y+1`)** — typo, link, formatting fix, content addition or removal, rewrite, sub-task refinement; anything that does not change architecture or scope.
+- **Major (`X+1.0`)** — architectural change, scope change, contract or schema break, removing or repurposing a section.
+
+### Date and time
+
+Always refresh `<yyyymmdd>-<hhMM>` to the save moment. The freshest version must be obvious at a glance.
+
+### First stamping
+
+When stamping a previously unstamped plan, set the version to `1.0` and the date and time to the current moment.
+
+---
+
+## Plan sections (default order)
+
+1. `# <Plan title> (<JIRA-KEY>) <version-stamp>` — H1 title with the Jira key and version.
+2. `## Acronyms and terms` — define every project-specific term used below.
+3. `## Goals` — outcomes only; bullet list, no implementation details.
+4. `## Product perspective` — explain the plan from the product point of view for product stakeholders in plain language:
+   - Start with `### Summary` as one concise paragraph.
+   - Describe the proposed solution(s), intended goals, and key approach details from a product point of view, without code-level depth.
+   - Explain clearly how this approach solves the problem(s) and what product outcome it drives.
+   - Use a small Mermaid diagram when it improves clarity more than text.
+5. `## Constraints` — strict-parity, scope, and references to other project rules; bullet list.
+6. `## Sources we port from` — origin code paths and external dependencies.
+7. `## Targets in <service>` — entry points and consumers in the target codebase.
+8. `## Data flow` — optional; include when a flowchart adds clarity.
+9. `### Per-turn sequence` — optional; include when runtime ordering matters.
+10. `### Request and response schemas` — optional; include when schema modeling helps decisions.
+11. `## Sub-tasks (run in order)` — `### P0`, `### P0.4`, `### P1`, ... Each sub-task lists scope and Markdown links to file paths.
+12. `## Open questions` — numbered list of unresolved decisions and follow-ups.
+13. `## Out of scope for this milestone` — bullet list of explicit non-goals.
+
+Sections 1–7 and 11–13 are the baseline structure for most implementation plans.
+Sections 8–10 are not mandatory: include them only when they are useful for this task.
+Use judgment based on task context and complexity; skip sections that do not improve clarity.
+When optional sections are included, keep their relative order.
+
+---
+
+## YAML frontmatter
+
+Every plan starts with:
+
+```yaml
+---
+name: <short title>
+overview: <one paragraph; outcomes plus key architectural choices>
+todos:
+  - id: <slug>
+    content: <one-line task>
+    status: pending | in_progress | completed
+isProject: false
+---
+```
+
+---
+
+## Mermaid rules (optional usage)
+
+- Use simple identifiers; no slashes, dots, or colons inside `participant <X> as <Y>` aliases.
+- Avoid parentheses, equals signs, and curly braces in message labels (older renderers fail on them).
+- Skip the `%%{init: ...}%%` directive unless theme overrides are essential.
+- Follow workspace Mermaid diagram conventions when a **diagrams** rule is installed in the target repo.
+- Diagrams are not mandatory. Add Mermaid only when it makes the plan clearer than text.
+
+---
+
+## Style
+
+- B2 English. Short sentences. No idioms or marketing words.
+- Cite file paths as Markdown links: **`[apps/foo/bar.py](apps/foo/bar.py)`**.
+- Code blocks for ORM models and Pydantic schemas. Bullet lists, not paragraphs, for goals / constraints / scope.
+- Use horizontal separators (`---`) in a smart and rational way to improve readability.
+- Place separators between major plan blocks when they make scanning easier (for example: after intro context, before dense technical sections, and before closing sections).
+- Do not overuse separators (avoid adding one after every heading and avoid consecutive separators).
+- In `## Product perspective`, write for Product Owners: non-technical but product-expert audience.
+- Keep `### Summary` to one short paragraph, then use concise bullets for approach and impact.
+- Focus on what changes for users/business and why this plan is the right approach; avoid low-level implementation detail.
+- Keep plans focused on the milestone or change at hand; defer follow-ups to **`## Open questions`**.

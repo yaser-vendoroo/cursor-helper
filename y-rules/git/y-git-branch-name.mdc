@@ -1,0 +1,50 @@
+---
+description: Git branch naming (type/Jira-key/desc) — AskQuestion before checkout
+alwaysApply: true
+---
+
+# Branch naming
+
+Follow your repo’s **CONTRIBUTING.md → Branch Naming Convention** when it exists. Summary:
+
+## Format
+
+```
+<type>/<jira-issue-key>-<short-description>
+```
+
+## Types
+
+| Prefix | Use |
+|--------|-----|
+| `feature/` | New features or enhancements |
+| `bugfix/` | Bug fixes |
+| `hotfix/` | Urgent production fixes |
+| `chore/` | Maintenance (deps, config, etc.) |
+
+## Rules
+
+- **Always** include the tracker issue key when your team uses one (e.g. `PROJ-123`, `VAP-2325`).
+- Use **kebab-case** for the short description.
+- Be specific: e.g. `bugfix/PROJ-123-fix-overflow-routing` not `bugfix/PROJ-123-fix`.
+
+## Before creating a branch (required)
+
+**Do not** run `git checkout -b` or create a branch until the user confirms the name.
+
+1. Propose a branch name using the format above (infer `<type>`, issue key, and description from the task).
+2. Call **AskQuestion** with the proposed full branch name and sensible alternatives (for example a different `<type>` or shorter description).
+3. **Wait for the user's answer** before creating or checking out the branch.
+4. Only after confirmation, run `git checkout -b <confirmed-name>` (or switch to an existing branch if the user chose that).
+
+If the user already gave an exact branch name in the same message, still confirm via AskQuestion unless they explicitly said to use that name without asking.
+
+## Examples (good)
+
+- `feature/PROJ-123-add-user-auth`
+- `bugfix/VAP-2325-resiroo-followup-language`
+- `hotfix/PROJ-789-patch-api-security`
+
+## Examples (bad)
+
+- `fix-bug`, `new-feature`, `test`, branches without an issue key when your team requires one.

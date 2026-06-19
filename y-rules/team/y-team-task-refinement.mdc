@@ -1,0 +1,341 @@
+---
+description: >-
+  Refine any team task into a clear, well-scoped tracker item before work starts.
+  Works for any role (engineer, QA, PO/product, support, design, ops). Recognizes
+  the task type (Task / Story / Bug / Epic / Spike), asks focused questions via
+  AskQuestion, surfaces vague or missing details, recommends a sync when context is
+  thin, fills required + important fields, runs a final review, then either creates
+  the item in Jira (Atlassian MCP) or returns a clean Markdown draft to paste.
+  Self-contained and shareable — depends on no other rules.
+alwaysApply: false
+---
+
+# Team task refinement
+
+Turn a rough idea, bug report, or feature request into a **clear, well-scoped tracker item** with enough context, acceptance criteria, and required fields filled — so anyone on the team can pick it up without guesswork.
+
+**Use this when** the user wants to refine, draft, or create a task / story / bug / epic, write acceptance criteria, file a bug, escalate a client issue, or clean up a vague ticket — or invokes **`@y-team-task-refinement`**.
+
+**Designed for small teams:** simple, fast, role-agnostic. Keep the interaction light — ask only what matters, suggest good defaults, and let the user override anything.
+
+> This rule is **self-contained**. It does not rely on any other rule, and nothing should be required to read it. Safe to copy into another team's workspace as-is (just edit the **Team config** block below).
+
+---
+
+## Team config (edit once per workspace)
+
+Fill these in for your team. If left blank, ask the user once and remember the answer for the session.
+
+```yaml
+tracker: jira                  # jira | none (markdown only)
+jira_site: <your-site.atlassian.net>   # e.g. acme.atlassian.net
+default_project_key: <KEY>     # e.g. ENG, VAP, PROD
+issue_types: [Task, Story, Bug, Epic, Spike, Sub-task]   # what your project supports
+common_labels: []              # optional: team/product area labels to suggest
+estimation: story_points       # story_points | t_shirt | none
+```
+
+- **Jira via Atlassian MCP:** use `cloudId: <jira_site>` and the tools `createJiraIssue`, `editJiraIssue`, `getJiraIssue`, `searchJiraIssuesUsingJql`, `lookupJiraAccountId`. Always pass `contentFormat: "markdown"` / `responseContentFormat: "markdown"`.
+- **No tracker / MCP unavailable:** deliver a Markdown draft for the user to paste. Never block on tooling.
+
+---
+
+## Core principles
+
+1. **Clarity first.** A good item answers: *what, why, for whom, and how we know it's done.*
+2. **Ask, don't assume.** Use **`AskQuestion`** for choices, confirmations, and double-checks. Prefer structured options over open prompts where you can.
+3. **Surface vagueness.** If something is unclear, contradictory, or missing, say so plainly and propose a concrete fix.
+4. **Right-size the effort.** A typo-fix bug needs two lines; an epic needs scope and breakdown. Don't over-process small tasks.
+5. **Suggest, never force.** Recommend the task type, fields, and improvements — the user always has the final say.
+6. **Guard required fields.** Don't create the item until the required fields for its type are filled (or explicitly waived).
+
+---
+
+## Pipeline
+
+Follow in order. Skip any step whose answer the user already gave.
+
+### 1. Delivery mode
+
+Unless already clear, **`AskQuestion`**:
+- **Create in tracker** — build the item and create it (Jira via MCP).
+- **Markdown only** — produce a clean draft to copy-paste; never call create/edit APIs.
+
+### 2. Recognize the task type (suggest, let user choose)
+
+From the user's description, infer the most likely type and **suggest it** via **`AskQuestion`**, always offering the alternatives:
+
+| Type | Use when |
+|------|----------|
+| **Bug** | Something is broken vs expected behavior |
+| **Story** | User-facing capability or enhancement (value to a persona) |
+| **Task** | Concrete unit of work, often technical, no user-story framing |
+| **Epic** | Large effort spanning multiple stories/tasks |
+| **Spike** | Time-boxed research / investigation to reduce unknowns |
+
+State your guess and why (e.g. *"This reads like a Bug because it describes broken behavior — change if you prefer"*). The user can pick any supported type.
+
+### 3. Identify the lens (optional, lightweight)
+
+Tailor questions to the author's angle. Infer it; only ask if unclear:
+- **Engineer** — implementation work, refactor, tech debt
+- **QA** — bug from testing, needs repro + evidence + link to the item under test
+- **PO / Product** — value, scope, priority, success metric
+- **Support / CS** — client report, impact, evidence; usually no estimate
+- **Design / Ops / other** — adapt; keep the same core fields
+
+### 4. Gather context (focused questions + vagueness check)
+
+Ask only the gaps needed for the chosen type (see **Field reference**). Batch related questions in one **`AskQuestion`** when possible.
+
+While gathering, actively **flag**:
+- **Vague terms** — "make it faster", "fix the flow" → ask: faster than what? which flow, which step?
+- **Missing who/why** — no persona or no problem statement.
+- **Untestable outcomes** — rewrite into something verifiable.
+- **Contradictions / scope creep** — point them out and propose a boundary.
+
+**When context looks thin or the scope is large/cross-team**, recommend a short sync rather than guessing:
+- Suggest a quick meeting with the relevant people (name the roles if known).
+- Offer to **draft 3–5 questions / a mini-agenda** for that meeting.
+- Offer to **ingest a pasted meeting summary** and fold it into the context.
+- This is a recommendation, not a blocker — the user can proceed without it.
+
+### 5. Build the draft
+
+Assemble: **Title**, **Description** (type-appropriate template below), **Acceptance criteria**, and **metadata** (type, priority, labels/area, estimate, parent/epic, assignee if known).
+
+### 6. Required-fields checklist
+
+Render a table and mark each row. Do **not** create while required rows are ❌.
+
+| # | Field | Status | Value |
+|---|-------|--------|-------|
+| 1 | Title | ✅ | … |
+| 2 | Type | ✅ | Story |
+| 3 | Description + AC | ❌ | *needs acceptance criteria* |
+| … | … | … | … |
+
+If a required field is genuinely not applicable, ask the user to confirm waiving it before proceeding.
+
+### 7. Final review
+
+Show the full draft and **`AskQuestion`**: **Approve** · **Edit** (then loop) · **Cancel**. Confirm any field you inferred rather than were told (priority, type, labels).
+
+### 8. Deliver
+
+- **Create in tracker:** after approval, create the item (Jira: `createJiraIssue`, then `editJiraIssue` for fields the create call can't set — estimate, parent/epic link, assignee). For QA bugs, link to the item under test. Return the item URL + a one-line "what's next".
+- **Markdown only:** output the [Markdown draft](#markdown-output) and a short "paste this into your tracker" note. No API calls.
+
+---
+
+## Field reference (required vs recommended)
+
+Required = block creation until filled. Recommended = strongly suggest, but the user may skip.
+
+### Common to all types
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| Title / summary | ✅ | Specific and outcome-focused; reject placeholders like "fix stuff" |
+| Type | ✅ | From step 2 |
+| Description | ✅ | Type template below |
+| Acceptance criteria | ✅ (Story/Task/Bug) | See [AC format](#acceptance-criteria-format) |
+| Priority | ✅ | e.g. Highest / High / Medium / Low |
+| Labels / area | ⚪ recommended | Use `common_labels` from config when relevant |
+| Estimate | ⚪ recommended | Per `estimation`; allow `needs-refinement` if unknown |
+| Parent / Epic link | ⚪ recommended | Required if the work clearly belongs to an epic |
+| Assignee | ⚪ optional | Resolve names via `lookupJiraAccountId` before setting |
+
+### Type-specific must-haves
+
+- **Bug** — steps to reproduce, expected vs actual, environment, evidence (logs/screenshot/IDs). QA bugs: link to the item under test.
+- **Story** — user story (*As a … I want … so that …*) and a success signal.
+- **Epic** — goal, rough scope, and a first breakdown into child items.
+- **Spike** — the question to answer, time-box, and what artifact/decision it produces.
+
+---
+
+## Acceptance criteria format
+
+Keep AC **concise and testable**. Default structure:
+
+```markdown
+### Scope
+One short paragraph: what this covers, who it affects, and any boundary.
+
+### Functional
+1. **<outcome>** — verifiable behavior in plain language.
+2. **<outcome>** — …
+
+### Out of scope
+- What this item does not change or deliver.
+```
+
+Rules: one idea per bullet; each item verifiable (by review, QA step, or automated check); avoid "should work well". Add subsections like **Non-functional**, **Security**, or **Rollback** only when the task needs them.
+
+---
+
+## Description templates
+
+### Story
+```markdown
+## User story
+As a <persona>, I want <goal>, so that <benefit>.
+
+## Context
+<links, background, meeting summary if any>
+
+## Acceptance criteria
+### Scope
+…
+### Functional
+1. **…** — …
+### Out of scope
+- …
+
+## Success signal (recommended)
+How we know this worked.
+```
+
+### Bug
+```markdown
+## Problem
+<what's broken, for whom, where>
+
+## Steps to reproduce
+1. …
+
+## Expected vs actual
+- Expected: …
+- Actual: …
+
+## Environment
+<env, version, IDs>
+
+## Evidence
+<logs, screenshots, IDs>
+
+## Acceptance criteria
+### Functional
+1. **Fix verified** — repeat steps; expect …
+```
+
+### Task
+```markdown
+## Goal
+<what to do and why>
+
+## Acceptance criteria
+### Functional
+1. **…** — …
+### Out of scope
+- …
+```
+
+### Epic
+```markdown
+## Goal
+<outcome and why it matters>
+
+## Scope
+<what's in / out at a high level>
+
+## Proposed breakdown
+- [ ] <child story/task 1>
+- [ ] <child story/task 2>
+
+## Open questions
+- …
+```
+
+### Spike
+```markdown
+## Question to answer
+<the unknown to resolve>
+
+## Time-box
+<e.g. 1 day>
+
+## Output
+<decision, doc, or recommendation expected>
+```
+
+---
+
+## Meeting / more-context handling
+
+When the task is large, cross-team, or under-specified:
+
+1. **Recommend** a short sync and suggest who should be there (by role).
+2. Offer to **draft a mini-agenda** — 3–5 sharp questions that would unblock the item.
+3. Offer to **fold in a meeting summary**: if the user pastes notes, extract decisions, scope, and constraints into the **Context** and **AC**.
+4. Proceed without the meeting if the user prefers — but keep the open questions visible in the draft.
+
+---
+
+## Markdown output
+
+When delivery mode is **Markdown only**, after approval return one copy-paste-ready block:
+
+```markdown
+# <Title>
+
+## Item metadata
+| Field | Value |
+|-------|-------|
+| Project | <KEY> |
+| Type | Story |
+| Priority | High |
+| Labels / area | … |
+| Estimate | 3 (or needs-refinement) |
+| Parent / Epic | … |
+| Assignee | <set in tracker> |
+
+## Description
+<full description from the type template, including AC>
+```
+
+End with: *Copy the description into your tracker; set the metadata fields from the table above.*  
+Offer to also save it as a file if the user wants a shareable draft.
+
+---
+
+## Creating the item in Jira (when tracker = jira)
+
+Only after the user **approves** and all required rows are ✅:
+
+```
+createJiraIssue(
+  cloudId: "<jira_site>",
+  projectKey: "<default_project_key or chosen>",
+  issueTypeName: "<Task|Story|Bug|Epic|Spike>",
+  summary: "<title>",
+  description: "<markdown description>",
+  contentFormat: "markdown",
+  additional_fields: { priority: { name: "<priority>" }, labels: ["…"] }
+)
+```
+
+Then `editJiraIssue` for fields the create call can't set (estimate / story points, parent or epic link, assignee). Confirm with the user before each create/edit. For QA bugs, link the new bug to the item under test after creation.
+
+If a custom field name or issue type isn't accepted, read a sample issue with `getJiraIssue` to find the correct field display name, or ask the user.
+
+---
+
+## Quick examples
+
+```
+Refine this into a story: users should get an ETA after reporting an issue.
+File a bug from this test failure: <paste>
+Help me write a clear epic for the new onboarding flow.
+Draft a spike to evaluate two queue libraries.
+This ticket is vague — clean it up before I create it.
+```
+
+---
+
+## Notes / limitations
+
+- Custom field IDs and issue-type names vary per Jira project — fall back to display names from `getJiraIssue`, or ask.
+- Estimation style follows the **Team config**; never invent points — offer `needs-refinement` instead.
+- Sprint, fix version, and release fields are intentionally left out of creation; they belong to planning, not refinement.

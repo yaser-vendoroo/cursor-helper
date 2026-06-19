@@ -1,0 +1,234 @@
+---
+description: >-
+  Google Calendar PR review helper — step 0 asks generate title/desc or create
+  draft event (15 min, starts now, no guests). Requires Google Calendar MCP
+  auth for create path. Discover waiting PRs via gh; styled Markdown desc.
+alwaysApply: false
+---
+
+# GC Meet Helper — Calendar PR review (`y-gc-meet-helper`)
+
+Use when the user asks to **prepare a PR review meeting**, **Google Calendar meeting text**, **calendar title/description for a PR**, or similar — especially after a PR exists or during the Task PR flow (`.cursor/y-rules/git/y-git-create-pr.mdc` step 16).
+
+---
+
+## Step 0 — Mode (mandatory first step)
+
+Before PR discovery, drafting, or any Calendar work, use **`AskQuestion`**:
+
+| Option | Meaning |
+|--------|---------|
+| **Generate title and description only** | Agent drafts title + styled description; **user** creates the event manually and copy-pastes. **Default** when the user did not say “create the event”. |
+| **Create draft event in Google Calendar** | After draft approval, agent creates a **draft** event on the user’s calendar via **Google Calendar MCP** (see [Google Calendar connection](#google-calendar-connection-required-for-create-path)). |
+| **`other`** | User explains a variant. |
+
+**Rules:**
+
+- **Do not** discover PRs, draft text, or call Calendar APIs until step 0 is answered — **unless** the user **already stated the mode** in the same message.
+- If the user chose **Generate title and description only**, **do not** create or update Calendar events in that run.
+- If the user chose **Create draft event**, follow [Path B](#path-b--create-draft-event-in-google-calendar) and **do not** fall back to silent manual-only unless MCP auth fails after the user is prompted to connect.
+
+---
+
+## Google Calendar connection (required for create path)
+
+Creating events requires **OAuth** to the user’s Google account via the **local Calendar MCP** at **`~/.calendar-mcp/mcp-google-calendar`**.
+
+### Local MCP (preferred)
+
+| Item | Path |
+|------|------|
+| **MCP server** | `~/.calendar-mcp/mcp-google-calendar/index.js` |
+| **Cursor launcher** | `~/.cursor/scripts/run-mcp-google-calendar.sh` |
+| **Env file** | `~/.cursor/google-calendar-mcp.env` (copy from `google-calendar-mcp.env.example`) |
+| **Tokens** | `~/.calendar-mcp/credentials.json` (from `npm run auth`) |
+| **One-shot draft script** | `cd ~/.calendar-mcp/mcp-google-calendar && npm run create-draft` |
+
+**`~/.cursor/mcp.json`** should point `google-calendar` at **`run-mcp-google-calendar.sh`**, not `npx @gongrzhe/...`.
+
+### First-time OAuth (user or agent runs once)
+
+1. Google Cloud Console → enable **Google Calendar API** → **OAuth Desktop** client → copy Client ID + Secret.
+2. Create **`~/.cursor/google-calendar-mcp.env`** with `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, optional `GOOGLE_TIMEZONE=Asia/Dubai`.
+3. Run:
+   ```bash
+   cd ~/.calendar-mcp/mcp-google-calendar && npm install && npm run auth
+   ```
+4. Open the printed URL, authorize, paste the code. Tokens save to **`~/.calendar-mcp/credentials.json`**.
+5. **Reload Cursor MCP** (Settings → MCP → `google-calendar` green).
+
+### Before the first create in a session
+
+1. **Detect MCP** — `google-calendar` / `create_event` in available tools, **or** local env + credentials exist.
+2. **If MCP tool unavailable but local setup is ready** — run **`npm run create-draft`** in `~/.calendar-mcp/mcp-google-calendar` with approved title/description (update `create-draft-event.mjs` or pass env vars for this run).
+3. **If auth missing** — stop create path; run **`npm run auth`** or fix env; do not guess credentials.
+4. **Do not** create events until API call succeeds or user confirms OAuth is complete.
+
+**Handoff when blocked:** offer **Generate title and description only** with the same draft content.
+
+---
+
+## Draft event (create path — required behavior)
+
+When the user chose **Create draft event in Google Calendar**, create a **draft shell** the user finishes in the Calendar UI.
+
+| Field | Rule |
+|--------|------|
+| **Duration** | **15 minutes** by default. Override only when the user specifies another length in chat or **`AskQuestion`**. |
+| **Start** | **Current date and time** in the **user’s local timezone** (from user info, system, or ask once). **Round to the next minute** if the MCP requires whole minutes. |
+| **End** | Start + duration. |
+| **Overlaps** | **Do not** check free/busy, suggest slots, or move the start time to avoid conflicts. **Always use “now”** even if it overlaps existing events. |
+| **Attendees** | **None** on create. **Do not** invite reviewers, resolve emails, or send updates. User adds guests later. |
+| **Google Meet / conference** | **Do not** add unless the user explicitly asks in this run. |
+| **Notifications** | **Do not** send invite emails (`sendUpdates: none` or MCP equivalent). |
+| **Status** | Use **`tentative`** when the MCP/API supports it; otherwise default event status on primary calendar. |
+| **Calendar** | User’s **primary** calendar unless they name another. |
+| **Summary** | Approved **title** (see [Title format](#title-format-required)). |
+| **Description** | API-safe **plain text** from the approved draft (strip `**`; keep URLs and line breaks). |
+
+After create, return the **event link** (`htmlLink` or MCP equivalent), **start**, **end**, **timezone**, and remind the user they can **change time, add guests, add Meet**, and edit any field in Google Calendar.
+
+---
+
+## At a glance
+
+| Piece | Rule |
+|--------|------|
+| **Step 0** | Generate title/desc **or** create **draft** GC event |
+| **Calendar MCP** | **Required** for create path; OAuth before first create |
+| **Draft timing** | **Now** → **now + 15 min**; **ignore** overlaps |
+| **Draft guests** | **None** — user adds later |
+| **Discover PRs** | Open, non-draft PRs **waiting for review** via **`gh`** |
+| **Title** | `PR Review -` / `PRs Review -` + `<JIRA-KEY>#<pr-number>` pairs |
+| **Description (chat)** | Styled Markdown — copy from message on generate-only path |
+| **Description (API)** | Plain text + URLs on create path |
+
+---
+
+## Title format (required)
+
+Plain text (Calendar **Summary**). Output in a **`text`** fenced code block for generate-only; use the same string for API **summary**.
+
+### Single PR
+
+```text
+PR Review - <JIRA-KEY>#<pr-number>
+```
+
+Example: `PR Review - VAP-2668#807`
+
+### Multiple PRs
+
+```text
+PRs Review - <JIRA-KEY-1>#<pr-number-1> <JIRA-KEY-2>#<pr-number-2> …
+```
+
+Example: `PRs Review - VAP-3159#918 VAP-3151#919`
+
+### Title rules
+
+- Prefix: **`PR Review -`** (one PR) or **`PRs Review -`** (multiple).
+- Pairs: **`<JIRA-KEY>#<pr-number>`** — no space before `#`; space between pairs.
+- Ascending Jira key order unless the user asks otherwise.
+- No repo name or URLs in the title.
+
+---
+
+## Description format (required) — copy from styled chat
+
+Google Calendar **Description** (manual paste):
+
+- **Does not** render pasted **HTML** or Markdown from a **code block**.
+- **Does** keep **rich text** when the user copies **rendered** Markdown from the chat (bold, bullets, links).
+
+### Agent output (styled Markdown — not a code block)
+
+Under **`### Description (copy from here)`**, write **normal Markdown in the message body**. **Never** fence the description.
+
+**One bullet (`-`) per Jira task**, same order as the title:
+
+1. **Bold headline:** `**VAP-xxxx — &lt;short headline&gt;**`
+2. Blank line → summary (1–3 sentences, outcome-focused).
+3. Blank line → **`**Task:** https://vendoroo-dev.atlassian.net/browse/VAP-xxxx`**
+4. Blank line → **`**PR:** https://github.com/.../pull/&lt;n&gt;`**
+
+Use **full URLs** (not `[label](url)`). **No HTML tags.**
+
+**Generate-only handoff:** *Select the **Description** section below, copy, paste into Calendar Description.*
+
+**Create path — API description:** convert approved draft to plain text, e.g.:
+
+```text
+VAP-3159 — Filter non-resident AIResidentCom at debounce dispatch until ROY-191
+Persists all valid AIResidentCom updates in message_buffer, then marks non-resident Todo rows Skipped at debounce dispatch so ResiRoo only processes resident-eligible messages when RESIROO_MULTI_ROLE_MESSAGES_ENABLED=false (default).
+Task: https://vendoroo-dev.atlassian.net/browse/VAP-3159
+PR: https://github.com/Vendoroo/generative-search/pull/918
+
+VAP-3151 — Limit Generative Search Number of Images to get Processed to a maximum of 5
+Adds RESIROO_MAX_IMAGES_TO_ANALYZE (default 5) and caps inbound ImageUrls at the start of image analysis, so vision analysis, DB storage, attachment metadata, and outbound ImageAnalysis all use the first five images per resident turn.
+Task: https://vendoroo-dev.atlassian.net/browse/VAP-3151
+PR: https://github.com/Vendoroo/generative-search/pull/919
+```
+
+---
+
+## Discover open PRs waiting for review
+
+Run **after step 0**, unless the user named exact PR number(s) or URL(s).
+
+```bash
+gh pr list --author @me --state open \
+  --json number,title,url,isDraft,reviewDecision,reviewRequests,headRefName
+```
+
+**Include** when: not draft, and still waiting for review. **Exclude** when approved with no pending requests.
+
+Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select, default all).
+
+---
+
+## Agent workflow
+
+### Shared (both modes)
+
+0. **Mode** — **`AskQuestion`** (see [Step 0](#step-0--mode-mandatory-first-step)).
+1. **Discover PRs** — unless scope fixed.
+2. **Confirm scope** — when needed.
+3. **Gather data** — `gh pr view`, Jira keys, headlines, summaries.
+4. **Draft** — title in `text` code block; description as styled Markdown under **`### Description (copy from here)`**.
+5. **Approve draft** — **`AskQuestion`**: Approve / Edit / Cancel.
+
+### Path A — Generate title and description only
+
+6. **Handoff** — user copies styled description and title into Calendar; adds guests, time, and Meet **manually**.
+7. Do **not** claim the meeting exists until the user confirms (Slack calendar line in `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`).
+
+### Path B — Create draft event in Google Calendar
+
+6. **Connect Calendar** — see [Google Calendar connection](#google-calendar-connection-required-for-create-path). Stop if env/credentials missing.
+7. **Optional duration** — default **15 minutes** unless user overrides.
+8. **Compute time** — `start` = **now** (user timezone); `end` = start + duration. **No** free/busy.
+9. **Create draft** — MCP `create_event` **or** `npm run create-draft` locally; **no attendees**, **no Meet**, **tentative**, plain-text description.
+10. **Return** — event URL, start, end, timezone; user edits guests/time in Calendar UI.
+11. Do **not** send Slack or move Jira unless the user asks separately.
+
+---
+
+## What not to do
+
+- Do **not** skip **step 0 (mode)** unless the user already stated generate-only or create-draft in the same message.
+- Do **not** create Calendar events on the **generate-only** path.
+- Do **not** create a draft event **without** a connected, authenticated **Google Calendar MCP**.
+- Do **not** check free/busy or avoid overlaps — **always start at current date/time**.
+- Do **not** add **attendees** or send **invite emails** on draft create.
+- Do **not** default to **30 minutes** — use **15 minutes** unless the user overrides.
+- Do **not** put the chat description in a fenced code block (styling lost on paste).
+- Do **not** output HTML for manual paste.
+- Do **not** omit **Task:** / **PR:** URL lines on any task block.
+
+---
+
+## Related rules
+
+- **`.cursor/y-rules/git/y-git-create-pr.mdc`** — Task PR step 16: run this helper; step 0 asks generate vs create draft.
+- **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — Slack calendar line only after the meeting exists on Calendar.

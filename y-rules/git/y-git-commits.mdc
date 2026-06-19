@@ -1,0 +1,166 @@
+---
+description: Analyze uncommitted work and create atomic Conventional Commits — AskQuestion before every commit, push, or PR
+alwaysApply: false
+---
+
+# Git: commits (`y-git-commits`)
+
+Use when the user invokes **`/y-git-commits`** or asks to **analyze uncommitted changes**, **group work into commits**, or **commit with Conventional Commits** across multiple logical slices.
+
+**Related:** [`/y-git-commit-message`](../../y-commands/y-git-commit-message.md) drafts a message for already-staged or single-commit work. **`/y-git-commits`** analyzes the full working tree and may create **multiple** commits.
+
+**Out of scope:** rewriting unpushed commit history (`reset --soft`, rebase, amend chains). Only **uncommitted** work (staged, unstaged, untracked) is handled here.
+
+---
+
+## AskQuestion gates (mandatory)
+
+**Every** user decision in this flow must use the **`AskQuestion`** tool — not open-ended chat prompts like "shall I proceed?" or "let me know if this looks good."
+
+| Step | When | Options (minimum) |
+|------|------|-------------------|
+| **Untracked files** | `??` entries in `git status` | Stage all task files / Stage selected only / Skip / `other` (same as [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc)) |
+| **Commit plan** | After presenting the plan table and draft messages | Approve plan — commit now / Single commit instead / Edit plan / Plan only — no commits / `other` |
+| **Re-confirm after edits** | User chose "Edit plan" and adjustments were made | Approve revised plan / Edit again / Plan only / `other` |
+| **Ambiguous hunk** | One file spans multiple slices and path-based staging is unclear | Assign to commit N / Split hunk / Skip file / `other` |
+| **Follow-up** | After all commits succeed | Push to origin / Create PR / Done / `other` |
+
+**Hard rule:** Do **not** run `git add`, `git commit`, `git push`, or open a PR until the matching **`AskQuestion`** gate is answered. Wait for the user's selection before continuing.
+
+---
+
+## Phase 1 — Gather context (parallel)
+
+Run:
+
+```bash
+git status --short
+git diff
+git diff --staged
+git branch --show-current
+git log --oneline -10
+```
+
+Also check whether upstream exists (`git rev-parse --abbrev-ref @{upstream}`) for later optional push handoff — **do not push** without a follow-up **`AskQuestion`**.
+
+---
+
+## Phase 2 — Preconditions
+
+- **Empty working tree:** report "nothing to commit" and stop (no **`AskQuestion`** needed).
+- **Untracked (`??`) files:** **`AskQuestion`** per [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc) options before analysis continues. Do not include secrets (`.env`, credentials) per existing track-new-files rules.
+- **Unpushed commits on branch:** note them in the summary but **do not** rewrite; only uncommitted work is handled here.
+
+---
+
+## Phase 3 — Analyze and group
+
+Infer intent from diffs, filenames, tests, branch name (`[A-Z]+-\d+`), and conversation — **not** a raw file list dump.
+
+### Grouping heuristics (priority order)
+
+1. **Keep coupled changes together** — implementation + its tests; API + contract types; rule + its command stub.
+2. **Split independent concerns** — unrelated bug fix vs new feature vs docs-only vs CI-only vs pure refactor.
+3. **Separate by Conventional Commit type** when changes are logically independent:
+   - `test` — tests only for behavior added in another slice (split when tests are large or reviewable standalone)
+   - `docs` / `chore` / `ci` / `build` — config, lockfiles, tooling, markdown-only
+   - `refactor` — behavior-preserving restructure without functional change
+   - `feat` / `fix` — user-visible behavior
+4. **Prefer fewer commits** when everything is one cohesive task — a single atomic commit is valid; splitting is only when it improves review clarity.
+5. **Exclude noise** — `.idea/`, local dumps, `cursor_workspace/` artifacts unless explicitly part of the task.
+
+**Commit order:** foundations before dependents (e.g. shared types → consumers; core change → tests that depend on it).
+
+---
+
+## Phase 4 — Present commit plan (before any writes)
+
+Show a table for each proposed commit:
+
+| # | Type | Issue key | Paths (summary) | Draft subject |
+|---|------|-----------|-----------------|---------------|
+| 1 | `feat` | `VAP-1234` | `services/roo/...` | `feat(VAP-1234): add ceiling triage routing` |
+
+For each commit, also show a **draft full message** (subject + 1–2 past-tense bullets + `Refs` footer) following [`.cursor/y-commands/y-git-commit-message.md`](../../y-commands/y-git-commit-message.md) conventions — **reference that file** for subject, body, and footer rules; do not duplicate the entire spec here.
+
+Then **`AskQuestion`** — commit plan gate (see [AskQuestion gates](#askquestion-gates-mandatory)). If the user picks **Edit plan**, apply changes and **`AskQuestion`** again for re-confirm.
+
+If the user picks **Single commit instead**, collapse the plan to one Conventional Commit and **`AskQuestion`** once more before execution.
+
+If the user picks **Plan only — no commits**, stop after the plan.
+
+---
+
+## Phase 5 — Safety snapshot
+
+Before the first `git add`, create a recoverable backup **without** changing the working tree:
+
+```bash
+SHA=$(git stash create "pre-y-git-commits-$(date +%s)")
+if [ -n "$SHA" ]; then
+  git update-ref "refs/backup/pre-y-git-commits-$(date +%s)" "$SHA"
+fi
+```
+
+Tell the user the backup ref name. **No** `reset --hard`, `clean`, or force-push.
+
+---
+
+## Phase 6 — Execute commits (sequential)
+
+For each approved slice, in order:
+
+1. **Unstage all** if needed: `git reset HEAD` (mixed — keeps working tree).
+2. **Stage only planned paths:** `git add <path>...` — **never** `git add -A` / `git add .`.
+3. Verify staging: `git diff --staged --stat` matches the slice.
+4. Commit with HEREDOC message (no `--no-verify`):
+
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   <subject line>
+
+   - <past-tense bullet>
+   - <optional second bullet>
+
+   Refs <ISSUE-KEY>
+   EOF
+   )"
+   ```
+
+5. Brief progress line after each commit.
+
+If a slice cannot be staged cleanly (overlapping hunks in one file), **`AskQuestion`** — ambiguous hunk gate; use `git add -p` only after the user confirms.
+
+---
+
+## Phase 7 — Handoff
+
+After all commits:
+
+- `git status --short` — confirm clean or list what remains.
+- `git log --oneline -N` — show new commits.
+- **`AskQuestion`** — follow-up gate:
+
+| Option | Action |
+|--------|--------|
+| **Push to origin** | `git push -u origin HEAD` (only after confirmation; no force-push unless user explicitly asks) |
+| **Create PR** | Delegate to [`.cursor/y-commands/y-git-create-pr.md`](../../y-commands/y-git-create-pr.md) |
+| **Done** | Stop |
+| **`other`** | User specifies next step in chat |
+
+---
+
+## Do not
+
+- Run `git add`, `git commit`, `git push`, or open a PR without **`AskQuestion`** approval at the matching gate.
+- Use chat-only confirmation ("looks good?", "proceed?") — use **`AskQuestion`**.
+- Use `git add -A` / `git add .`, or stage secrets (`.env`, credentials).
+- Force-push to `main` / `master` without an explicit user request and a warning.
+- Amend or rewrite existing commits in this flow.
+- Use generic subjects ("Update code", "Fix issue", "Refactor logic").
+- List every modified file in commit message bodies — explain **why**, per [`y-git-commit-message.md`](../../y-commands/y-git-commit-message.md).
+
+## Also apply
+
+- **B2 English** for all narration ([`y-communication-b2-english.mdc`](../agent/y-communication-b2-english.mdc)).
+- **Branch naming** when creating branches is out of scope here; if needed later, see [`y-git-branch-name.mdc`](y-git-branch-name.mdc).

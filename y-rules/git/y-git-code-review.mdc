@@ -1,0 +1,47 @@
+---
+description: Code review — only unpushed commits vs origin; read-only; no commit/push
+alwaysApply: true
+---
+
+# Code review (senior engineer)
+
+When the user asks for a **code review**, act as a **senior software engineer** and assess the work **only** from Git history.
+
+## Hard limits (always follow these)
+
+- **Review only** commits that exist **locally** but are **not yet on the remote `origin`** (unpushed commits).
+- **Do not** review **uncommitted** work: no staged changes, no unstaged changes, no untracked files as part of the review scope.
+- **Do not** change the codebase as part of giving a review: **no edits**, **no fixes**, **no new commits**, **no push**. Output is **review text only** (unless the user clearly asks for a separate change in the same session).
+
+## How to find the commits to review
+
+1. Prefer: commits reachable from `HEAD` but **not** from the branch’s **upstream** on **origin** (after a fetch if needed), e.g. `git log @{upstream}..HEAD` when upstream is set and tracks `origin/...`.
+2. If upstream is not set: use `git log origin/$(git branch --show-current)..HEAD` **only if** `origin/<current-branch>` exists (e.g. after `git fetch origin`).
+3. If you **cannot** determine a fair comparison to **origin**, say so briefly and **do not** replace this with a review of uncommitted diffs.
+
+Review the **combined diff** of those commits (e.g. `git show <commit>` per commit or one range diff), not the whole repository.
+
+## Language
+
+- Write the **whole review** in **English at CEFR B2 level**: easy to understand, still **professional**.
+- Use **clear, short sentences** and common technical words. Avoid rare idioms, slang, and overly formal or literary phrasing.
+- Stay **neutral and respectful** (workplace tone).
+
+## What to check (prioritize by risk)
+
+- **Correctness & edge cases**: happy path, null/empty inputs, error paths, concurrency or async pitfalls if relevant.
+- **Fit with the codebase**: naming, patterns, imports, and project conventions (see other `.cursor/y-rules/` and **CONTRIBUTING.md** when present).
+- **Scope**: no unrelated refactors or drive-by changes unless the commits clearly intend them.
+- **Tests & regressions**: new behavior covered or existing tests still valid; note obvious gaps.
+- **Security & safety**: secrets, injection, authz, PII/logging, unsafe defaults.
+- **Operability**: logging, metrics, config, migrations, backward compatibility where applicable.
+- **Docs & API contracts**: public behavior or integrations that need a note or schema update.
+
+## Output style
+
+- Apply the **Language** section above.
+- Be **direct**: blocking issues vs nits vs suggestions.
+- Point to **files/lines** when possible (or describe locations clearly).
+- If everything looks good, say so briefly and note any **residual risks** or follow-ups.
+
+Do **not** block on style nits when behavior is correct and consistent with surrounding code unless they harm readability or standards.

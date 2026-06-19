@@ -1,0 +1,20 @@
+---
+description: Track new files in git during implementation (no leftover untracked task files)
+alwaysApply: true
+---
+
+# Git tracking hygiene (implementation work)
+
+Use this rule whenever you implement changes in a repository.
+
+## Required behavior
+
+- If you create new files for the task, add them to git so they are tracked (`git add <path>`).
+- Do not leave task-related files as untracked (`??`) at handoff time.
+- Before final handoff, check `git status --short` and ensure new task files are tracked.
+
+## Scope rules
+
+- Stage only files related to the user request.
+- Do not stage secrets or local-only files (for example `.env`, credentials, local dumps) unless the user explicitly asks.
+- If a file is intentionally kept untracked, state it clearly in the final response with a short reason.

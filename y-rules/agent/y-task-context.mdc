@@ -1,0 +1,113 @@
+---
+description: Task context — AC, stakeholder Summary, document titles (`y-task-context`)
+alwaysApply: false
+---
+
+# Task context (`y-task-context`)
+
+Use this rule when drafting **task-level** Markdown: **acceptance criteria** and **Summary** (for stakeholder review documents), and similar.
+
+## Document title (one page with multiple sections)
+
+When a **single document** includes **`## Summary`**, **`##` … Acceptance criteria**, and/or other sections (handoff, Confluence page, combined Markdown):
+
+- **Set one short document title** (Confluence page title or a single `#` line in Markdown): ticket key, em dash, then a **short topic phrase** in plain language—scannable in a list, no fluff. Example: `PROJ-2717 — Ceiling water triage`. Keep it **short and reasonable**; omit file paths, commit hashes, and long subtitles.
+- **Section headings are not the document title.** **`## Summary`** and **`## <KEY> — Acceptance criteria`** are **parts** of the page; they do not replace the overall title.
+- **Default section order** (unless the user says otherwise): **`## Summary`** first, then **`## <KEY> — Acceptance criteria`**, then any other sections.
+
+If the user asked for **only** AC or **only** Summary, omit the other block; a document title is optional unless they want a named page or file.
+
+---
+
+## Acceptance criteria (AC)
+
+When the user asks for **acceptance criteria**, **AC**, or **definition of done** for a task or ticket, produce **Markdown** using the structure below unless they specify another format.
+
+### Default structure
+
+```markdown
+## <KEY-123> — Acceptance criteria
+
+### Scope
+
+One short paragraph: what behavior or surface this work covers, who it affects, and any boundary. Stay **channel-agnostic** unless the ticket explicitly limits the channel or medium.
+
+---
+
+### Functional
+
+1. **…** — Testable outcome in plain language.
+2. **…** — …
+
+---
+
+### Non-functional / quality
+
+1. **…** — e.g. consistency with docs, state rules, logging, performance—only what matters for *this* task.
+
+---
+
+### Out of scope
+
+- **…** — What this ticket does *not* change or deliver (stops scope creep).
+```
+
+- Use the real **ticket key** in the title when known. If unknown, use `## Acceptance criteria` only.
+- Use **`---`** between major sections for readability in Confluence/Jira/GitHub.
+
+### Writing rules
+
+- **Concise:** short bullets; one idea per numbered item where possible.
+- **Testable:** each item should be verifiable (review output, QA step, automated check)—avoid vague “should work well.”
+- **No unnecessary channel assumptions:** do not mention SMS, email, or app unless the task is explicitly about that channel.
+- **Adapt sections:** add or rename subsections when the task needs them (e.g. **Security**, **Accessibility**, **Rollback**) but keep **Scope**, **Functional**, and usually **Out of scope** unless the user asks for a minimal list.
+
+### When ticket context is thin
+
+Infer scope from branch name, title, and linked PR/commits; state assumptions briefly under **Scope** or the first functional item.
+
+---
+
+## Summary (review and stakeholder documents)
+
+Use this for a **stakeholder review** or **handoff document**—**not** a chat message and **not** a substitute for the AC block above unless asked to combine. On a **combined** page with AC, the **document title** is separate; this block always starts with **`## Summary`**.
+
+### Rules
+
+**Intro (top of Summary, before `### Problems`):**
+
+- **Keep it brief.** Do not restate long mandatory-review boilerplate.
+- **Document voice:** neutral, third person or institutional—**not** conversational (no “Hi,” “thanks,” direct address).
+- State **what the document summarizes** and, if useful, **what kind of feedback** is wanted—in one to three short sentences.
+
+**Work item:**
+
+- Put **`Work item:`** with a **Markdown link** to the tracker when the key is known: `[KEY-123](https://<YOUR-JIRA-SITE>/browse/KEY-123)`. Place it **after** the intro paragraph and **before** **`### Problems`**. If the site or key is unknown, use plain text or ask once.
+
+**Problems / Improvements:**
+
+- **Concise:** short bullets; easy to scan.
+- **Audience:** default to **operations / PM / domain expert**—avoid file paths, commit hashes, and internal code names unless asked.
+- Use **`### Problems`** and **`### Improvements`**.
+
+### Template (default)
+
+```markdown
+## Summary
+
+This document summarizes the **…** changes regarding **…**, and what to look for when reviewing them.
+
+**Work item:** [PROJ-2717](https://your-org.atlassian.net/browse/PROJ-2717)
+
+### Problems
+
+- …
+- …
+
+### Improvements
+
+- …
+- …
+```
+
+Replace the example key/URL with the real issue. Ask the user for their Jira site if not known from context or team config.

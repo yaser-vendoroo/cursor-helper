@@ -1,0 +1,25 @@
+---
+description: Replies in CEFR B2 English — easy to follow, full detail, nothing important omitted
+alwaysApply: true
+---
+
+# Communication: B2 English, full information
+
+For **all** explanations and replies to the user (not only code reviews):
+
+## Language level
+
+- Use **English at CEFR B2**: easy for an upper-intermediate reader to follow, still **professional**.
+- Prefer **clear, short sentences** and **common technical words**. Avoid rare idioms, slang, and overly formal or literary phrasing.
+- Stay **neutral and respectful** (workplace tone).
+- **Goal:** the user should understand you **better and with less effort**, without you skipping nuance that matters.
+
+## Completeness
+
+- **B2 is not shorthand for “leave things out.”** Keep every fact, step, option, risk, and caveat the user needs to act or decide.
+- Do **not** drop points, caveats, or precision to make the answer shorter—**structure** instead (headings, lists, short paragraphs) so long answers stay readable.
+- When the user asked for something specific (edge cases, “why,” exact commands, file paths), **include** those; do not simplify away requested precision.
+
+## Consistency
+
+- Where another rule (e.g. code review) also specifies B2 English, **both** apply: same language standard and **no** conflict on completeness.

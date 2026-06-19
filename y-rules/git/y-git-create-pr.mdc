@@ -1,0 +1,1199 @@
+---
+description: Create a Task PR (→ testing), Hotfix PR (→ production), or Release PR (→ production) — AskQuestion to choose path, then follow branch/title conventions for that type
+globs: .github/pull_request_template.md
+alwaysApply: false
+---
+
+# Git: create PR (`y-git-create-pr`)
+
+Use when opening a pull request in this repository. **Task PR**, **Hotfix PR**, and **Release PR** share the same template and most confirmation gates, but differ in **target branch**, **source branch naming**, and **title format**.
+
+**Task PR** may end with **Google Calendar PR review meeting** (step 16, before Slack) and an optional **Slack ready-for-review** notification (step 17) — see [Task PR — Google Calendar PR review meeting](#task-pr--google-calendar-pr-review-meeting-before-slack), [Task PR — Slack ready for review](#task-pr--slack-ready-for-review-optional-last-step), and **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**. The user creates the Calendar event manually; the agent waits for confirmation before Slack.
+
+**Ad-hoc urgent production deploys** (outside scheduled release) use the **Hotfix PR** path below (`prod-<JIRA-KEY>` → `production`). **Scheduled weekly releases** use the **Release PR** path (`release-<version>` → `production`).
+
+---
+
+## Choose PR type (mandatory first step)
+
+Before any fetch, branch work, or `gh pr create`, use **`AskQuestion`**:
+
+| Option | Label suggestion |
+|--------|------------------|
+| **Task PR** | Task work (`<type>/<JIRA>-<desc>` → `testing`) |
+| **Hotfix PR** | Ad-hoc production hotfix (`prod-<JIRA>` → `production`) |
+| **Release PR** | Scheduled production release (`release-<version>` → `production`) |
+
+- Wait for the user's answer — **do not** infer from branch name alone (`release-*` suggests Release PR; `prod-*` suggests Hotfix PR; `feature/` / `bugfix/` / `chore/` suggests Task PR, but still ask unless the user already stated the type in the same message).
+- After the choice, follow **only** the matching section below for branch naming, target branch, title, and git steps.
+
+---
+
+## Quick comparison
+
+| | **Task PR** | **Hotfix PR** | **Release PR** |
+|---|-------------|---------------|----------------|
+| **Target (`--base`)** | `testing` | `production` | `production` |
+| **Source branch** | `<type>/<JIRA-KEY>-<description>` (e.g. `bugfix/VAP-2291-resiroo-overflow-routing`) | `prod-<JIRA-KEY>` (e.g. `prod-VAP-2717`) | `release-<version>` (e.g. `release-6.5.3`) |
+| **Branch created from** | Developer's task branch (already checked out) | `origin/production`, then cherry-pick from **confirmed origin branch** | **Confirmed origin branch** (typically `testing`; confirm via AskQuestion), scoped via `reset --hard origin/production` + cherry-pick |
+| **Typical scope** | One Jira task (usual) or a small related set on one branch | Small hand-picked set already on the integration branch (typically `testing`) | Multiple **Ready for Release** tickets for a scheduled release |
+| **PR title** | `fix(VAP-2291): short description` (Conventional Commits + Jira scope) | `fix(VAP-0000): VAP-2377 VAP-2717` (multi-ticket production format) | `feat(VAP-0000): VAP-1267 VAP-1345 [+ deps]` |
+| **Confirmation gates** | Steps 1–11 ([Task table](#task-pr--confirmation-order)); Calendar (10) before Slack (11) | Steps 1–8 + final approval ([Hotfix table](#hotfix-pr--confirmation-order)) | Steps 1–9 + final approval ([Release table](#release-pr--confirmation-order)) |
+| **Branch naming rule** | [`.cursor/y-rules/git/y-git-branch-name.mdc`](y-git-branch-name.mdc) | [Hotfix branch name](#hotfix-pr--branch-name) below | [Release branch name](#release-branch-name) below |
+
+---
+
+## Origin branch — commit source (Release PR & Hotfix PR)
+
+**Release PR** and **Hotfix PR** cherry-pick merge commits from a remote integration branch. **This repository** uses **`testing`** as the primary integration branch; **`staging`** remains available when commits landed there instead.
+
+### Mandatory confirmation — origin branch
+
+After candidate tasks are confirmed (Release step 1 / Hotfix step 1) and **before** commit lookup, fix-version lookup (Release only), or any `git checkout` / cherry-pick, use **`AskQuestion`**:
+
+| Option | Meaning |
+|--------|---------|
+| **`testing`** | `git fetch origin testing` — commits from `git log origin/testing --grep=<ticket>` — **default for this team** |
+| **`staging`** | `git fetch origin staging` — commits from `git log origin/staging --grep=<ticket>` |
+| **`other`** | User names another remote branch (e.g. `develop`) in chat |
+
+- Show the branch you plan to use and **why** (user request, team convention, or ticket environment).
+- **Default to `testing`** in the question prompt for this repository — still require explicit confirmation; do not skip **`AskQuestion`** even if the user said "start release" or a prior turn used `testing`.
+- If the user already named the origin branch in the **same message** (e.g. "use staging"), still confirm with **`AskQuestion`** (pre-select that option in the prompt text).
+- Record the confirmed name as **`<origin-branch>`** (no `origin/` prefix) for the rest of the flow.
+
+### How `<origin-branch>` is used
+
+| PR type | Usage |
+|---------|--------|
+| **Release PR** | `git fetch origin <origin-branch> production` → create `release-<version>` from `origin/<origin-branch>` → reset to `origin/production` → cherry-pick commits found on `origin/<origin-branch>` |
+| **Hotfix PR** | `git fetch origin <origin-branch> production` → cherry-pick from `origin/<origin-branch>` onto `prod-*` (still branch **from** `origin/production`) |
+
+Cherry-pick **order** follows history on **`origin/<origin-branch>`** (oldest first among selected commits).
+
+**Task PR** merge destination stays **`testing`** by default ([Task PR — target branch](#task-pr--target-branch)); Task PR scope comparison also uses **`origin/testing`** unless the user confirms **`other`** for an unusual comparison base.
+
+---
+
+## Task PR (`<type>/<JIRA-KEY>-<desc>` → `testing`)
+
+Use for **feature**, **bugfix**, **chore**, or similar work that merges into **`testing`** after review.
+
+### Task PR — principles
+
+- **Always fetch latest `testing` first** — run `git fetch origin testing` before commit lookup or diff review. Use **`origin/testing`** as the comparison base.
+- **Merge destination: `testing`.** Default `gh pr create --base testing`.
+- **Source branch** follows **`.cursor/y-rules/git/y-git-branch-name.mdc`**: `<type>/<jira-issue-key>-<short-description>` (`feature/`, `bugfix/`, `hotfix/`, `chore/`).
+- **PR scope = pushed commits only** on the current branch vs **`origin/testing`** (`git log origin/testing..HEAD`, `git diff origin/testing...HEAD`). Uncommitted or staged local changes are **not** in the PR until the user commits and you re-run scope review.
+- **Do not** use `release-*` or `prod-*` branch patterns for Task PRs.
+- **Do not** cherry-pick or reset onto `production` for Task PRs.
+- **Do not** commit or push local uncommitted work as part of this flow unless the user explicitly asks in the same message.
+
+### Task PR — branch name
+
+Pattern (from **y-git-branch-name.mdc**):
+
+```text
+<type>/<jira-issue-key>-<short-description>
+```
+
+Examples: `feature/VAP-2224-add-greeter-config`, `bugfix/VAP-2291-resiroo-overflow-plumbing-routing`
+
+**Mandatory confirmation — branch name:** use **`AskQuestion`** to confirm the current branch name (or a proposed name before `git checkout -b`) when the branch does not exist yet or the user has not confirmed it in this session. Include **`other`** if they may want a different name. See **y-git-branch-name.mdc**.
+
+### Task PR — scope and Jira ticket (mandatory input)
+
+Before drafting the PR, confirm what the PR will contain.
+
+1. **Extract `<JIRA-KEY>`** from the branch name when present (`VAP-\d+`).
+2. **List commits** that will be in the PR: `git log origin/testing..HEAD --oneline`.
+3. If **`git status`** shows staged or unstaged changes, **warn the user** — those files are **not** in the PR yet. Use **`AskQuestion`**:
+   - **Pushed commits only** (default when commits already exist on the branch)
+   - **Stop — I need to commit more first**
+   - **`other`** — explain a different scope intent
+4. **Mandatory confirmation — Jira ticket:** use **`AskQuestion`** to confirm the Jira key(s) for this PR (default: key from branch; include **`other`** if the branch name is missing a key or the PR covers a related set the user names explicitly).
+
+Do **not** infer scope from chat context alone without showing the commit list and getting confirmation when the working tree is dirty.
+
+### Task PR — target branch
+
+**Default: `testing`**
+
+**Mandatory confirmation — target branch:** use **`AskQuestion`** to confirm `--base testing` before `gh pr create`. Default option is **`testing`**; include **`other`** only if unusual.
+
+### Task PR — PR title (CI)
+
+Must pass **`.github/workflows/pr-checks.yml`** (“Validate PR Title”):
+
+```text
+<type>(<JIRA-KEY>): <short description>
+```
+
+- Use the **confirmed** Jira key from [Task PR — scope and Jira ticket](#task-pr--scope-and-jira-ticket-mandatory-input).
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Examples: `fix(VAP-2291): resiroo overflow plumbing routing`, `feat(VAP-2224): add greeter agent config`
+- **Do not** use the Release PR multi-ticket title format (`feat(VAP-0000): VAP-1267 VAP-1345`) for Task PRs.
+
+### Task PR — command intent confirmation (mandatory before running commands)
+
+During Task PR execution, do not run shell commands silently.
+
+- Before each command batch (fetch, push, `gh pr create`), explain in plain language **what you are about to run and why**.
+- Then ask for confirmation with **`AskQuestion`** (for example: **Run now** / **Edit command** / **Cancel**).
+- Wait for user confirmation before running that command batch.
+- Apply this to fetch, push, and PR creation commands.
+
+### Task PR — git steps
+
+Before every numbered step below that runs shell commands, perform the **Command intent confirmation** workflow above.
+
+1. **Fetch latest remote (mandatory first step):**
+
+   ```bash
+   git fetch origin testing
+   ```
+
+   Do **not** list commits, review diffs, or draft the PR until **`origin/testing`** is up to date.
+
+2. **Gather context** (in parallel where possible):
+
+   ```bash
+   git branch --show-current
+   git status --short
+   git log origin/testing..HEAD --oneline
+   git diff origin/testing...HEAD --stat
+   ```
+
+3. **Confirm scope and Jira ticket** — see [Task PR — scope and Jira ticket](#task-pr--scope-and-jira-ticket-mandatory-input). Show the commit list in your message.
+
+4. **Confirm branch name** — see [Task PR — branch name](#task-pr--branch-name) when needed.
+
+5. **Confirm merge destination** (`testing`) — see [Task PR — target branch](#task-pr--target-branch).
+
+6. **Research deployment notes** — review the combined diff vs `origin/testing` using [Task PR — Deployment Notes](#task-pr--deployment-notes) **before** checklist question boxes.
+
+7. **Local tests report (optional — confirm first)** — see [Task PR — Local Tests Report](#task-pr--local-tests-report-optional). Search under **`cursor_workspace/ai_test/`** for a source report; **embed its content** in the PR body (path is for author verification only). **Do not** add this section without explicit user confirmation.
+
+8. **Draft PR** — follow [Task PR — PR workflow](#task-pr--pr-workflow) and [Task PR — Description template](#task-pr--description-template-per-task-summary). Use **`.github/pull_request_template.md`** section headings plus **`## 🧪 Local Tests Report`** when confirmed (placed **before** **🚀 Deployment Notes**). Standard order: 📝 Description → 🔗 Related Jira Tickets → ✅ Required Checklist → 📋 Optional Checklist → 🧪 Local Tests Report (if confirmed) → 🚀 Deployment Notes → 📸 Screenshots/Examples.
+
+9. **Mandatory checklist input** — use **`AskQuestion`** for **Required** and **Optional** checklists per [Checklists — mandatory user input via question boxes](#checklists--mandatory-user-input-via-question-boxes). Task PR uses the **same defaults** as Release PR unless the diff clearly suggests otherwise.
+
+10. **Show full draft before confirmations** — output format per [Task PR — PR workflow](#task-pr--pr-workflow): title in one code block, full body in a second code block (with checklist choices from step 9 and Local Tests Report if confirmed in step 7).
+
+11. **Confirm PR title and body** — **`AskQuestion`** (approve / edit). **Hard gate:** the **same assistant message** must already contain (1) a fenced code block with the **PR title alone** and (2) a fenced code block with the **full PR body** — do **not** ask approve/edit until both blocks are visible. Revise and re-confirm if the user requests edits.
+
+12. **Reviewers + self-assignment** — multi-select **`AskQuestion`** with **at least 5** suggested GitHub usernames + **`other`**; require **at least one** reviewer. Always self-assign (`@me`).
+
+13. **Push** (only after steps 3–12 are confirmed) if the branch is not on the remote or is ahead of upstream:
+
+    ```bash
+    git push -u origin HEAD
+    ```
+
+14. **Final approval before remote PR (mandatory — wait for user):**
+
+    After the branch is pushed, present a short **readiness summary**:
+    - Branch name and commits vs `origin/testing` (`git log origin/testing..HEAD --oneline`)
+    - Final PR title and full body (including checklists, Local Tests Report if included, and Deployment Notes)
+    - Local tests report source path (if included), or note that none was added
+    - Selected reviewers and merge destination (`testing`)
+    - Note if local uncommitted/staged files remain **outside** the PR
+    - Note that **Google Calendar PR review meeting** (step 16) and **Slack ready for review** (step 17) will be offered next if the user wants them
+
+    Then use **`AskQuestion`** for **final approval** before **`gh pr create`**. Options must make clear the user can take time for final checks (e.g. **Approve — create PR now** / **Edit — need changes** / **Wait — not yet**).
+
+    - **Do not** run `gh pr create` until the user explicitly approves in this step.
+    - If the user chooses **Edit** or **Wait**, stop and wait — do not create the PR.
+    - Only **Approve — create PR now** (or equivalent explicit yes) allows `gh pr create`.
+
+15. **Create or update PR on remote (only after final approval):**
+
+    **Create (new PR):**
+
+    ```bash
+    gh pr create --base testing --head <branch-name> --assignee @me --title "..." --body "..."
+    gh pr edit <pr-number-or-url> --add-reviewer <reviewer1,reviewer2,...>
+    ```
+
+    **Update (existing PR):** apply the approved title/body/assignee/reviewers with **`gh pr edit`** or the GitHub REST API if **`gh pr edit`** fails. Re-fetch the PR URL and review requests after the update.
+
+16. **Google Calendar PR review meeting (before Slack)** — see [Task PR — Google Calendar PR review meeting](#task-pr--google-calendar-pr-review-meeting-before-slack). Run **after** step 15 succeeds and **before** any Slack send. **Two sub-steps — never skip 16a:**
+    - **16a — Run y-gc-meet-helper first (mandatory):** Read and follow **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for this PR (step 0 mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event). **Do not** open the calendar confirmation **`AskQuestion`** or step 17 Slack **`AskQuestion`** in the **same turn** you start 16a.
+    - **16b — Calendar confirmation (after 16a only):** After y-gc-meet-helper handoff or draft create, use **`AskQuestion`** for meeting status (wait / meeting ready / skip). **Wait** for explicit confirmation before Slack.
+
+17. **Slack ready for review (optional — confirm first)** — see [Task PR — Slack ready for review](#task-pr--slack-ready-for-review-optional-last-step). Run **only after** step 15 succeeds **and** step **16b** is satisfied (meeting confirmed on calendar, or user chose to skip the calendar line). **Do not** send Slack before step 15 completes successfully or before step **16a** completes.
+
+### Task PR — PR workflow
+
+Follow **`.github/pull_request_template.md`** for structure (same sections as Release PR).
+
+1. **Output format (two code blocks) before confirmations:**
+   - **First** — **PR title alone** in its own fenced code block (single line).
+   - **Second** — **full PR body** (all template sections) in a **draft** fenced code block — use **proposed defaults** for checklists, Local Tests Report (if confirmed), and deployment notes; the user confirms or edits these via question boxes before the final body is locked in.
+
+2. **Show draft before confirmations:** present the full suggested PR draft (title + body with proposed checklist, Local Tests Report if applicable, and deployment defaults) **before** any confirmation question boxes.
+
+3. **Mandatory confirmation before PR creation:** after the draft, confirm **PR title** and **PR body** (including finalized checklists, Local Tests Report if confirmed, and deployment notes) via **`AskQuestion`** (approve / edit). Revise and re-confirm if the user requests edits.
+
+4. **Mandatory reviewers + self-assignment:**
+   - Collect reviewers via **`AskQuestion`** (multi-select, **at least 5** suggested GitHub usernames + **`other`** if needed).
+   - Require **at least one** reviewer before creating the PR.
+   - Always self-assign (`@me`) when opening/updating the PR.
+
+### Task PR — Description template (per-task summary)
+
+Under **📝 Description**, include a short intro line (what problem this PR solves and where it merges), then **one summary block** for the confirmed Jira task.
+
+**Required format:**
+
+```markdown
+**VAP-2291 — ResiRoo overflow/plumbing triage skips photo and damage questions**
+Fixes triage routing so active overflow and spreading-water scenarios collect photos and water-damage extent before handoff, instead of jumping to shutoff or generic plumbing questions. Updates knowledge-base routing priority and resident prompt reinforcement.
+```
+
+**Rules:**
+
+- **Line 1 (bold):** `**VAP-xxxx — <headline>**` — Jira key, em dash, short headline from the Jira summary (or a clear paraphrase). Do not invent product claims.
+- **Line 2+ (plain):** One concise paragraph (1–3 sentences) — what changed and why, outcome-focused. Pull from Jira, commits, and diff; do not paste checklist boilerplate.
+- For a Task PR with **multiple related tickets** on one branch (unusual), repeat the block once per confirmed ticket, in ascending Jira key order.
+
+**Other Description fields:**
+
+- **🔗 Related Jira Tickets** — link every confirmed ticket: `https://vendoroo-dev.atlassian.net/browse/VAP-1234`
+- **🧪 Local Tests Report** — optional; only when the user confirms. See [Task PR — Local Tests Report](#task-pr--local-tests-report-optional). Place **before** **🚀 Deployment Notes**.
+- **🚀 Deployment Notes** — follow [Task PR — Deployment Notes](#task-pr--deployment-notes); never default to `None` without reviewing the task diff
+- **📸 Screenshots/Examples** — default exactly **`N/A`** unless UI/visual examples apply
+
+### Task PR — Local Tests Report (optional)
+
+Use when the user ran local E2E (or similar) tests for the task and a report doc exists — common for Resiroo and related work under **`cursor_workspace/ai_test/`**.
+
+**Mandatory confirmation — include report?**
+
+Before adding this section, use **`AskQuestion`**:
+
+| Option | Meaning |
+|--------|---------|
+| **Include report** | Add **🧪 Local Tests Report** to the PR body with **full readable content** from the source file |
+| **Skip** | Do not add the section (default when no report exists or user declines) |
+| **`other`** | User names a different report path or asks for a shorter version |
+
+When confirming, **name the source file path** in the question prompt so the **author** can verify you picked the right report — that path is **not** a substitute for report content in the published PR.
+
+If **multiple** candidate reports match the task (same Jira key, date range, or test batch), list them and ask which file to use — do not pick silently.
+
+**Finding candidates:**
+
+1. Search **`cursor_workspace/ai_test/`** (especially **`e2e/`**) for recent markdown reports tied to the Jira key, test case IDs, or this conversation.
+2. Prefer the **latest** report that covers the task scope for this PR.
+3. If the user already named a report in chat, use that path unless they choose **`other`**.
+
+**Section placement and format**
+
+Place **`## 🧪 Local Tests Report`** **after** **📋 Optional Checklist** and **before** **🚀 Deployment Notes**.
+
+Use a **collapsible block** (collapsed by default) so the PR body stays scannable:
+
+```markdown
+## 🧪 Local Tests Report
+
+<details>
+<summary>Local tests report — reactive leak E2E (partial)</summary>
+
+(paste the full report markdown here — metadata, results, transcript, evidence)
+
+</details>
+```
+
+**Content rules (required):**
+
+- **Embed the report body** inside the collapsed block so **reviewers on GitHub can read it without local files**. A workspace path alone (e.g. `cursor_workspace/ai_test/...`) is **not** acceptable as the section content.
+- Read the source file and paste or adapt its sections (metadata, steps, pass/fail, identifiers, transcript, buffer statuses, etc.).
+- Use GitHub-flavored **`<details>` / `<summary>`** — omit the `open` attribute so the block starts **collapsed**.
+- Do **not** use Mermaid, diagrams, or ASCII art inside this section unless they already exist in the source report and are small.
+
+**Body length limit**
+
+GitHub PR bodies are limited to **65,536 characters**. Before finalizing:
+
+1. Estimate total body size (Description + checklists + report + Deployment Notes).
+2. If the full report would exceed the limit (or makes the body unwieldy), **summarize inside the collapsed block** — still with concrete outcomes, not a file pointer.
+3. **Summary must keep:** environment/mode (e.g. local · mock · Chat API), pass/fail totals, per-case or per-scenario outcomes (IDs + PASS/FAIL), key identifiers (WO id, env flags), and any critical failures or reviewer corrections.
+4. **Omit or shorten:** repeated HTTP payloads, long stack traces, duplicate evidence blocks.
+5. When summarized, start with: `*Report summarized for PR body length; full local copy retained by author.*` — **do not** tell reviewers to open a repo-local path.
+
+**Updates to existing PRs**
+
+The same rules apply when updating a Task PR with **`gh pr edit`** or the REST API: confirm report inclusion via **`AskQuestion`**, read the source file, embed content in the draft, then merge into the PR body before final approval.
+
+### Task PR — Deployment Notes
+
+**Always review commit changes** for the task branch before writing this section.
+
+1. Inspect the combined diff vs `origin/testing` (`git diff origin/testing...HEAD`) or per-commit `git show --stat`.
+2. Look especially for:
+   - **`.env.example`** — new or changed environment variables
+   - **`services/*/config/`**, **`tools.yaml`**, Helm/K8s manifests, Docker Compose
+   - **Database migrations** — run order, backward compatibility
+   - **New external API dependencies** or feature flags
+   - **Non-automated post-deploy steps** only (one-time scripts, manual cache clear, runbook actions deploy does not handle)
+3. **Keep this section simple** — short plain text only. **No diagrams**, flowcharts, tables, or ASCII art in **🚀 Deployment Notes**.
+4. **Write concrete notes** when env, config, migrations, or non-automated post-deploy steps apply (same env-block rules as [Release PR — Deployment Notes](#release-pr--deployment-notes)).
+5. If nothing deployment-related changed after review, set the section to exactly **`None`**.
+
+**Do not** list routine service/worker restarts on deploy — the team knows deploy restarts processes, and our pipeline handles that automatically. Prompt-only or KB-only Task PRs with no env, migration, or manual runbook change → **`None`**.
+
+### Task PR — Google Calendar PR review meeting (before Slack)
+
+The Slack template may include **`:calendar: PR review meeting is already on your calendar. Please check it.`** — that line is **only truthful** when a PR review meeting actually exists on **Google Calendar**. This step runs **before Slack**.
+
+**Step 16a — y-gc-meet-helper (mandatory first; do not skip)**
+
+Immediately after step 15 (PR on GitHub), **read and run** **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for the PR just created:
+
+1. **Step 0 (mode)** — **`AskQuestion`**: generate title/description only **or** create draft event in Google Calendar **or** **`other`**.
+2. Discover PR scope (reuse PR # from step 15 when possible).
+3. Draft + approve title and styled description per y-gc-meet-helper.
+4. **Generate-only path:** hand off copy-paste into Google Calendar; user finishes time, guests, and Meet manually.
+5. **Create-draft path:** create tentative 15-minute event starting **now** via Google Calendar MCP (no guests).
+
+**Hard gate:** **Do not** show the calendar confirmation **`AskQuestion`** below, **do not** offer step 17 Slack, and **do not** combine calendar + Slack questions in one form until step 16a completes (handoff or draft created). See **y-slack-pr-ready-for-review.mdc** Prerequisite — Step A.
+
+**Step 16b — Mandatory confirmation — calendar meeting (only after 16a)**
+
+After step 15 (PR on GitHub) **and** step **16a** (y-gc-meet-helper handoff or draft create), use **`AskQuestion`** **before** Slack send:
+
+| Option | Meaning |
+|--------|---------|
+| **I'll create it myself — wait** | User will create the event in Google Calendar; **stop and wait** — do **not** proceed to Slack yet |
+| **Meeting is on my calendar — continue to Slack** | User confirms the event exists; allows step 17 with the **calendar reminder sentence** |
+| **Skip meeting + Slack** | End notify flow without calendar or Slack |
+| **`other`** | User explains a different plan (e.g. Slack without a meeting — omit calendar line) |
+
+**When the user chooses I'll create it myself — wait:**
+
+1. Tell them clearly: finish the PR review meeting in Google Calendar (adjust time if needed, add guests, add Meet), then return when it is on the calendar.
+2. **Do not** send Slack, move Jira to Review, or include the calendar sentence until they confirm **Meeting is on my calendar — continue to Slack** (or equivalent).
+3. When the user returns, use **`AskQuestion`**: **Meeting is on my calendar — send Slack now** / **Not yet — still creating the meeting** / **Skip Slack**.
+4. Only **Meeting is on my calendar — send Slack now** allows step 17 (Slack) with the **calendar reminder sentence**.
+
+**When the user chooses Skip meeting + Slack:** stop; no Slack, no Jira transition from this flow.
+
+**When the user chose `other` and wants Slack without a meeting:** omit the **calendar reminder sentence** from the Slack message (per **y-slack-pr-ready-for-review.mdc**); still run Slack confirmation gates.
+
+### Task PR — Slack ready for review (optional last step)
+
+After the Task PR is **created or updated** on GitHub (step 15) **and** the calendar step (step 16) is satisfied, offer to notify the team on Slack using **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**.
+
+**Mandatory confirmation — send Slack?**
+
+Before any Slack work, use **`AskQuestion`**:
+
+| Option | Meaning |
+|--------|---------|
+| **Send Slack** | Follow **y-slack-pr-ready-for-review.mdc** end-to-end for this PR |
+| **Skip** | End the Task PR flow without Slack (default when the user declines or Slack MCP is unavailable) |
+| **`other`** | User wants a different destination, summary edit, or copy-paste-only (no MCP send) |
+
+In the question prompt, show the **PR number and URL** from **`gh pr view`** (e.g. `#901` — `https://github.com/Vendoroo/generative-search/pull/901`) so the user can verify.
+
+**When the user chooses Send Slack:**
+
+1. **Confirm step 16 is complete** — meeting on calendar (calendar line included) **or** user explicitly chose to omit the calendar line.
+2. Read and follow **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its confirmation gates.
+3. Resolve PR details with **`gh pr view <n> --json url,title,body,reviewRequests,assignees`**.
+4. Build the message from the **final** PR (title, Description, confirmed Jira key, GitHub review requests).
+5. Run the Slack rule’s **mandatory confirmation gate** (summary, mentions, destination, PR link/number, and calendar-line inclusion when applicable).
+6. Send with **`slack_send_message`** only after all confirmations — **default destination:** **`#generative-search-team`** unless the user overrides in that rule.
+7. After a successful send, run the Slack rule’s **post-send Jira confirmation** (move task to In Review — **Yes** / **No**). On **Yes**, run **[Jira required fields before In Review](.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc#jira-required-fields-before-in-review)** before **`transitionJiraIssue`**. Do **not** transition Jira without that checklist passing.
+
+**When the user chooses Skip:** stop the Task PR flow; do not send Slack or move Jira.
+
+**When Slack MCP is unavailable:** offer the filled template in a fenced code block for manual paste (per slack rule **Output vs Slack MCP**); still confirm summary, mentions, and PR link with the user before output.
+
+**Applies to:** new Task PRs (`gh pr create`) and Task PR updates (`gh pr edit` / REST API) — same optional last step once the remote PR reflects the approved draft.
+
+### Task PR — what not to do
+
+- Do **not** use `--base production` for a Task PR unless the user explicitly confirmed **`other`** with a strong reason.
+- Do **not** use `release-<version>` or `prod-<JIRA>` branch naming for Task PRs.
+- Do **not** use Release PR title format (`VAP-0000` scope with multiple tickets).
+- Do **not** start commit lookup or diff review before **`git fetch origin testing`**.
+- Do **not** run release-branch, cherry-pick, or `reset --hard origin/production` steps for Task PRs.
+- Do **not** commit or push unless the user clearly asks for git operations beyond this Task PR flow.
+- Do **not** silently include uncommitted staged files in the PR — warn and confirm scope first.
+- Do **not** finalize checklist checkboxes without **`AskQuestion`** for both Required and Optional sections.
+- Do **not** add **🧪 Local Tests Report** without **`AskQuestion`** confirmation. When included, **embed readable report content** in the PR body — never a workspace file path as the sole content.
+- Do **not** paste an entire multi-thousand-line E2E report verbatim when a summary is required to stay within GitHub’s PR body limit.
+- Do **not** set Deployment Notes to `None` without reviewing the task diff for env/config/migration/non-automated post-deploy needs.
+- Do **not** ask confirmation questions before showing the full suggested PR description/body.
+- Do **not** run Task PR shell commands without first explaining intent and getting confirmation via **`AskQuestion`**.
+- Do **not** run **`gh pr create`** before **final approval** — push may happen earlier, but PR creation on the remote **must wait** for the user's explicit final yes.
+- Do **not** leave the PR without reviewers or without self-assignment.
+- Do **not** paste commit hashes or internal git mechanics into the PR body unless a reviewer needs them.
+- Do **not** send Slack before step 15 completes (PR must exist on GitHub with final title/body/reviewers).
+- Do **not** send Slack with the **calendar reminder sentence** before the user confirms the PR review meeting is on Google Calendar (step **16b**).
+- Do **not** auto-send Slack without **`AskQuestion`** confirmation at steps **16b** and 17.
+- **Do not** skip step **16a** — run **y-gc-meet-helper.mdc** end-to-end before the calendar confirmation **`AskQuestion`** or any Slack offer.
+- **Do not** combine calendar confirmation and Slack **`AskQuestion`** in one form before step **16a** completes.
+- **y-gc-meet-helper.mdc** step 0 must be answered before create — do **not** auto-create Calendar events on the generate-only path.
+- Do **not** send Slack or transition Jira without the confirmations in **y-slack-pr-ready-for-review.mdc**.
+- Do **not** skip the **Send Slack / Skip** **`AskQuestion`** at the end of the Task PR flow — always offer it after create/update.
+
+---
+
+## Hotfix PR (`prod-<JIRA>` → `production`)
+
+Use when work is **merged to the integration branch** (typically **`testing`**) and you need a **small, scoped PR to `production`** outside the scheduled release — not a merge of all of `testing` (or another integration branch).
+
+**Do not use the Hotfix PR path for scheduled weekly releases** — use [Release PR](#release-pr-release-version--production) with a `release-<version>` branch instead.
+
+### Hotfix PR — principles
+
+- **Base branch is always `production`.** Branch from **`origin/production`**, not from `testing` or `staging`.
+- **Never merge the whole integration branch → `production`** for a hand-picked set of tickets if that branch has unrelated commits in between.
+- **Cherry-pick** the merge commits that landed on the **confirmed origin branch** (squash merges are one commit each). If a ticket truly shipped as **several commits**, cherry-pick **oldest first** (same order as on `origin/<origin-branch>`). Use `git log origin/<origin-branch> --grep=<ticket>` (case-insensitive) and confirm each ticket’s commits are **not** already ancestors of `origin/production`.
+- **Do not** commit or push local uncommitted work as part of this flow.
+
+### Hotfix PR — branch name
+
+- **Single ticket:** `prod-<JIRA-KEY>` (e.g. `prod-VAP-2717`).
+- **Several tickets:** `prod-<KEY1>-<KEY2>-…` in numeric or agreed order (e.g. `prod-VAP-2377-2717-2438`).
+
+**Mandatory confirmation — branch name:** use **`AskQuestion`** to confirm the full branch name before `git checkout -B` / push. Include **`other`** if the user may want a different name.
+
+### Hotfix PR — candidate tasks (mandatory input)
+
+Before branch naming or commit selection, ask the user for the Jira tasks that should be in this hotfix.
+
+- Use **`AskQuestion`** and request candidate tasks in one line, for example: `VAP-2717` or `VAP-2377 VAP-2717`.
+- Treat the user-provided list as the source of truth for this hotfix scope.
+- If the list is missing, ambiguous, or malformed, ask again before continuing.
+- Do **not** infer hotfix tasks only from branch names, local commits, or previous chat context without explicit user confirmation.
+
+### Hotfix PR — target branch (merge destination)
+
+**Merge destination: `production`**
+
+- The hotfix PR **targets `production`** — `gh pr create --base production --head prod-<…>`.
+- **Mandatory confirmation — target branch:** use **`AskQuestion`** to confirm `--base production` before `gh pr create`. Default option is **`production`**; include **`other`** only if unusual.
+
+### Hotfix PR — command intent confirmation (mandatory before running commands)
+
+During hotfix execution, do not run shell commands silently.
+
+- Before each hotfix command batch, explain in plain language **what you are about to run and why**.
+- Then ask for confirmation with **`AskQuestion`** (for example: **Run now** / **Edit command** / **Cancel**).
+- Wait for user confirmation before running that command batch.
+- Apply this to fetch, commit lookup, branch/cherry-pick, verify, push, and PR creation commands.
+
+### Hotfix PR — git steps
+
+Before every numbered step below that runs shell commands, perform the **Command intent confirmation** workflow above.
+
+1. **Collect candidate tasks from the user (mandatory):**
+
+   - Use **`AskQuestion`** and ask for Jira keys in one line, e.g. `VAP-2717` or `VAP-2377 VAP-2717`.
+   - Confirm the parsed list before continuing.
+
+2. **Confirm origin branch** — see [Origin branch — commit source](#origin-branch--commit-source-release-pr--hotfix-pr). Record **`<origin-branch>`**.
+
+3. **Fetch latest remotes (mandatory before commit lookup):**
+
+   ```bash
+   git fetch origin <origin-branch> production
+   ```
+
+   Do **not** list commits, review diffs, or create branches until **`origin/<origin-branch>`** and **`origin/production`** are up to date.
+
+4. **Confirm branch name** (`prod-<JIRA>` or multi-ticket) and **merge destination** (`production`) via question boxes.
+
+5. **List commits per ticket** on **`origin/<origin-branch>`** (grep subject/body for `VAP-NNNN`). Prefer the **squash merge** commit for each merged PR. If more than one commit exists for one ticket, include **all** of them for that ticket, in chronological order among themselves.
+
+6. **Order cherry-picks** by **`<origin-branch>` history** (oldest merge first among the selected commits), especially when the same files change across tickets.
+
+7. **Clean working tree** before branch work — stash only if dirty; see [Stash restore (mandatory)](#stash-restore-mandatory).
+
+8. **Create hotfix branch from production and cherry-pick:**
+
+   ```bash
+   git fetch origin production
+   git checkout -B prod-<JIRA-KEY> origin/production
+   git cherry-pick <commit1> [<commit2> ...]
+   ```
+
+   - **Do not** create the hotfix branch from `origin/<origin-branch>` — hotfix branches start on **`origin/production`**; only **cherry-picks** come from `origin/<origin-branch>`.
+   - **Do not** use `git reset --hard origin/production` on an integration-branch tip — hotfix branches start directly on **`origin/production`**.
+
+9. **Verify scope:** `git log origin/production..HEAD --oneline` — only the intended cherry-picks. Use `git show --stat` per commit locally if something looks off; **do not** paste commit hashes or cherry-pick mechanics into the PR unless a reviewer asked.
+
+   - If cherry-pick fails because a hotfix ticket depends on other work on **`origin/<origin-branch>`**, cherry-pick those **dependency commits** in **`<origin-branch>` order** (oldest first), then continue the hotfix commits. Document dependency tickets in the PR body (see [Release PR — Included via dependency (cherry-pick)](#-included-via-dependency-cherry-pick-under-description) and [Release PR — PR title (CI)](#release-pr--pr-title-ci) for `+` title syntax when deps apply).
+
+10. **Push hotfix branch to origin:**
+
+   ```bash
+   git push -u origin prod-<JIRA-KEY>
+   ```
+
+11. **Final approval before remote PR (mandatory — wait for user):**
+
+    After the branch is pushed and everything is ready, present a short **readiness summary**:
+    - Hotfix branch name and commits vs `origin/production` (`git log origin/production..HEAD --oneline`)
+    - Origin branch used for cherry-picks (`<origin-branch>`)
+    - Final PR title and full body (including checklists and Deployment Notes)
+    - Selected reviewers and merge destination (`production`)
+
+    Then use **`AskQuestion`** for **final approval** before **`gh pr create`**. Options must make clear the user can take time for final checks (e.g. **Approve — create PR now** / **Edit — need changes** / **Wait — not yet**).
+
+    - **Do not** run `gh pr create` until the user explicitly approves in this step.
+    - If the user chooses **Edit** or **Wait**, stop and wait — do not create the PR.
+    - Only **Approve — create PR now** (or equivalent explicit yes) allows `gh pr create`.
+
+12. **Create PR on remote (only after final approval):**
+
+    ```bash
+    gh pr create --base production --head prod-<JIRA-KEY> --assignee @me --title "..." --body "..."
+    gh pr edit <pr-number-or-url> --add-reviewer <reviewer1,reviewer2,...>
+    ```
+
+13. **Restore workspace (mandatory)** — see [Stash restore (mandatory)](#stash-restore-mandatory): return to the previous branch, then **pop every stash you created in this hotfix run** (newest first if more than one). Confirm `git stash list` no longer contains those entries and tell the user local changes are restored.
+
+### Hotfix PR — PR workflow
+
+Same structure as [Release PR — PR workflow](#release-pr--pr-workflow). Follow **`.github/pull_request_template.md`** for section headings.
+
+1. **Output format (two code blocks) before confirmations:**
+   - **First** — **PR title alone** in its own fenced code block (single line).
+   - **Second** — **full PR body** (all template sections) in a **draft** fenced code block — use **proposed defaults** for checklists and deployment notes; the user confirms or edits these via question boxes before the final body is locked in.
+
+2. **Show draft before confirmations:** present the full suggested PR draft (title + body with proposed checklist and deployment defaults) **before** any confirmation question boxes.
+
+3. **Mandatory confirmation before PR creation:** after the draft, confirm **PR title** and **PR body** (including finalized checklists and deployment notes) via **`AskQuestion`** (approve / edit). Revise and re-confirm if the user requests edits.
+
+4. **Mandatory reviewers + self-assignment:**
+   - Collect reviewers via **`AskQuestion`** (multi-select, **at least 5** suggested GitHub usernames + **`other`** if needed).
+   - Require **at least one** reviewer before creating the PR.
+   - Always self-assign (`@me`) when opening/updating the PR.
+
+### Hotfix PR — PR title (CI)
+
+Follow [Release PR — PR title (CI)](#release-pr--pr-title-ci) — same multi-ticket `VAP-0000` format.
+
+Example: `fix(VAP-0000): VAP-2377 VAP-2438 VAP-2717`
+
+When dependency cherry-picks are included, use the same ` + ` title syntax as Release PR.
+
+### Hotfix PR — Description template (per-task summaries required)
+
+Follow [Release PR — Description template (per-task summaries required)](#release-pr--description-template-per-task-summaries-required) — same per-task block format and **⚠️ Included via dependency (cherry-pick)** rules when dependency commits were added.
+
+Under **📝 Description**, add one short intro line for the hotfix, then one summary block **for each task key in the PR title** (same order as the title). Link every ticket under **🔗 Related Jira Tickets**.
+
+**Avoid** listing commit hashes, internal cherry-pick mechanics, or other noise unless a reviewer needs it.
+
+### Hotfix PR — Deployment Notes
+
+Follow [Release PR — Deployment Notes](#release-pr--deployment-notes) — review the hotfix diff vs `origin/production` before writing this section.
+
+### Hotfix PR — what not to do
+
+- Do **not** use `release-<version>` branch naming for Hotfix PRs.
+- Do **not** create the hotfix branch from `origin/testing` or `origin/staging` — branch from **`origin/production`**.
+- Do **not** use `git reset --hard origin/production` on a staging-based branch for Hotfix PRs (that pattern is for Release PR scoping only).
+- Do **not** merge `testing` (or `staging`) → `production` directly for a hand-picked hotfix.
+- Do **not** use Confluence release version lookup for Hotfix PRs — no `release-<version>` branch.
+- Do **not** use Hotfix PR for scheduled weekly releases — use Release PR.
+- Do **not** use Release PR title format (`VAP-0000` multi-ticket) for Task PRs — Hotfix and Release share that format.
+- Do **not** use `prod-*` branch naming for Task PRs.
+- Do **not** commit or push unless the user clearly asks for git operations beyond this hotfix flow.
+- Do **not** assume any **`<origin-branch>`** (including **`testing`**) as the cherry-pick source without [Origin branch confirmation](#origin-branch--commit-source-release-pr--hotfix-pr).
+- Do **not** start branch work, commit lookup, or diff review before **`git fetch origin <origin-branch> production`**.
+- Do **not** create the hotfix branch from `origin/<origin-branch>` (only cherry-picks come from there).
+- Do **not** open a **Hotfix PR** with `--base staging` or `--base testing` — merge destination is **`production`**.
+- Do **not** skip explicit user input for hotfix candidate tasks.
+- Do **not** ask confirmation questions before showing the full suggested PR description/body.
+- Do **not** run **`gh pr create`** before **final approval**.
+- Do **not** leave the PR without reviewers or without self-assignment (`@me`).
+
+---
+
+## Release PR (`release-<version>` → `production`)
+
+Use when one or more Jira tickets are **Ready for Release** on the integration branch you use for release commits (typically **`testing`** — confirm via AskQuestion) and you need a **scoped production release PR** for a **scheduled weekly release** — not a merge of the whole integration branch.
+
+**Do not use the Release PR path for ad-hoc urgent deploys outside the release schedule** — use [Hotfix PR](#hotfix-pr-prod-jira--production) (`prod-<JIRA-KEY>` branches). **Do not use the Hotfix PR path for scheduled release PRs** — always use the Release PR path and a `release-<version>` branch instead.
+
+---
+
+## Principles
+
+- **Confirm origin branch first** — see [Origin branch — commit source](#origin-branch--commit-source-release-pr--hotfix-pr). Use the user-confirmed **`<origin-branch>`** (typically `testing`; `staging` when commits landed there).
+- **Always fetch latest remotes first** — run `git fetch origin <origin-branch> production` before any branch work, commit lookup, or diff review. Use **`origin/<origin-branch>`** as the source of truth for release commits.
+- **Release branch tip: `origin/<origin-branch>`.** Create **`release-<version>`** from **`origin/<origin-branch>`** (after fetch). Do **not** create the release branch from `production`.
+- **Merge destination: `production`.** The PR merges **`release-<version>` → `production`** (`gh pr create --base production --head release-<version>`).
+- **Never open a PR that merges all of `<origin-branch>` → `production` directly** — always use a dedicated **`release-<version>`** branch.
+- When `origin/<origin-branch>` contains commits **outside** this release, scope the release branch: after creating it from `origin/<origin-branch>`, **`git reset --hard origin/production`**, then **cherry-pick** only the merge commits for the release tickets from **`origin/<origin-branch>`** (oldest first, same order as on that branch).
+- **Cherry-pick** squash merge commits that landed on **`origin/<origin-branch>`**. If a ticket shipped as **several commits**, cherry-pick **oldest first**. Use `git log origin/<origin-branch> --grep=<ticket>` (case-insensitive) and confirm each ticket’s commits are **not** already ancestors of `origin/production`.
+- **Do not** commit or push local uncommitted work as part of this flow.
+
+---
+
+## Release candidate tasks (mandatory input)
+
+Before version lookup, branch naming, or commit selection, ask the user for the Jira tasks that should be in this release.
+
+- Use **`AskQuestion`** and request candidate tasks in one line, for example: `VAP-1267 VAP-1345`.
+- Treat the user-provided list as the source of truth for this release scope.
+- If the list is missing, ambiguous, or malformed, ask again before continuing.
+- Do **not** infer release tasks only from branch names, local commits, or previous chat context without explicit user confirmation.
+
+---
+
+## Release version (Confluence)
+
+Before creating the branch, resolve the **target fix version** from the Production Release Plan:
+
+**Source:** [Production Release Plan](https://vendoroo-dev.atlassian.net/wiki/spaces/VA/pages/335511568/Production+Release+Plan)
+
+**How to find the version:**
+
+1. Read the **Release Changelog** section (top entries first).
+2. Each block is headed `### Fix Version: vX.Y.Z` with a **Status** line.
+3. **Released** versions show `🟢 Released` or `Status: 🟢 Released`.
+4. The **target version** is the **latest fix version that is not released yet** — typically `🟡 Pending` at the top of the changelog.
+
+**Example (as of May 2026):** `v6.5.2` is Released; `v6.5.3` is Pending → target is **`v6.5.3`**.
+
+**Mandatory confirmation — release version:**
+
+Always ask the user to confirm the fix version with **`AskQuestion`**, even when you found it confidently.
+
+- Show the version you inferred and the Confluence status (e.g. `v6.5.3 — 🟡 Pending`).
+- Options must include the inferred version **and** an **`other`** option so the user can type a different version if lookup failed or the doc is stale.
+- If lookup fails or is ambiguous, say so briefly and rely on **`other`** for the user to supply the version.
+
+---
+
+## Release branch name
+
+Pattern: **`release-<version>`**
+
+- Normalize the Confluence fix version by **dropping a leading `v`** for the branch suffix (Confluence `v6.5.3` → branch **`release-6.5.3`**). This matches [`scripts/reset-staging.sh`](scripts/reset-staging.sh) examples.
+- **Mandatory confirmation — branch name:** use **`AskQuestion`** to confirm the full branch name (e.g. `release-6.5.3`) before `git checkout -B` / push. Include **`other`** if the user may want a different name.
+
+---
+
+## Target branch (merge destination)
+
+**Merge destination: `production`**
+
+- The release PR **targets `production`** — this is where the release branch merges.
+- **Mandatory confirmation — target branch:** use **`AskQuestion`** to confirm `--base production` before `gh pr create`. Default option is **`production`**; include **`other`** only if the user might target a different branch (unusual).
+
+---
+
+## Command intent confirmation (mandatory before running commands)
+
+During release execution, do not run shell commands silently.
+
+- Before each release command batch, explain in plain language **what you are about to run and why**.
+- Then ask for confirmation with **`AskQuestion`** (for example: **Run now** / **Edit command** / **Cancel**).
+- Wait for user confirmation before running that command batch.
+- Apply this to fetch, commit lookup, branch/reset/cherry-pick, verify, push, and PR creation commands.
+
+## Git steps
+
+Before every numbered step below that runs shell commands, perform the **Command intent confirmation** workflow above.
+
+1. **Collect candidate tasks from the user (mandatory):**
+
+   - Use **`AskQuestion`** and ask for Jira keys in one line, e.g. `VAP-1267 VAP-1345`.
+   - Confirm the parsed list before continuing.
+
+2. **Confirm origin branch** — see [Origin branch — commit source](#origin-branch--commit-source-release-pr--hotfix-pr). Record **`<origin-branch>`**.
+
+3. **Fetch latest remotes (mandatory before commit lookup):**
+
+   ```bash
+   git fetch origin <origin-branch> production
+   ```
+
+   Do **not** list commits, review diffs, or create branches until **`origin/<origin-branch>`** and **`origin/production`** are up to date.
+
+4. **Resolve fix version** (Confluence) and get user confirmation (see above).
+
+5. **Confirm branch name** (`release-<version>`) and **merge destination** (`production`) via question boxes.
+
+6. **List commits per ticket** on **`origin/<origin-branch>`** (grep subject/body for `VAP-NNNN`). Prefer the **squash merge** commit for each merged PR. If more than one commit exists for one ticket, include **all** of them for that ticket, in chronological order among themselves.
+
+7. **Order cherry-picks** by **`<origin-branch>` history** (oldest merge first among the selected commits), especially when the same files change across tickets.
+
+8. **Clean working tree** before branch work — stash only if dirty; see [Stash restore (mandatory)](#stash-restore-mandatory).
+
+9. **Create release branch from `<origin-branch>` and scope commits:**
+
+   ```bash
+   git fetch origin <origin-branch> production
+   git checkout -B release-<version> origin/<origin-branch>
+   git reset --hard origin/production
+   git cherry-pick <commit1> [<commit2> ...]
+   ```
+
+   - **`release-<version>` is created from `origin/<origin-branch>`** (after fetch).
+   - **`git reset --hard origin/production`** keeps the release scoped when `<origin-branch>` has unrelated commits. Omit reset + cherry-pick only when the **entire** `origin/<origin-branch>` delta is intended for this release (rare — confirm with user).
+
+10. **Verify scope:** `git log origin/production..HEAD --oneline` — intended release commits plus any dependency commits added to resolve cherry-pick conflicts. Use `git show --stat` per commit locally if something looks off; **do not** paste commit hashes or cherry-pick mechanics into the PR unless a reviewer asked.
+
+   - If cherry-pick fails because a release ticket depends on other work on **`origin/<origin-branch>`**, cherry-pick those **dependency commits** in **`<origin-branch>` order** (oldest first), then continue the release commits. Record every dependency ticket for the PR body (see **⚠️ Included via dependency (cherry-pick)** subsection under Description below).
+
+11. **Push release branch to origin:**
+
+   ```bash
+   git push -u origin release-<version>
+   ```
+
+12. **Final approval before remote PR (mandatory — wait for user):**
+
+    After the branch is pushed and everything is ready, present a short **readiness summary**:
+    - Release branch name and remote URL (or `git log origin/production..origin/release-<version> --oneline`)
+    - Final PR title and full body (including checklists and Deployment Notes)
+    - Selected reviewers and merge destination (`production`)
+
+    Then use **`AskQuestion`** for **final approval** before **`gh pr create`**. Options must make clear the user can take time for final checks (e.g. **Approve — create PR now** / **Edit — need changes** / **Wait — not yet**).
+
+    - **Do not** run `gh pr create` until the user explicitly approves in this step.
+    - If the user chooses **Edit** or **Wait**, stop and wait — do not create the PR.
+    - Only **Approve — create PR now** (or equivalent explicit yes) allows `gh pr create`.
+
+13. **Create PR on remote (only after final approval):**
+
+    ```bash
+    gh pr create --base production --head release-<version> --assignee @me --title "..." --body "..."
+    gh pr edit <pr-number-or-url> --add-reviewer <reviewer1,reviewer2,...>
+    ```
+
+14. **Restore workspace (mandatory)** — see [Stash restore (mandatory)](#stash-restore-mandatory): return to the previous branch, then **pop every stash you created in this release run** (newest first if more than one). Confirm `git stash list` no longer contains those entries and tell the user local changes are restored.
+
+---
+
+## Release PR — PR workflow
+
+Same structure as [Task PR — PR workflow](#task-pr--pr-workflow). Follow **`.github/pull_request_template.md`** for section headings.
+
+### PR draft must be visible before draft approval (hard gate)
+
+**Never** use **`AskQuestion`** to approve the PR title/body (Release step 8, Hotfix step 7, Task step 11, or final approval) until the **same assistant message** already contains:
+
+1. A fenced code block with the **full PR title** (single line).
+2. A fenced code block with the **full PR body** (all template sections, with proposed checklist and deployment defaults).
+
+If the user says you skipped the draft, **stop**, paste both blocks, then ask for approval again. Do **not** ask reviewers, git commands, or **`gh pr create`** in a turn that omits these two blocks when draft approval is on the agenda.
+
+1. **Output format (two code blocks) before confirmations:**
+   - **First** — **PR title alone** in its own fenced code block (single line).
+   - **Second** — **full PR body** (all template sections) in a **draft** fenced code block — use **proposed defaults** for checklists and deployment notes; the user confirms or edits these via question boxes before the final body is locked in.
+
+2. **Show draft before confirmations:** present the full suggested PR draft (title + body with proposed checklist and deployment defaults) **before** any confirmation question boxes — especially **before** step 8 “PR title + body” **`AskQuestion`**.
+
+3. **Mandatory confirmation before PR creation:** only **after** both code blocks are in the message, confirm **PR title** and **PR body** (including finalized checklists and deployment notes) via **`AskQuestion`** (approve / edit). Revise and re-confirm if the user requests edits.
+
+4. **Mandatory reviewers + self-assignment:**
+   - Collect reviewers via **`AskQuestion`** (multi-select, **at least 5** suggested GitHub usernames + **`other`** if needed).
+   - Require **at least one** reviewer before creating the PR.
+   - Always self-assign (`@me`) when opening/updating the PR.
+
+---
+
+## Checklists — mandatory user input via question boxes
+
+Applies to **Task PR, Hotfix PR, and Release PR**. Do **not** silently finalize checklist checkboxes. Use **`AskQuestion`** for **each checklist section** separately, with **pre-filled defaults** so the user can confirm quickly or change individual items.
+
+### ✅ Required Checklist — one `AskQuestion`
+
+Present all five items with suggested checked/unchecked state. Use **multi-select** (or equivalent) so the user can toggle any item. Defaults:
+
+| Item | Default |
+|------|---------|
+| Manual testing completed in local environment | **checked** (`- [x]`) |
+| Tested in marketplace environment (if merging to production) | **unchecked** (`- [ ]`) |
+| Code follows project style guidelines (Ruff linting passes) | **checked** |
+| Self-review completed | **checked** |
+| Docker builds successfully verified | **checked** |
+
+After the user answers, render the **Required Checklist** section using their choices (`- [x]` / `- [ ]`).
+
+### 📋 Optional Checklist (if applicable) — one `AskQuestion`
+
+Present all four items with suggested defaults **informed by the release diff** (see [Release PR — Deployment Notes](#release-pr--deployment-notes)). Use **multi-select** (or equivalent). Defaults:
+
+| Item | Default when diff suggests… |
+|------|----------------------------|
+| Tests added/updated and passing | **checked** if test files changed; else **unchecked** |
+| Database migrations created | **checked** if migration files changed; else **unchecked** |
+| Documentation updated | **checked** if `docs/` or README changed; else **unchecked** |
+| Environment variables updated | **checked** if `.env.example`, env helpers, or config env keys changed; else **unchecked** |
+
+After the user answers, render the **Optional Checklist** section using their choices.
+
+If the user changes any default in either question box, use their answer — do not revert to silent defaults.
+
+---
+
+## Release PR — Deployment Notes
+
+**Always review commit changes** for the tickets in this release before writing this section.
+
+1. Inspect the combined diff for the cherry-picked commits vs `origin/production` (or per-commit `git show --stat` / `git diff`).
+2. Look especially for:
+   - **`.env.example`** — new or changed environment variables
+   - **`services/*/config/`**, **`tools.yaml`**, Helm/K8s manifests, Docker Compose
+   - **Database migrations** — run order, backward compatibility
+   - **New external API dependencies** or feature flags
+   - **Non-automated post-deploy steps** only (one-time scripts, manual cache clear, runbook actions deploy does not handle)
+3. **Keep this section simple** — short plain text only. **No diagrams**, flowcharts, tables, or ASCII art in **🚀 Deployment Notes**.
+4. **Write concrete notes** when env, config, migrations, or non-automated post-deploy steps apply (see format below). **Do not** list routine service/worker restarts — deploy handles those automatically.
+5. **Do not shorten or group env var names** — never use wildcard patterns like `` `VAR_*` ``. List each variable explicitly.
+6. **Env vars must be copy-paste ready** — one fenced **`env`** block with `KEY=value` lines from `.env.example` defaults. Leave secrets empty (`KEY=`).
+7. **One short intro line** before the env block is enough (e.g. “Add to production env:”). Optional **one line** after for non-env deploy items (migrations, config paths) — no long paragraphs.
+8. If nothing deployment-related changed after review, set the section to exactly **`None`**.
+
+**Example (simple):**
+
+```markdown
+## 🚀 Deployment Notes
+
+Add to production env (set `WEATHER_PROVIDER_WEATHERAPI_KEY` in prod):
+
+```env
+WEATHER_PROVIDER_ORDER=weatherapi,openai,resident
+WEATHER_PROVIDER_WEATHERAPI_ACTIVE=true
+WEATHER_PROVIDER_WEATHERAPI_BASE_URL=https://api.weatherapi.com/v1
+WEATHER_PROVIDER_WEATHERAPI_KEY=
+WEATHER_PROVIDER_WEATHERAPI_TIMEOUT_SECONDS=20
+WEATHER_PROVIDER_WEATHERAPI_MAX_AGE_MINUTES=120
+OPENAI_WEB_SEARCH_URL=https://api.openai.com/v1/chat/completions
+OPENAI_WEB_SEARCH_MODEL=gpt-4o-mini-search-preview
+OPENAI_WEB_SEARCH_TIMEOUT_SECONDS=120
+OPENAI_WEB_SEARCH_CONTEXT_SIZE=medium
+WEATHER_PROVIDER_OPENAI_ACTIVE=true
+WEATHER_PROVIDER_RESIDENT_ACTIVE=true
+```
+```
+
+**Do not** paste production credentials or real API keys into the PR body.
+
+---
+
+## Release PR — PR title (CI)
+
+Must pass **`.github/workflows/pr-checks.yml`** (“Validate PR Title”):
+
+```text
+<type>(VAP-0000): <release task 1> <release task 2> … [+ <dep task 1> <dep task 2> …]
+```
+
+- Use the literal placeholder scope **`VAP-0000`** in parentheses for multi-ticket release PRs.
+- List every **release-candidate** Jira ticket (the user-supplied list) after the colon, **space-separated**, **ascending ticket number** unless the user asks for another order.
+- **When the release branch also carries dependency cherry-picks** (the tickets recorded under **⚠️ Included via dependency (cherry-pick)** in the Description), append them after a single **` + `** separator (one space, plus sign, one space). Keep dependency tickets in **ascending ticket number** order among themselves. Use **exactly one** `+` separator — release tickets first, dependency tickets last.
+- **Omit the `+ <dep …>` segment** when no dependency commits were added.
+- Both sides of the `+` must contain at least one ticket. If there are no release-candidate tickets but only dependency cherry-picks, raise it with the user — that situation is unusual and likely a scoping mistake (do not just promote the deps).
+- Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Examples:
+  - Release tickets only: `feat(VAP-0000): VAP-1267 VAP-1345`
+  - Release tickets **plus dependency cherry-picks**: `feat(VAP-0000): VAP-1267 VAP-1345 VAP-2998 + VAP-2417 VAP-2668`
+- Do **not** use `VAP-1345: ...` without the `type(...)` wrapper.
+- Do **not** mix release and dependency tickets on the same side of `+`. Do **not** use `,`, `&`, `/`, or any separator other than a single space within a side, and a single ` + ` between sides.
+
+---
+
+## Release PR — Description template (per-task summaries required)
+
+Under **📝 Description**, include a short intro line for the release, then **one summary block per Jira task** in the PR title (same order as the title).
+
+Use the **same per-task block format** everywhere task text appears in the PR body (release scope and dependency section).
+
+**Title ↔ body alignment:** the **release-candidate** tickets (left of `+` in the title) appear directly under **📝 Description** in title order. The **dependency** tickets (right of `+` in the title) appear under **⚠️ Included via dependency (cherry-pick)** in the same ascending order they have in the title. The set of tickets in the title and the set in the body must match exactly.
+
+**Required format per task:**
+
+```markdown
+**VAP-2438 — Evidence citation quality (Vendoroo Resident prompts)**
+Tightens how the assistant fills the Evidence field: per-turn scope, avoiding stale or repeated citations, emergency vs non-emergency alignment, quoting only relevant clauses, and preferring short verbatim spans.
+```
+
+**Rules:**
+
+- **Line 1 (bold):** `**VAP-xxxx — <headline>**` — Jira key, em dash, short headline from the Jira summary (or a clear paraphrase). Do not invent product claims.
+- **Line 2 (plain):** One concise paragraph (1–3 sentences) — what changed and why, outcome-focused.
+- Repeat once per task key in the title, in title order.
+- Pull headlines and summaries from Jira issue text, commits, and PR context; do not paste checklist boilerplate.
+
+**Full Description example (two tasks):**
+
+```markdown
+Production release for QA-approved ResiRoo tickets already merged to testing.
+
+**VAP-1267 — Automatically use weather context in ResiROO emergency assessment instead of asking the resident**
+Adds automatic outdoor weather lookup from property location and current time for emergency-rule evaluation, with a 3°F comparison buffer and fallback to asking the resident when lookup fails or the rule needs indoor temperature.
+
+**VAP-1345 — Inform resident that we cannot contact a 3rd person**
+When a resident asks ResiRoo to contact a third party, the assistant declines warmly for security reasons and keeps the conversation open with the contact on file instead of firing Stop Protocol.
+```
+
+---
+
+### ⚠️ Included via dependency (cherry-pick) (under Description)
+
+When cherry-pick onto `origin/production` requires **extra integration-branch commits** that are **not** in the user’s release candidate list, document them in a **subsection of 📝 Description** — **not** as a top-level `##` heading and **not** as a one-line list.
+
+The same dependency tickets **must** also appear in the **PR title** after the ` + ` separator (see [Release PR — PR title (CI)](#release-pr--pr-title-ci) above). The two sides — title and body — must list the same dependency tickets in the same ascending order.
+
+**Subsection heading (use exactly, inside Description):**
+
+```markdown
+### ⚠️ Included via dependency (cherry-pick)
+```
+
+**Intro line (one short paragraph):** State that these tickets were already on the integration branch (**`<origin-branch>`**), were **not** named as release candidates, but were cherry-picked because a release ticket depends on them (name which release ticket(s), e.g. “required for VAP-1267”).
+
+**Do not use** a compact line such as: `Technical dependencies (already on testing, required for VAP-1267): VAP-2417, VAP-2668.`
+
+**Per dependency task:** Use the **same block format** as release tasks (`**VAP-xxxx — headline**` + summary paragraph). After the summary, add one optional third line when helpful: `Required for: VAP-xxxx` (or several keys, space-separated).
+
+**Ordering:** List dependency tasks in **ascending Jira key** order unless the user asks otherwise.
+
+**Omit this section** when no dependency commits were added to the release branch.
+
+**Example:**
+
+```markdown
+## 📝 Description
+
+Production release for QA-approved ResiRoo tickets already merged to testing.
+
+**VAP-1267 — …**
+…
+
+### ⚠️ Included via dependency (cherry-pick)
+
+These tickets were already merged to the integration branch and are included so release commits apply cleanly on production. They were not part of the release candidate list.
+
+**VAP-2417 — P1: Unify RabbitMQ and API Resiroo experience**
+Centralizes Resiroo chat preparation through the API path (including `resiroo_preparation` and emergency-assessment wiring) so RabbitMQ and HTTP entry points share the same behavior.
+Required for: VAP-1267
+
+**VAP-2668 — Improve Resiroo fallback behavior when image analysis fails to avoid resend loops and preserve a smooth resident experience**
+Hardens image-analysis failure handling in the shared preparation flow so residents are not stuck in resend loops when analysis fails.
+Required for: VAP-1267
+```
+
+---
+
+**Other Description fields:**
+
+- **🔗 Related Jira Tickets** — link **every** ticket in the PR title **and** every dependency ticket from **⚠️ Included via dependency (cherry-pick)**: `https://vendoroo-dev.atlassian.net/browse/VAP-1234`
+- **🚀 Deployment Notes** — follow [Release PR — Deployment Notes](#release-pr--deployment-notes) above; never default to `None` without reviewing the release diff
+- **📸 Screenshots/Examples** — default exactly **`N/A`** unless UI/visual examples apply
+
+---
+
+## Confirmation gate (summary)
+
+**Show the full PR draft (title + body with proposed checklist/deployment defaults) before any `AskQuestion` confirmations.**
+
+### Task PR — confirmation order
+
+| Step | What to confirm | When | Notes |
+|------|-----------------|------|-------|
+| — | PR type | First | Task PR vs Hotfix PR vs Release PR ([Choose PR type](#choose-pr-type-mandatory-first-step)) |
+| 1 | Scope + Jira ticket | After fetch and context gather | Show `git log origin/testing..HEAD`; warn if working tree is dirty |
+| 2 | Branch name | Before push (if needed) | Current or proposed name; include **`other`** |
+| 3 | Merge destination | Before drafting body | Default **`testing`** |
+| — | *Research Deployment Notes from task diff* | Before checklist questions | vs `origin/testing` |
+| 4 | **Local Tests Report** | Before drafting body | Optional; **`AskQuestion`** — show source path for author verification; embed full content in PR |
+| 5 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see above) |
+| 6 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
+| 7 | PR title + body | Before push | Approve / edit (body includes checklists, Local Tests Report if confirmed, Deployment Notes) |
+| 8 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
+| — | *Git: push (if needed)* | After steps 1–8 | Command intent confirmation |
+| 9 | **Final approval** | **After push, before `gh pr create` / update** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+| — | *Git: create or update PR on remote* | After step 9 | Step 15 |
+| 10a | **y-gc-meet-helper** | **After PR on GitHub, before calendar confirm** | **Mandatory.** Run **y-gc-meet-helper.mdc** end-to-end (mode → draft → handoff or draft event). **Do not** skip to calendar/Slack questions |
+| 10b | **Google Calendar confirmation** | **After step 10a only** | **`AskQuestion`** wait / meeting ready / skip — user answers **after** creating or pasting the event from 10a |
+| 11 | **Slack ready for review** | **After step 10b satisfied** | Optional; **`AskQuestion`** Send / Skip; then **y-slack-pr-ready-for-review.mdc** if Send |
+
+Do **not** run **`gh pr create`** (or apply a PR update) until step **9 (final approval)** is explicitly granted. Do **not** send Slack until step **15** succeeds, step **10a** completes, step **10b** is satisfied, and step **11** is confirmed. **Do not** bundle steps 10a, 10b, and 11 in a single **`AskQuestion`** before y-gc-meet-helper runs.
+
+### Release PR — confirmation order
+
+The table below applies to **Release PR** only.
+
+| Step | What to confirm | When | Notes |
+|------|-----------------|------|-------|
+| — | PR type | First | Task PR vs Hotfix PR vs Release PR ([Choose PR type](#choose-pr-type-mandatory-first-step)) |
+| 1 | Candidate tasks | Before origin branch / version | Ask user input, e.g. `VAP-1267 VAP-1345` |
+| 2 | **Origin branch** | Before commit lookup | **`testing`** / **`staging`** / **`other`** — default **`testing`**; see [Origin branch](#origin-branch--commit-source-release-pr--hotfix-pr) |
+| 3 | Fix version | Before git branch creation | From Confluence; include **`other`** |
+| 4 | Branch name | Before git branch creation | `release-<version>`; include **`other`** |
+| 5 | Merge destination | Before git branch creation | Default **`production`** |
+| 6 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see above) |
+| 7 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
+| 8 | PR title + body | Before git branch work | **Both title and body code blocks must appear in chat first**; then Approve / edit (body includes checklists + Deployment Notes) |
+| 9 | Reviewers | Before push | Multi-select, ≥1 required |
+| — | *Git: branch, cherry-pick, verify, push* | | Uses confirmed **`<origin-branch>`** |
+| 10 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+
+**Deployment notes** are researched from the release diff **before step 7** — env vars in copy-paste `KEY=value` format with defaults.
+
+Do **not** create the release branch until steps 1–9 are confirmed. Do **not** run **`gh pr create`** until step **10 (final approval)** is explicitly granted.
+
+### Hotfix PR — confirmation order
+
+The table below applies to **Hotfix PR** only.
+
+| Step | What to confirm | When | Notes |
+|------|-----------------|------|-------|
+| — | PR type | First | Task PR vs Hotfix PR vs Release PR ([Choose PR type](#choose-pr-type-mandatory-first-step)) |
+| 1 | Candidate tasks | Before origin branch | Ask user input, e.g. `VAP-2717` or `VAP-2377 VAP-2717` |
+| 2 | **Origin branch** | Before commit lookup | **`testing`** / **`staging`** / **`other`** — default **`testing`** |
+| 3 | Branch name | Before git branch creation | `prod-<JIRA>`; include **`other`** |
+| 4 | Merge destination | Before git branch creation | Default **`production`** |
+| — | *Research Deployment Notes from hotfix diff* | Before checklist questions | vs `origin/production` |
+| 5 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see [Checklists](#checklists--mandatory-user-input-via-question-boxes)) |
+| 6 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
+| 7 | PR title + body | Before git branch work | Approve / edit (body includes checklists + Deployment Notes) |
+| 8 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
+| — | *Git: branch from production, cherry-pick, verify, push* | | Cherry-picks from **`<origin-branch>`** |
+| 9 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+
+**Deployment notes** are researched from the hotfix diff **before step 6** — env vars in copy-paste `KEY=value` format with defaults.
+
+Do **not** create the hotfix branch until steps 1–8 are confirmed. Do **not** run **`gh pr create`** until step **9 (final approval)** is explicitly granted.
+
+---
+
+## Working tree hygiene
+
+- When you create new task files during implementation, add them to git so they are tracked.
+- Do not leave task-related files untracked (`??`) before handoff.
+- **Task PR:** warn when staged/uncommitted files exist; they are not in the PR until committed and pushed.
+- **Hotfix PR / Release PR:** stash only what blocks branch checkout or cherry-pick; **always restore** — see [Stash restore (mandatory)](#stash-restore-mandatory).
+
+---
+
+## Stash restore (mandatory)
+
+Applies whenever you **`git stash`** during a **Hotfix PR** or **Release PR** flow (and any other PR flow if you stashed to switch branches).
+
+### Before stashing
+
+1. Run **`git stash list`** and note how many entries exist (or the top entry ref).
+2. Stash with a **descriptive message** that includes the PR type and ticket, e.g. `wip before prod-VAP-3223 hotfix`.
+3. Record how many **new** stash entries you added in this run (usually one).
+
+### After PR is created — or if the flow stops after a stash
+
+**Always** restore the user's local work before handoff:
+
+1. **`git checkout <previous-branch>`** — return to the branch the user was on before hotfix/release branch work (unless they asked to stay on the PR branch).
+2. **Pop every stash you created in this run**, **newest first** (`git stash pop` repeatedly, or `git stash pop stash@{n}` for each recorded entry).
+3. Run **`git stash list`** again and confirm your stash message(s) are **gone**.
+4. Run **`git status --short`** and briefly confirm to the user that local changes are back (staged, modified, and untracked as before).
+
+### If `stash pop` conflicts
+
+- Do **not** drop the stash silently.
+- Report the conflict paths, help resolve or leave clear next steps, and **do not** end the session with the user's work still only in the stash.
+
+### What not to do
+
+- Do **not** end a Hotfix or Release PR handoff with the user's work still stashed from **this** flow.
+- Do **not** pop unrelated older stashes (`stash@{1}`, …) that existed **before** this PR run — only stashes **you** created in the current session.
+- Do **not** use **`git stash drop`** instead of **`pop`** unless the user explicitly asks to discard stashed work.
+
+---
+
+## What not to do (all PR paths)
+
+- Do **not** finalize checklist checkboxes without **`AskQuestion`** for both Required and Optional sections.
+- Do **not** set Deployment Notes to `None` without reviewing the PR diff for env/config/migration/non-automated post-deploy needs.
+- Do **not** ask confirmation questions before showing the full suggested PR description/body (title block + body block first in the **same** message — see [PR draft must be visible before draft approval](#pr-draft-must-be-visible-before-draft-approval-hard-gate)).
+- Do **not** run an **`AskQuestion`** whose only purpose is “approve PR title + body” if that message does not already include the title code block and the full body code block.
+- Do **not** run shell commands without first explaining intent and getting confirmation via **`AskQuestion`** when the batch changes remotes or creates the PR.
+- Do **not** run **`gh pr create`** before **final approval** — push may happen earlier, but PR creation on the remote **must wait** for the user's explicit final yes.
+- Do **not** leave the PR without reviewers or without self-assignment (`@me`).
+- Do **not** leave **Hotfix** or **Release** PR handoff with stashes **you created in this run** still on **`git stash list`** — pop them all per [Stash restore (mandatory)](#stash-restore-mandatory).
+- Do **not** list commit hashes or internal git mechanics in the PR body unless a reviewer needs them.
+
+### What not to do — Task PR only
+
+See also [Task PR — what not to do](#task-pr--what-not-to-do).
+
+- Do **not** start commit lookup or diff review before **`git fetch origin testing`**.
+- Do **not** open a **Task PR** with `--base production` unless the user explicitly confirmed **`other`**.
+- Do **not** silently assume uncommitted or staged local files are in the PR.
+- Do **not** add **🧪 Local Tests Report** without user confirmation. When included, paste **report content** into the PR — not a local file path reviewers cannot open.
+- Do **not** auto-send Slack or auto-transition Jira at the end of a Task PR — follow steps 10–11 and **y-slack-pr-ready-for-review.mdc**.
+- Do **not** include **`:calendar: PR review meeting is already on your calendar`** in Slack until step 10 confirms the meeting exists.
+
+### What not to do — Hotfix PR only
+
+See also [Hotfix PR — what not to do](#hotfix-pr--what-not-to-do).
+
+- Do **not** use `release-<version>` or Task PR branch patterns (`feature/`, `bugfix/`, etc.) for Hotfix PRs.
+- Do **not** create the hotfix branch from `origin/testing` or `origin/staging`.
+- Do **not** use Confluence release version lookup for Hotfix PRs.
+- Do **not** use Hotfix PR for scheduled weekly releases.
+
+### What not to do — Release PR only
+
+- Do **not** commit or push unless the user clearly asks for git operations beyond this release flow.
+- Do **not** assume any **`<origin-branch>`** as the commit source without [Origin branch confirmation](#origin-branch--commit-source-release-pr--hotfix-pr).
+- Do **not** start branch work, commit lookup, or diff review before **`git fetch origin <origin-branch> production`** (with user-confirmed **`<origin-branch>`**).
+- Do **not** create the release branch from `origin/production` — it must come from **`origin/<origin-branch>`** (after fetch).
+- Do **not** open a **Release PR** with `--base staging` or `--base testing` — merge destination is **`production`**.
+- Do **not** merge the whole integration branch → `production` directly — always use **`release-<version>`**.
+- Do **not** use `prod-*` branch naming for Release PRs — use `release-<version>`.
+- Do **not** skip Confluence version lookup or user confirmation for version / branch / target.
+- Do **not** skip explicit user input for release candidate tasks.
+- Do **not** document dependency tickets as a one-line comma-separated list — use **⚠️ Included via dependency (cherry-pick)** with full per-task blocks.
+- Do **not** mix release-candidate and dependency Jira keys on the same side of the `+` separator in the PR title, and do **not** use any separator other than a single space within a side or a single ` + ` between sides.
+- Do **not** omit the `+ <dep …>` segment from the PR title when the body’s **⚠️ Included via dependency (cherry-pick)** section is non-empty — title and body must agree.
+- Do **not** use Hotfix PR (`prod-*`) for scheduled releases — use `release-<version>` instead.
+
+### Deployment Notes (Task, Hotfix, and Release)
+
+- Do **not** use diagrams, flowcharts, or tables in **🚀 Deployment Notes** — keep it simple.
+- Do **not** abbreviate env var names in Deployment Notes (no `VAR_*` wildcard patterns).
+
+---
+
+## Pitfalls
+
+### Task PR
+
+- **Dirty working tree:** staged or uncommitted files are easy to mistake for PR scope — always show `git log origin/testing..HEAD` and warn.
+- **Prompt/KB-only changes:** use **`None`** in Deployment Notes unless the diff also adds env vars, migrations, or a non-automated manual step — do not mention routine deploy restarts.
+- **Stale testing:** always fetch before commit lookup; do not use local `testing` SHAs without fetch.
+- **E2E report in PR body:** confirm inclusion with the user; read the source file and **paste report content** into the collapsed section — never only a `cursor_workspace/...` path.
+- **Slack after PR:** offer Calendar step (step 10) **before** Slack; never send the calendar line until the user confirms the meeting exists.
+- **Manual Google Calendar:** when the user creates the meeting themselves, **wait** — do not chain Slack in the same turn without their **meeting is ready** confirmation.
+
+### Hotfix PR
+
+- **Same files across tickets:** wrong cherry-pick order increases conflicts; always mirror **`<origin-branch>`** order among the chosen commits.
+- **Uncommitted work:** stash before switching branches; **always pop every stash you created in this hotfix run** before handoff ([Stash restore (mandatory)](#stash-restore-mandatory)).
+- **Push / SSH failures:** fix remotes and retry; the local `prod-…` branch remains valid.
+- **Hidden dependencies:** cherry-pick conflicts often mean missing commits on **`<origin-branch>`**; add them in **`<origin-branch>`** order and document per **⚠️ Included via dependency (cherry-pick)**.
+
+### Release PR
+
+- **Same files across tickets:** wrong cherry-pick order increases conflicts; always mirror **`<origin-branch>`** order among the chosen commits.
+- **Uncommitted work:** user may be on a feature branch with a dirty tree — stash before switching branches; **always pop every stash you created in this release run** before handoff ([Stash restore (mandatory)](#stash-restore-mandatory)).
+- **Empty squash merges:** some merge commits may be no-ops on cherry-pick; still verify final diff scope vs `origin/production`.
+- **Stale integration branch:** always fetch `origin/<origin-branch>` before commit lookup; do not use local branch SHAs without fetch.
+- **Wrong origin branch:** commits on `staging` vs `testing` differ — confirm origin branch before cherry-pick; do not mix SHAs from different branches.
+- **Stale Confluence doc:** if the pending version is unclear, use **`other`** and let the user supply the version.
+- **Hidden dependencies:** cherry-pick conflicts often mean missing commits on **`<origin-branch>`**; add them in **`<origin-branch>`** order, then document each dependency ticket in **⚠️ Included via dependency (cherry-pick)** before final PR approval.
+
+Apply this rule whenever the user asks to **create a PR**, **open a PR**, **create a hotfix PR**, or **create a release PR** for **this** repository — start with **Choose PR type** (`AskQuestion`) unless they already specified **Task PR**, **Hotfix PR**, or **Release PR** explicitly in the same message.

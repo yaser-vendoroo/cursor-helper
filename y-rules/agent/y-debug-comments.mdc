@@ -1,0 +1,15 @@
+---
+description: Preserve the user's debug comments and instrumentation unless they ask to remove them
+alwaysApply: true
+---
+
+# Debug comments and instrumentation
+
+When editing code:
+
+- **Do not remove** the user’s **debug comments** (including `# ...`, block comments, `TODO`/`DEBUG`-style notes, and comments explaining temporary investigation) **unless the user explicitly asks** you to remove or clean them up.
+- **Do not remove** **debug instrumentation** they added (e.g. **`print(...)`** for tracing flow, extra logging, breakpoints-as-comments) **unless they ask** — even if it looks temporary, noisy, or “unprofessional.”
+- **Refactors, bugfixes, and security-sensitive edits are not an exception:** do **not** strip their **`print`** / debug logging while touching the same file for another reason. If you believe a print could leak secrets, **warn the user** and suggest a safer pattern — do **not** delete it unless they confirm.
+- You may **suggest** moving or narrowing debug code after a fix, but **do not delete it by default** in the same change that fixes something else.
+
+This overrides a general habit of “cleaning up” while editing: **preserving their debug trail is the default.**

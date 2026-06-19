@@ -1,0 +1,63 @@
+---
+description: Task-related git unified diffs — one fenced diff per file, copy-paste for docs
+alwaysApply: false
+---
+
+# Diffs for documentation
+
+Use this rule when the user asks for **task-related changes in git diff style**, **copy-paste diffs**, or **`@y-diffs`** so they can drop the output into **handoff docs**, **Confluence**, **Jira**, or similar.
+
+## Goals
+
+- Output **real** changes in **unified diff** form (lines prefixed with `---`, `+++`, `@@`, `+`, `-`, space).
+- Keep the diff **scoped to the task**: relevant paths only—not unrelated refactors, lockfiles, or local-only files unless the task explicitly includes them.
+- Make blocks **easy to copy**: **one** fenced `diff` region **per file** (see below).
+
+## How to produce the diff
+
+1. **Determine scope**
+   - Prefer paths tied to the **ticket / branch / PR** the user is documenting (e.g. from branch name `PROJ-1234-…`, tracker key, or files discussed in the thread).
+   - If scope is unclear, **ask once** which commit range or paths to include; otherwise infer from the current task and **exclude** obvious noise (`.idea/`, personal notes, cached assets, large binaries).
+
+2. **Choose a git range**
+   - Default comparison: **`origin/main...HEAD`** or **`main...HEAD`** (use the repo’s primary integration branch if not `main`).
+   - If the user names a base (e.g. `develop`, a tag, or a commit), use that: `git diff <base>...HEAD -- <paths>`.
+   - For **uncommitted** work only: `git diff` or `git diff --cached` as appropriate, and say so in one short line above the block.
+
+3. **Run git in the repo**
+   - Use **`git diff <range> -- <path>`** per file when producing **separate blocks**, or **`git show <commit> -p -- <path>`** for a single commit and one path.
+   - For **single-commit, per-file** patches without repeating the commit banner each time, prefer:
+     **`git show <commit> --pretty=format: -p -- <path>`** (empty `format` → diff only).
+   - Limit with **`-- <path>`** when the task touches known files.
+   - For very large files, either show the **full diff** if still reasonable, or show **`git diff --stat`** plus **excerpts** of the changed hunks, with a note that the rest is omitted.
+
+4. **Format for copy-paste — one block per file (required)**
+
+   - **Separate diffs per file:** Do **not** put multiple files inside one fenced **diff** block. For each file, output:
+     1. A **short heading** with the repo-relative path.
+     2. Optional **one line** of git context (commit, base branch, staged vs unstaged).
+     3. Exactly **one** fenced block with language **`diff`** containing **only** that file’s unified diff.
+   - Repeat for every file in scope. Order files sensibly (e.g. config → core → tests).
+
+5. **Soft wrap (required)**
+
+   - **Narration** (intro, scope, “uncommitted”, warnings): use **normal paragraphs**—line length should **soft-wrap** in chat and Confluence.
+   - **Diff bodies:** Preserve **exact** git output (do not reflow `+`/`-` lines). Rely on the viewer’s word wrap for those blocks.
+
+6. **Optional preamble**
+
+   One short paragraph at the top: base ref, branch if relevant—**wrapped**, not one giant line.
+
+## Safety and hygiene
+
+- **Do not** include contents of **`.env`**, credentials, API keys, or tokens. If a secret would appear in a diff, **omit that hunk** or replace with a placeholder line and say a secret was redacted.
+- **Binary files:** do not dump binary content; use a one-line note or `git diff --stat` only.
+- **Generated noise:** skip or separate huge generated artifacts unless they are part of the task.
+
+## When git is not available or scope is empty
+
+- Say so briefly and offer **manual unified-diff-style excerpts** of the changes you know from context, clearly labeled as **not from git**.
+
+## Relation to other rules
+
+- Complements **y-task-context** / handoff docs: diffs are **evidence**; the narrative (Summary, AC) stays in prose unless the user wants everything in one paste.
