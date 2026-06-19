@@ -1,0 +1,114 @@
+---
+description: Reusable testing-criteria document structure for product/tech/QA sign-off on behavior changes (ResiRoo, Marketplace, and similar).
+alwaysApply: false
+---
+
+# Test: testing criteria (`y-tst-testing-criteria`)
+
+Use this rule when a work item needs a **Testing Criteria** document that Tech and QA can use to judge pass/fail **without** prescribing specific test cases.
+
+Product owners define **what must be true**; QA defines **how to test it** (see `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`).
+
+## When to use
+
+- Behavior changes in prompts, knowledge base, routing, or triage flows
+- Domain-expert or PO review follow-ups that need explicit acceptance boundaries
+- Handoff from implementation to QA before release sign-off
+
+Do **not** use this rule for E2E run reports (use `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`) or conversation formatting (use `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`).
+
+## Artifact location
+
+- Save under **`docs/<JIRA-KEY>/testing-criteria.md`** (for example `docs/VAP-2291/testing-criteria.md`).
+- One file per work item unless the user specifies a different path.
+- Track the file in git when created for implementation work.
+
+## Document title
+
+```markdown
+# <JIRA-KEY> — Testing Criteria
+```
+
+## Header block (required, immediately after H1)
+
+Use this metadata block before the first section:
+
+```markdown
+**Work item:** [<JIRA-KEY>](https://vendoroo-dev.atlassian.net/browse/<JIRA-KEY>)
+**Audience:** Tech and QA
+**Purpose:** <One sentence: what “done and correct” means for this change.>
+```
+
+## Required structure (in this order)
+
+Use **Title Case** for every section and subsection heading (`##` and `###`).
+
+Do **not** include **Product Goal** or **Reference Implementation** sections.
+
+---
+
+### 1. Acceptance Criteria
+
+Main section: `## Acceptance Criteria`
+
+Organize criteria into numbered subsections:
+
+```markdown
+### 1. <Criterion Group Name>
+```
+
+Guidelines for each criterion group:
+
+- Name the group by **observable behavior** (for example “Plumbing Routing Order”, “Overflow Photo Collection”).
+- State the rule in plain language first when a short intro helps.
+- Prefer a **Pass / Fail** table when multiple rows make scanning easier.
+- When a single rule fits one row, you may use bold **Pass:** / **Fail:** lines instead of a table.
+- Include brief **product or operational context** only when it clarifies *why* the criterion exists (one line under a table is enough).
+- Do **not** list suggested test cases, scripts, or step-by-step test procedures in this document.
+
+**Pass / Fail table shape (preferred):**
+
+| Requirement | Pass | Fail |
+|-------------|------|------|
+| **<Short label>** | <Observable pass condition> | <Observable fail condition> |
+
+**Routing or priority rules** may use a three-column table when order matters:
+
+| Order | When This Applies | Required Behavior |
+|-------|-------------------|-------------------|
+| **First** | … | … |
+
+Add as many numbered subsections (`### 1.` … `### N.`) as the work item needs.
+
+Separate major criterion groups with `---` when it improves readability.
+
+---
+
+### 2. Definition of Done for Testing
+
+Section: `## Definition of Done for Testing`
+
+- Numbered checklist summarizing **acceptance criterion groups** (mirror `### 1.` … `### N.` titles or themes).
+- State that **\<JIRA-KEY\> is accepted** when Tech and QA confirm the listed behaviors on representative conversations or flows.
+- End with the **semantic equivalence** rule when wording flexibility matters:
+
+  > No single exact phrase is required for pass—**semantic equivalence** is acceptable when the criterion is about natural language in assistant responses.
+
+Adjust or omit the semantic-equivalence line when the work item is not conversation-based.
+
+---
+
+## Style
+
+- **B2 English:** clear, professional, short sentences.
+- **Audience:** Tech and QA; avoid implementation file paths and code-level detail in the criteria doc.
+- **No test cases:** criteria only; derive scenarios in `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`.
+- **Title Case:** all `##` and `###` headings (for example `## Acceptance Criteria`, `### 2. Overflow Photo Collection`).
+- Use horizontal rules (`---`) between major blocks sparingly.
+
+## Cross-references
+
+- Test cases document: `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`
+- Single test case fields: `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`
+- E2E evidence and run artifacts: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+- Transcript formatting from DB exports: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`

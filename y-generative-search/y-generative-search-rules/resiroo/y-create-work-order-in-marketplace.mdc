@@ -1,0 +1,260 @@
+---
+description: >-
+  Open Marketplace web app, create WO with required issue description filled,
+  wait for triage, Start Resiroo Manually via ⋮ menu, verify POST ForceResiroo 200, then close ⋮, then resolve workOrderId
+  and resident UUID (aiResidentComData / location assignments, not top-level
+  userId) for ResiRoo / RabbitMQ; pairs with resiroo-manual-e2e-rabbitmq.
+  Phrases like “create a work order” mean this full path including Start
+  Resiroo unless the user explicitly narrows scope. Final assistant reply must
+  include a structured work-order summary (ids, client, resident, job token)
+  per “Required chat response” in this rule. Config from .env.e2e.local only
+  (not repo .env); API calls use the same Bearer JWT the MP SPA sends (see
+  API auth — use **MARKETPLACE_JWT** from **`.env.e2e.local`** for MP API
+  requests; see **API auth — capture JWT**), not only ad-hoc localStorage key guesses.
+alwaysApply: false
+---
+
+# Create work order in Marketplace (testing)
+
+Use this rule when you need a **real work order** in the **Marketplace (MP) testing** environment so local runs (RabbitMQ, Roo, DB checks) use **consistent WO data** you control.
+
+## What “create a work order” means (default)
+
+When the user asks to **create a work order** (or similar: “new WO in MP”, “Marketplace work order”, etc.) **without** saying they only want the form or submit, treat the task as **complete Marketplace setup for ResiRoo**, not “stop after **SUBMIT WORK ORDER**”:
+
+1. **Create:** Fill and submit the new-WO form (client, location, **issue description**, title, etc.) per the steps below.
+2. **Triage:** On the post-submit **`request-id=`** page, **wait** until **Work Order Triage** has **finished** (stable UI, not stuck in “Doing Triage…” / loading).
+3. **Resiroo:** Open the work order **⋮** menu and run **Start Resiroo Manually**, then **verify** the action actually ran (see **Verify Start Resiroo Manually** below — clicking the label alone is **not** proof). **Then close the ⋮ menu** by clicking **outside** the dropdown on **WO panel content** (see **After submit: … Steps** — do **not** use **Details** or top-bar controls like **Search Jobs** to dismiss).
+4. **Ids:** Obtain a **Bearer JWT** for the Marketplace API (see **API auth — capture JWT**). Prefer **`GET …/api/WorkOrder/{jobToken}`** where **`jobToken`** is the **`request-id=`** UUID from the WO URL (same pattern as **MPHelper** / `vtools.user.js` — direct fetch by job token). From that JSON, read **`workOrderId`**, **`woNumber`**, **`clientId`**, resident id under **`aiResidentComData`**, etc. If that endpoint or shape fails for your build, fall back to **`GET …/api/Job/List/{jobToken}`** → numeric **`workOrderId`**, then **`GET …/api/WorkOrder/ById/{workOrderId}`**. Use the **API base** from **`.env.e2e.local`** (or derived from **`MARKETPLACE_URL`**).
+
+**Only skip triage wait and/or Start Resiroo** if the user **explicitly** asks for a partial flow (e.g. “create but do not start Resiroo”, “submit only”).
+
+## Agent responsibility (when this rule applies)
+
+- **Create the work order in Marketplace through its web app** — not via a substitute script or invented API **unless** the user explicitly chooses another method **or** **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** is in scope (that rule documents the verified **`POST …/api/WorkOrder`** multipart API path for fast testing).
+- **Do the full UI path:** load **`MARKETPLACE_URL`** and credentials from **`.env.e2e.local`**, **open MP**, **log in**, then **create a new work order** whose title, **issue description**, priority/labels, category, and resident/location match the **scenario the user gave** (e.g. weather-related, emergency, plumbing). The **issue description** field on the form is **required** — **do not** submit until it is filled with a clear maintenance/issue narrative (see step 8 below).
+- Use the **browser automation tools** available in Cursor when you can (navigate, snapshot, fill forms). If login is blocked (CAPTCHA, SSO, unknown selector, missing permission to `source` the env file), **stop**, say what failed, and ask the user to complete that step or provide a session.
+- **Do not** claim the job is done after submit alone when the user asked to **create a work order** in the default sense — see **What “create a work order” means** above. **Do not** claim the WO is fully ready for ResiRoo testing until **Start Resiroo Manually** has been **verified** per **Verify Start Resiroo Manually** (unless the user opted out of Resiroo).
+- **Do not** claim the WO exists until the UI flow has finished and you have a real id (or the user confirms creation).
+- After submit, follow **Work Order Triage → Start Resiroo Manually → verify `ForceResiroo` POST 200** (see below), **then close the ⋮ menu**, **then** pull **`workOrderId`**, **resident user id** (correct JSON paths — see below), **`clientId`**, etc. from the **Marketplace API** — do not skip triage wait or the verified manual Resiroo start for a default “create work order” request. **Do not** use top-level **`data.userId`** as the resident id unless you have verified it matches the resident (it often does not — see **Staff vs resident user**).
+
+## Required chat response (final reply to the user)
+
+When this rule applies and you created a work order (default flow), the **final message back to the user** must include a **structured work-order summary** so they can copy values into RabbitMQ payloads, DB checks, and tickets **without** re-running discovery.
+
+**Always include (when known from UI + API):**
+
+| Field | Source | Notes |
+|--------|--------|--------|
+| **Marketplace UI URL** | Browser | Testing vs dev/prod; no secrets. |
+| **WO title** | Create form / WO header | As shown in MP. |
+| **Job token** | URL `request-id=` | UUID; **not** the numeric work order id. |
+| **Work order id** (`workOrderId` / `ObjectId`) | Prefer **`GET …/api/WorkOrder/{jobToken}`** (UUID from `request-id=`) → `data.workOrderId` if present, else **`data.jobs[0].workOrderId`** (and variants). Else **`GET …/api/Job/List/{jobToken}`** → `data[].workOrderId`. | Numeric id for **`AdditionalData.WorkOrderId`**. **MPHelper** uses the **`/api/WorkOrder/{uuid}`** path with the URL job token. |
+| **`woNumber`** | **`WorkOrder/{jobToken}`** or **`ById`** → `data.woNumber` | May be `null` briefly; retry. |
+| **`clientId`** | **`WorkOrder/{jobToken}`** or **`ById`** → `data.clientId` | Compare to **`CLIENT_ID`** in **`.env.e2e.local`** if present. |
+| **Resident user id** | Same JSON → `data.aiResidentComData.resident.userId` or `data.location.locationAssignments[0].userId` | For **`ResidentUserId`**; **not** top-level `data.userId`. |
+| **Staff / creator user id** (optional) | **`ById`** → `data.userId` | Label as staff/creator; do **not** substitute for resident. |
+| **Location** | **`ById`** / UI | Address or name as relevant for the test. |
+| **API base used** | **`.env.e2e.local`** (`VENDOROO_BASE_API_URL` if set) or derived from **`MARKETPLACE_URL`** | Must align with **`MARKETPLACE_URL`** (e.g. testing MP → `https://api-testing-marketplace.vendoroo.ai`). |
+
+Use a **small table or bullet list** in the reply (markdown is fine). **Do not** paste **JWTs**, **bearer tokens**, or passwords.
+
+**If API resolution fails** (e.g. **`401`/`403`** on **`WorkOrder/{jobToken}`**, **`Job/List`**, or **`WorkOrder/ById`**, timeout, missing token):
+
+- Still report everything you **know from the UI**: **job token**, **title**, **client name**, **location label/address**, and the **exact API base** you attempted.
+- Say clearly which fields are **not** available yet (**work order id**, **resident user id**, **`clientId`**, **`woNumber`**). Retry with a **Bearer captured from DevTools → Network** on any **`api-*-marketplace.vendoroo.ai`** request (see **API auth — capture JWT**), then retry **`GET …/api/WorkOrder/{jobToken}`** before falling back to **`Job/List`** — **do not invent UUIDs or numeric ids**.
+- Optionally give the **exact GET paths** (no bearer) so the user can run them after fixing auth.
+
+**Task is not “complete” for copy-paste test use** until **`workOrderId`**, **`clientId`**, and **resident user id** are resolved **or** the user accepts the blocked-API handoff above.
+
+## Terms
+
+- **MP** — Marketplace (Vendoroo work-order product UI + APIs).
+- **WO** / **wo** — work order.
+
+## How this fits other rules
+
+- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** — **API-only** WO create (**`POST …/api/WorkOrder`** multipart + GETs); no MP UI, no triage wait, no **Start Resiroo**. Use when speed matters and Resiroo setup is not required.
+- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** — unified ResiRoo E2E orchestration (Local / MP Testing, RabbitMQ / Chat API / SMTP, Live APIs / Mock), including approval-before-send and one-time first-message inbox assignment for MP Testing paths.
+- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`** — real SMTP resident email flow and **Client Inbox -> Move To Work Order** assignment (`BulkMessageAssign`) when conversation must stay natural through email.
+- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** — resolve **`LOCATION`** → **`locationId`** (**`SearchLocations`** / **`GetByClientId`**) and Location CRUD for MP API scripts.
+- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`** — resolve **`CLIENT`** → **`CLIENT_ID`** (**`SearchByName`** / **`SearchWithPagination`**) and Client CRUD for MP API scripts.
+- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** — put test images on **S3** (env from **`.env.e2e.local`**) and build **HTTPS URLs** for **`ImageUrls`** / fetchable fixtures.
+- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** needs a valid **`ObjectId`** (WO id) and related context; **`GET …/api/WorkOrder/ById/{id}`** must return a non-empty **`clientId`** (or mock seed when in Mock mode). Creating a WO in MP (testing) is the usual way to obtain that for Live API runs.
+- After you have ids, build payloads with **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** and run the stack steps in **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`**.
+
+## Configuration: `.env.e2e.local` (required)
+
+- Always take **credentials, API base URLs, client/resident hints, and any other required data** from:
+
+  **`.env.e2e.local`** (repo root)
+
+- Load variables in a shell, for example: `set -a && source .env.e2e.local && set +a` from the project root (adjust if your shell dislikes `source`).
+- **Do not** read that file into the chat, paste tokens/passwords, or echo secret values. Follow the repo **Environment Secrets** policy for environment files (including **`.env.e2e.local`**).
+- **Do not** create, edit, or “fix” **`.env.e2e.local`** unless the user explicitly asks for that task.
+
+From **`.env.e2e.local`**, expect at least **`MARKETPLACE_URL`**, **`MARKETPLACE_TEST_EMAIL`**, **`MARKETPLACE_TEST_PASSWORD`**, **`MARKETPLACE_JWT`** (JWT for **Marketplace API** calls from agents/shell), and hints such as **`CLIENT`**, **`LOCATION`**, **`CLIENT_ID`** (exact set can vary). Optional: **`VENDOROO_BASE_API_URL`** if your team stores it there.
+
+**Marketplace API JWT (agents / shell — required variable name):** **always** use **`MARKETPLACE_JWT`** from **`.env.e2e.local`** when calling **`api-*-marketplace.vendoroo.ai`** (e.g. **`GET {apiBase}/api/WorkOrder/{jobToken}`**). Normalize to **`Authorization: Bearer <jwt>`** (add the **`Bearer `** prefix if the value is raw JWT only). If **`MARKETPLACE_JWT`** is missing, you may fall back to legacy names **`MP_JWT`** (raw JWT) or **`VENDOROO_ADMIN_AUTH_BEARER`** (may already include **`Bearer `**). After **`source .env.e2e.local`**, run curl/scripts — **never** `echo` the token or paste it into chat. Rotate the token when it expires. This matches the Bearer the SPA sends (same idea as **MPHelper**), stored in env for automation.
+
+**Do not** rely on the repo **`.env`** file for this rule — use **only** **`.env.e2e.local`** for non-secret config and Marketplace login hints.
+
+**Align API host with the UI:** if **`MARKETPLACE_URL`** is **`…testing-marketplace…`**, the API is typically **`https://api-testing-marketplace.vendoroo.ai`** (not dev/prod unless that is what you are testing). Use **`VENDOROO_BASE_API_URL`** from **`.env.e2e.local`** when present; otherwise derive the API host from **`MARKETPLACE_URL`**.
+
+### API auth — capture JWT (required for Marketplace API calls)
+
+The MP web app sends **`Authorization: Bearer <jwt>`** on requests to the **API host**, not to the page origin. **Do not** assume a single `localStorage` key name — the reliable approach (used by **MPHelper** `vtools.user.js`) is to use the **same Bearer the SPA already sends** to:
+
+- **Testing:** `https://api-testing-marketplace.vendoroo.ai`
+- **Prod:** `https://api-marketplace.vendoroo.ai`
+
+**Ways to obtain the Bearer (try in order):**
+
+1. **`.env.e2e.local` (automation-friendly — default for agents):** **`MARKETPLACE_JWT`**. **`source`** the file in a shell, build **`Authorization: Bearer <jwt>`** from **`MARKETPLACE_JWT`**, and use it for **`GET {apiBase}/api/WorkOrder/{jobToken}`** and other MP API calls. For **curl / Python / scripts** (not the real browser tab), also send a **browser-like `User-Agent`** — without it, the API may return **403** even when the JWT is valid. Add **`Origin`** / **`Referer`** matching **`MARKETPLACE_URL`** if needed. If **`MARKETPLACE_JWT`** is unset, try legacy **`MP_JWT`** / **`VENDOROO_ADMIN_AUTH_BEARER`** (see **Configuration** above). This is the reliable path when **Cursor browser MCP does not expose request headers**.
+2. **DevTools → Network:** Filter by **Fetch/XHR**, click any request whose URL is under **`api-testing-marketplace.vendoroo.ai`** (or prod), open **Headers** → **Request Headers** → copy **`Authorization: Bearer …`** (value only after `Bearer `). Paste into **`MARKETPLACE_JWT`** in **`.env.e2e.local`** for automation (do not commit secrets).
+3. **`localStorage` on the MP origin** (`https://testing-marketplace.vendoroo.ai`): inspect keys — values may be raw JWT or prefixed; normalize to **`Authorization: Bearer <jwt>`**.
+4. **Browser automation:** **`browser_network_requests`** often lists URLs without **`Authorization`** — treat as **header not available** and fall back to **1–2**.
+5. **Tampermonkey MPHelper:** **`vtools.user.js`** intercepts **`fetch` / `XMLHttpRequest`** and stores the Bearer from outbound API calls — same token as **1**, but captured live in the browser.
+
+**Request shape (align with MPHelper):**
+
+- Header: **`Authorization: Bearer <jwt>`**, **`Accept: application/json`**.
+- **Non-browser clients (curl, Postman, scripts):** set **`User-Agent`** to a common browser string (e.g. Chrome on desktop). The testing MP API has been observed to return **403** for requests that have a valid **`Authorization`** but **no** **`User-Agent`**.
+- Optional browser-faithful headers: **`Origin`** and **`Referer`** set to the MP page origin (e.g. `https://testing-marketplace.vendoroo.ai`). Add them if you still get **401/403** after **`User-Agent`**.
+
+**Secrets:** never paste full JWTs, **`Authorization`** lines, or raw env dumps into chat.
+
+**Env JWT for MP API:** **`MARKETPLACE_JWT`** in **`.env.e2e.local`** — **always** use this for agent/shell requests to the Marketplace API. Legacy: **`MP_JWT`** / **`VENDOROO_ADMIN_AUTH_BEARER`** only if **`MARKETPLACE_JWT`** is absent. If **`GET …/api/WorkOrder/{jobToken}`** returns **403**, first add **`User-Agent`** (see **Request shape** above); if it still fails, the token may be expired — refresh from **DevTools** or **MPHelper**, update **`MARKETPLACE_JWT`** in **`.env.e2e.local`**, and retry (do not commit secrets).
+
+### API resolution — prefer `WorkOrder/{jobToken}` first (MPHelper pattern)
+
+Once you have **`jobToken`** = UUID from **`?request-id=`** in the WO URL:
+
+1. **`GET {apiBase}/api/WorkOrder/{jobToken}`** with the Bearer — this is the **first-class** path used by **MPHelper** (path segment is the **job token UUID**, not necessarily the numeric DB id). Parse JSON for **`data.workOrderId`** or **`data.jobs[0].workOrderId`**, **`data.woNumber`**, **`data.clientId`**, **`data.aiResidentComData.resident.userId`**, etc. (nested shapes may mirror **`GET …/ById`**; some fields appear under **`data`** wrappers — inspect the payload).
+
+2. If that fails or returns an unexpected shape, **`GET {apiBase}/api/Job/List/{jobToken}`** → take **`workOrderId`** from **`data`**, then **`GET {apiBase}/api/WorkOrder/ById/{workOrderId}`**.
+
+**Why this reduces “stuck” runs:** agents no longer depend on guessing **`localStorage`** keys before calling **`Job/List`**; copying the **Network** tab Bearer or using the **direct `WorkOrder/{uuid}`** call matches how the live app and **MPHelper** resolve **`woNumber`**, **`workOrderId`**, and **resident** fields.
+
+## Creating a WO in MP (testing) — web app steps
+
+1. **Environment:** `source` **`.env.e2e.local`** so **`MARKETPLACE_URL`** and login variables are available (do not print secrets). If `source` fails on malformed lines, use **Python + `dotenv`** to load the file in a one-off script instead of editing the file.
+2. **Open MP:** Navigate to **`$MARKETPLACE_URL`** in the browser tool.
+3. **Log in** if needed using **`MARKETPLACE_TEST_EMAIL`** / **`MARKETPLACE_TEST_PASSWORD`** (or whatever keys exist in **`.env.e2e.local`**). If the session is already open, skip login.
+4. **Start the form:** Workspace sidebar → **New Work Order** (URL may include **`action=add-request`**).
+5. **Client:** Use the **client combobox** — search the **display name** as shown in MP (e.g. **“Sandbox 2”**). If **`CLIENT`** in **`.env.e2e.local`** is a short slug (e.g. `sandbox2`) and the dropdown shows **“No options”**, try **spaced / title-case** variants matching the real client name. Treat this as **search + pick + commit** (not “type and leave”). Use **Client combobox — reliable sequence** below so **`clientId`** binds before **Location** / **Submit**.
+
+### Client combobox — reliable sequence (single pass)
+
+The client field is a **searchable dropdown** (react-select–style). The UI can **look** filled while the form **has not** stored **`clientId`**, which causes **“Client required”** on submit. **Extra retries usually come from wrong focus moves**, not from needing to pick the client many times.
+
+**Do this in order — avoid improvising alternate “commit” steps first:**
+
+1. **Open** the client combobox (click the control).
+2. **Filter:** **`browser_type`** the display name (e.g. **Sandbox 2**) with **`slowly: true`** so options can filter in time.
+3. **Pick:** **`browser_click`** the **`role="option"`** row that matches. **Never** rely on typing alone — always click the option.
+4. **Hand off to Location (required next step):** Immediately **`browser_click`** the **Location** combobox. This commits focus in a way that works reliably for automation.
+
+**Do not (these patterns caused multiple client retries in practice):**
+
+- **Do not** click **Title** (or other unrelated fields) **before Location** just to blur the client — that correlated with unclear client state and unnecessary re-selections.
+- **Do not** treat **Tab** or **Enter** as the primary “commit” for client — they often collapse the control while the accessibility tree still shows **no** client name, which tempts a wasteful second client pass. If you already picked an option, **go to Location** instead of keyboard cycling.
+- **Do not** loop **Tab → Enter → Escape** as the first recovery — use the handoffs below.
+
+**If the client menu stays `expanded` or the listbox blocks clicks:**
+
+- **First:** **`browser_click`** **Location** (same as step 4) — it moves focus away from the client without the Title problem.
+- **If** something still intercepts (e.g. option layer): **`browser_click`** the **same** client **option** again — that often closes the menu while keeping the selection.
+- **Escape** did not reliably close the menu in some runs; prefer **Location** or **second option click** over Escape-only recovery.
+
+**Preflight before SUBMIT WORK ORDER:**
+
+- Open the client dropdown again (click, or **ArrowDown** when the control is focused). In a full snapshot, the intended option should show **`states: [selected]`** (search the snapshot for the client name).
+- If the list is open after verification, **Escape** is OK **after** you have confirmed **`selected`**.
+
+**After the WO exists:** **`GET …/api/WorkOrder/ById/{workOrderId}`** → **`data.clientId`** should match **`CLIENT_ID`** / expectations from **`.env.e2e.local`**. If not, the client never bound correctly in MP.
+
+6. **Location:** After client is selected, choose **`LOCATION`** from **`.env.e2e.local`** or pick the row that matches your ResiRoo test (full address should match what you want the function-first resolver in `services/roo/app/utils/web_insight/weather/resolve.py` / **`WorkOrder/ById`** to return).
+7. **Title:** The **title** field has a **strict length limit (commonly max 30 characters)** on the testing UI. Put the **full scenario** in the **issue description** if the title must be short (e.g. “No heat - weather emergency” instead of a long sentence).
+8. **Issue description (required):** The form’s **issue / problem description** (main rich-text editor — accessibility name often **`Editor editing area: main`**) is **required** for a valid work order. **Before** **SUBMIT WORK ORDER**:
+   - **Focus** the main description editor (click into it if needed).
+   - Enter a **non-empty** narrative: what is wrong, where, urgency, and any category hint (e.g. plumbing/HVAC) so triage and ResiRoo have real content.
+   - Prefer **`browser_fill`** on that **main** editor; use slow **`browser_type`** if the value does not stick.
+   - **Blur** the field after filling (e.g. **Tab**, click **Title**, or click outside) so the control commits — then **re-snapshot** and confirm the editor still shows your text **before** submit.
+   - **Do not submit** while the description is empty or if you are unsure it persisted.
+   - **Verify persistence (recommended):** After **`SUBMIT WORK ORDER`**, call **`GET …/api/WorkOrder/{jobToken}`** (UUID from **`request-id=`**) or **`GET …/api/WorkOrder/ById/{workOrderId}`** once you have the numeric id, and inspect **`data.scopeOfWorkSummary`**. If it contains **only** the boilerplate blocks (**Created through** / **Created by**) and **not** your issue narrative, the description did **not** reach the backend — **edit the WO in MP** to paste the issue text again, or recreate the WO using slow **`browser_type`** into the main editor and blur again. Do not rely on triage alone to infer the description was stored.
+9. **Submit:** **SUBMIT WORK ORDER** only after **client**, **location**, and **issue description** are set. If validation fails: **title too long** (shorten to ≤30 chars) or **client required** (re-select client from dropdown and submit again). If **Work Order Triage** still claims **no issue description** after submit, treat that as a **failed** create for ResiRoo purposes — edit the WO in MP to add the body or recreate the WO with a verified description.
+10. **Priority / labels:** Set **EMERGENCY** / category if the UI exposes them and the scenario requires it; some flows default category (e.g. General Maintenance) — adjust if your test needs HVAC-specific routing.
+
+**Order reminder:** client → location → **issue description (required)** → submit → **(default “create WO”)** triage complete → **Start Resiroo Manually** → **verify `ForceResiroo` 200** → **close ⋮ menu** → API ids. Skipping the description breaks triage and downstream tests.
+
+If the UI flow is unclear, use **`docs/ONBOARDING.md`** as background, but always use **URLs and accounts from `.env.e2e.local`**, not ad-hoc hosts.
+
+## Marketplace UI quirks (save time on repeat runs)
+
+| Topic | What to know |
+|--------|----------------|
+| **“Create a work order”** | Default scope = **submit form → wait for triage → ⋮ → Start Resiroo Manually → verify `ForceResiroo` POST 200 (or equivalent) → close ⋮ menu → resolve ids via API**. Do not stop at submit unless the user opts out. |
+| **Close ⋮ after Resiroo** | Dismiss by clicking **outside** the menu on **WO panel** content (triage text, address, **No Attachments**, padding). **Not** **Details** or **Search Jobs**. **Escape** or second **⋮** click if needed. |
+| **Client combobox** | **Slow type → click option → click Location next** (not Title first). Avoid **Tab/Enter**-only “commit” loops. If the menu stays open, click **Location** or click the **same option** again. **Preflight:** reopen client list and confirm **`selected`** on the option; then **Submit**. Confirm **`clientId`** via **`WorkOrder/{jobToken}`** or **`ById`** after create. |
+| **Issue description** | **Required** on the create form (main rich-text editor). Without it, triage may report **no issue description** and ResiRoo tests lack a real scope. Fill, blur/commit, verify text remains, then submit. |
+| **Post-submit URL** | You may land on **`…/workspace?request-id=<uuid>`**. That UUID is the **job token**, **not** the numeric **`ObjectId`** for RabbitMQ. |
+| **Resolve ids (order)** | With **`Authorization: Bearer <jwt>`** captured from **Network** / **`localStorage`** (see **API auth — capture JWT**), prefer **`GET {api}/api/WorkOrder/{jobToken}`** (**MPHelper**). Else **`GET {api}/api/Job/List/{jobToken}`** → numeric **`workOrderId`**, then **`GET {api}/api/WorkOrder/ById/{workOrderId}`**. Use **`workOrderId`** (numeric) as **`ObjectId`** / **`WorkOrderId`** for RabbitMQ — not necessarily the job row’s nested **`id`**. |
+| **Staff vs resident user** | Top-level **`data.userId`** is the work order’s **primary / FK user** (often the **logged-in Marketplace account** that created the WO via Workspace, e.g. **Non-Resident** flow). It pairs with **`data.userFullName`**. That UUID is **not** the on-lease **resident** for RabbitMQ **`ResidentUserId`** when those differ. |
+| **Resident UUID (correct fields)** | From **`GET {api}/api/WorkOrder/{jobToken}`** or **`GET {api}/api/WorkOrder/ById/{workOrderId}`**, read the resident id from **`data.aiResidentComData.resident.userId`** and/or **`data.location.locationAssignments[0].userId`** (and the same UUID appears under **`location.locationAssignments[0].user.id`**). Use **that** value for **`AdditionalData.ResidentUserId`**. If unsure, search the JSON for the UUID you expect — it appears under **`aiResidentComData`** / **`location`**, not as top-level **`userId`**. |
+| **`woNumber` (WO label)** | In API JSON the field is **`data.woNumber`** (camelCase **`wo`**, not **`wONumber`**). It may populate shortly after creation; retry **`WorkOrder/{jobToken}`** or **`ById`** if missing. **`null`** is possible in some windows; **`statusTitle`** may still show **Triage** until routing updates. |
+| **Client id** | Confirm **`data.clientId`** matches expectations (e.g. **`CLIENT_ID`** from **`.env.e2e.local`**). |
+
+## After submit: Work Order Triage, then Start Resiroo Manually
+
+This section is **part of the default “create a work order” task** (see **What “create a work order” means**). Do this **on the work order page** after **`SUBMIT WORK ORDER`** (you should already be on the WO detail view; URL may show **`request-id=<jobToken>`**).
+
+### Verify Start Resiroo Manually (mandatory)
+
+**Clicking “Start Resiroo Manually” in the ⋮ menu is not enough** to report that Resiroo was started. You must **confirm** that the Marketplace app actually called the backend:
+
+1. **Preferred proof:** Immediately after activating **Start Resiroo Manually**, inspect **`browser_network_requests`** (or DevTools → Network on a real browser) and find **`POST`** to **`…/api/WorkOrder/ForceResiroo/{jobToken}`** (same UUID as **`request-id=`**) with **`statusCode` 200**. Check **before** navigation clears the log; if the tool returns an empty list, **re-call** it right after the click.
+2. **If the overflow shows a “Loading…” row** above **Start Resiroo Manually**, wait until that resolves or retry **Start Resiroo Manually** after the menu stabilizes — a premature click may not issue **`ForceResiroo`**.
+3. **If you cannot find `ForceResiroo` with 200** after a honest attempt, **do not** claim Resiroo was started in the UI. Say so clearly. Optionally retry **Start Resiroo Manually** once, or ask the user to confirm in DevTools.
+4. **Shell-only `curl POST …/ForceResiroo/…`** (even with **200**) is **not** the same as completing **Start Resiroo Manually** in the web app. Use it only if the user explicitly agrees to fix Resiroo outside the UI, or document it as a **manual API fallback**, not as “I clicked Start Resiroo Manually successfully.”
+
+Only after **verified `ForceResiroo` 200** (or explicit user acceptance of a failed UI attempt) may the default flow be considered complete for Resiroo.
+
+### Steps
+
+1. **Wait until Work Order Triage is finished** — do not rush the next step while triage is still running or incomplete. Use the browser snapshot periodically: wait until the **Work Order Triage** / triage section shows a **stable, completed** state (no loading spinners for triage, triage content present and not “still processing” — exact copy varies by build). If unsure, wait a sensible interval (e.g. **30–120 seconds**) and re-snapshot before proceeding.
+2. **Open the overflow menu (triple dots)** in the **top-right** of the **work order** panel (not the global sidebar). In browser snapshots this is often a **`DropdownToggle`** control **next to** the **Details** button — if several **`DropdownToggle`** buttons exist, use the one **in the WO header area**, not the main nav.
+3. Choose **Start Resiroo Manually** (exact label may match closely — select the item that starts Resiroo for this WO).
+4. **Verify** per **Verify Start Resiroo Manually** above (**`POST …/ForceResiroo/{jobToken}` → 200** in network log, or clear UI success if your build shows it).
+5. **Close the ⋮ menu** after verification — do not leave the overflow open. **Prefer:** click **outside** the dropdown on the **work order panel** (neutral content: e.g. triage paragraph text, **No Attachments**, address line, or empty padding — **not** another header button). **Do not** click **Details** to dismiss — that is the wrong control and can change the panel. **Do not** click **Search Jobs** or other **top chrome** to dismiss — that can steal focus or navigate away from the WO. If browser automation cannot hit a good outside target (scroll/ref issues), **Escape** usually closes the overflow without changing the WO. Last resort: click the same **⋮ DropdownToggle** again to toggle the menu closed.
+6. **Only after** triage is done **and** **Start Resiroo Manually** is **verified**, **fetch test fields from the Marketplace API** (see **API resolution — prefer `WorkOrder/{jobToken}`**): **`workOrderId`**, **resident user id** (from **`aiResidentComData`** / **`location.locationAssignments`**, not top-level **`userId`**), **`clientId`**, location/address, **`woNumber`**, etc. Use **`VENDOROO_BASE_API_URL`** from **`.env.e2e.local`** (or derive from **`MARKETPLACE_URL`**) and **`Authorization: Bearer …`** from **`MARKETPLACE_JWT`** (see **API auth — capture JWT**). Fall back to **`GET …/api/Job/List/{jobToken}`** → **`ById`** only if **`WorkOrder/{jobToken}`** fails.
+
+If **Start Resiroo Manually** is missing, disabled, or errors, **stop** and report what the UI shows — do not fabricate API data.
+
+## After creation: capture for test payloads
+
+Save at least:
+
+| Item | Typical use |
+|------|-------------|
+| **Work order id** (numeric string in JSON) | Top-level **`ObjectId`**; **`AdditionalData.WorkOrderId`** — from **`GET …/api/WorkOrder/{jobToken}`** or **`Job/List/{jobToken}`** if the UI only shows **`request-id`**. |
+| **Job token** (UUID) | From URL **`request-id=`**; use as **`{jobToken}`** in **`GET …/api/WorkOrder/{jobToken}`** (**MPHelper**); also for **`Job/List`** if you need the alternate path. |
+| **Resident user id** (UUID) | **`AdditionalData.ResidentUserId`** — from **`WorkOrder/{jobToken}`** or **`WorkOrder/ById`** → **`data.aiResidentComData.resident.userId`** (or **`data.location.locationAssignments[0].userId`**). **Not** top-level **`data.userId`** (that is usually the staff/creator user). Call **after** triage + **Start Resiroo Manually** when your flow depends on that sequence. |
+| **Staff / creator user id** (optional) | Top-level **`data.userId`** — only for debugging “who owns the WO row”; do **not** substitute for **`ResidentUserId`**. |
+| **Client id**, **location** | Reporting and protocol checks; confirm via **`WorkOrder/{jobToken}`** or **`ById`**. Address often lives under **`data.location`** (e.g. for weather); shape matches what Roo reads (`location.address` / assignment data — see **`BaseVendoroo._get_work_order_info`** in **`services/roo/app/engine/tools/vendoroo/base.py`**). |
+| **WO number** (e.g. `WO-…`) | **`data.woNumber`** in API JSON; traceability; may be missing briefly after create — retry **`WorkOrder/{jobToken}`** or **`ById`**. |
+
+**Sanity check (scripted):** after **Work Order Triage** has completed and **Start Resiroo Manually** has been **verified** (`ForceResiroo` **200** — see **Verify Start Resiroo Manually**), with the **⋮ menu closed**, call the API with **`Authorization: Bearer <jwt>`** built from **`MARKETPLACE_JWT`** in **`.env.e2e.local`** (see **API auth — capture JWT**) and **prefer:**
+
+`GET {VENDOROO_BASE_API_URL}/api/WorkOrder/{job_token_uuid}`
+
+Then, if needed: `GET {VENDOROO_BASE_API_URL}/api/WorkOrder/ById/{work_order_id}`.
+
+Confirm **`clientId`** is **non-empty**, **`aiResidentComData.resident.userId`** (or **`location.locationAssignments[0].userId`**) is the **resident** you expect, and **location/address** data is suitable for the scenario (e.g. weather tests) before long RabbitMQ + debounce runs.
+
+**Quick verification:** if the resident UUID from **`ById`** does not match the tenant you selected in MP, re-check that you used **resident** paths above — using top-level **`userId`** by mistake will set **`ResidentUserId`** to the **staff/creator** user instead of the **resident**.
+
+## Next steps
+
+1. Fill RabbitMQ JSON using **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** with the new **`ObjectId`** and **`ResidentUserId`**.
+2. Execute **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (ingress, queue or chat API, debounce if RabbitMQ, Postgres verification, report).

@@ -1,0 +1,97 @@
+---
+description: Route real resident emails into Marketplace work orders using SMTP with approval-before-send and one-time first-message inbox assignment.
+alwaysApply: false
+---
+
+# Marketplace email routing (`y-mp-email-routing`)
+
+Use this rule when the user wants a **natural resident conversation** through real email, then routed into a specific Marketplace work order.
+
+For full scenario orchestration (WO creation + resident ingress + final reporting), prefer **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** and use this rule as the focused email-routing substep.
+
+## Scope
+
+- Send a **real SMTP email** from resident mailbox credentials in `.env.e2e.local`.
+- Ensure the email body includes the target work order number (for example `WO-987698775`).
+- For the **first message only**, move the new email from **Client Inbox** into the correct work order.
+- Verify the message appears on the work-order timeline.
+
+## Prerequisite for newly created WO
+
+If the work order was just created for this test case, ensure Resiroo has already been started and verified for that WO before sending the first resident email:
+
+- Preferred: `POST /api/WorkOrder/ForceResiroo/{jobToken}` (status 200 + success payload)
+- Optional fallback: UI **Start Resiroo Manually**
+
+Otherwise, conversation may not be handled by Resiroo as expected.
+
+## Required inputs (`.env.e2e.local`)
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_APP_PASSWORD` (preferred) or `SMTP_PASSWORD`
+- `MARKETPLACE_URL`
+- `MARKETPLACE_JWT` (for Marketplace API calls)
+
+For Gmail SMTP, normal account password may fail with `534 5.7.9`. Use an app password.
+
+## Mandatory confirmation before send
+
+Before each send, show the user:
+
+1. `To`
+2. `Subject`
+3. full body
+
+Then wait for explicit approval.
+
+## Sending path (real email only)
+
+1. Resolve target proxy mailbox from `GET /api/WorkOrder/{jobToken}`:
+   - `data.clientMarketPlaceProxyEmail` (fallback `data.client.marketPlaceProxyEmail`).
+2. Send email over SMTP with:
+   - subject containing WO number
+   - body containing `Work order: <WO-NUMBER>`
+3. Capture proof:
+   - timestamp
+   - SMTP send success/failure
+   - `Message-ID`.
+
+## Route first email into work order (one-time)
+
+After the **first** send in a new WO thread, the message usually appears in Client Inbox unassigned (`workOrderId = null`).
+
+1. Read inbox:
+   - `GET /api/Chat/ClientInbox/{clientId}` with `pageNumber=1` (testing commonly fails on `pageNumber=0`).
+2. Find the new message by `emailEid` (`Message-ID`) or subject.
+3. Assign to WO (**first message only**):
+   - `POST /api/Chat/BulkMessageAssign`
+   - payload:
+     - `jobToken`
+     - `messages: [<inboxMessageId>]`
+     - `duplicateMessage: false`.
+
+## Follow-up emails (after first assignment)
+
+- Continue sending real SMTP emails with the same mandatory pre-send confirmation.
+- Do **not** call `BulkMessageAssign` again by default.
+- Verify each follow-up email appears on the same WO timeline.
+- If routing fails later, collect evidence and ask the user before re-assigning.
+
+## Verification
+
+Confirm both:
+
+- Inbox record is no longer unassigned for that message id.
+- `GET /api/Chat/GetChatMessagesByJobTokenAsync` includes the same message under the target work order timeline.
+
+## Security and reporting
+
+- Never print secrets or full tokens.
+- In final summary report:
+  - `Message-ID`
+  - inbox message id
+  - target job token/work order id
+  - assignment result
+  - timeline proof line.

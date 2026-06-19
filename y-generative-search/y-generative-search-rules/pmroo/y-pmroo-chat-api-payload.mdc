@@ -1,0 +1,239 @@
+---
+description: Chat API payload checklist for PMRoo manual E2E (property_manager); local mock default; pair with y-tst-e2e / y-tst-e2e-pmroo.
+alwaysApply: false
+---
+
+# PMRoo manual test — Chat API payload
+
+Use when building **`POST /chat/api/chat`** for **`user_type: property_manager`**. Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo) for environment, verification, and reporting.
+
+---
+
+## Local mock (default)
+
+Use after **`make mp-mock-e2e-up`**. No external HTTP except localhost.
+
+| Field | Value |
+|-------|-------|
+| **Host** | `http://localhost:8800/chat/api/chat` |
+| **Auth** | Omit `auth_bearer` / `Authorization` (`ENVIRONMENT=dev` in smoke overlay) |
+| **WO source** | Mock seed in `cursor_workspace/e2e_seed` (from `make mp-mock-seed`) |
+
+**Default seed WO** (from [`mp_mock/fixtures/example/work_orders/158220.json`](../../../mp_mock/fixtures/example/work_orders/158220.json)):
+
+| Field | Value |
+|-------|-------|
+| `client_id` | `198` |
+| `work_order_number` | `158220-1` |
+| `job_token` | `E2E-MOCK-158220` |
+| `workOrderId` | `158220` |
+
+### Standard payload (local mock, non-streaming)
+
+```json
+{
+  "user_id": "pm-e2e-test",
+  "session_id": "<NEW uuid per trial>",
+  "user_type": "property_manager",
+  "source": "Web App",
+  "client_id": 198,
+  "context_info": "",
+  "stream": false,
+  "messages": [
+    {
+      "role": "user",
+      "content": "for #158220-1 tenant is home tomorrow 2–4pm. Please have vendor call tenant.",
+      "meta_data": {
+        "attachments": []
+      }
+    }
+  ],
+  "meta_data": {
+    "client_id": 198,
+    "work_order_number": "158220-1",
+    "job_token": "E2E-MOCK-158220",
+    "location_id": null,
+    "session_id": "<same uuid as top-level session_id>",
+    "source": "Web App"
+  }
+}
+```
+
+### curl template (local mock)
+
+```bash
+SESSION="$(uuidgen)"
+curl -sS "http://localhost:8800/chat/api/chat" \
+  -H 'Content-Type: application/json' \
+  -d "{
+    \"user_id\": \"pm-e2e-test\",
+    \"session_id\": \"${SESSION}\",
+    \"user_type\": \"property_manager\",
+    \"source\": \"Web App\",
+    \"client_id\": 198,
+    \"stream\": false,
+    \"messages\": [{\"role\": \"user\", \"content\": \"<scenario text>\"}],
+    \"meta_data\": {
+      \"work_order_number\": \"158220-1\",
+      \"job_token\": \"E2E-MOCK-158220\",
+      \"client_id\": 198,
+      \"session_id\": \"${SESSION}\",
+      \"source\": \"Web App\"
+    }
+  }"
+```
+
+### Sanity checks (local mock)
+
+Before send:
+
+```bash
+curl -sS "http://localhost:8099/api/WorkOrder/ById/158220"
+```
+
+Expect JSON with `woNumber`, `jobToken`, `clientId` matching payload `meta_data`. If 404, run **`make mp-mock-seed`** and confirm `cursor_workspace/e2e_seed` is populated.
+
+**Attachments (local-only):** prefer **no files** (Q5=`0`). Real S3 upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** hits AWS — opt-in only.
+
+---
+
+## Opt-in remote (MP Testing)
+
+Use only when the user explicitly chose remote MP Testing + Live MP APIs in **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** pre-flight.
+
+### Configuration (`.env.e2e.local`)
+
+- Path: **`.env.e2e.local`** (repo root)
+- Load: `set -a && source .env.e2e.local && set +a` from the project root (or Python `dotenv` in scripts)
+- **Do not** paste secrets into chat or reports
+- **Do not** edit **`.env.e2e.local`** unless the user explicitly asks
+
+| Variable | Use |
+|----------|-----|
+| `MARKETPLACE_URL` | PM UI base (testing MP) |
+| `MARKETPLACE_JWT` | Bearer for **remote** chat API + MP API (`Authorization: Bearer <jwt>`) |
+| `MARKETPLACE_TEST_EMAIL` / `PASSWORD` | PM UI login |
+| `CLIENT`, `CLIENT_ID`, `LOCATION` | Defaults for WO / client context |
+| `N8N_API_KEY` | Optional read-only n8n inspection (never log) |
+
+Legacy fallbacks: `VENDOROO_ADMIN_AUTH_BEARER` in repo **`.env`** — prefer **per-client** tokens when testing client-specific behavior ([`docs/tickets/VAP-2159/testing-clients.md`](../../../docs/tickets/VAP-2159/testing-clients.md)).
+
+### Standard payload (remote, non-streaming)
+
+```json
+{
+  "user_id": "<pm-user-uuid or stable test id>",
+  "session_id": "<NEW uuid per trial>",
+  "user_type": "property_manager",
+  "source": "Web App",
+  "client_id": 935,
+  "context_info": "",
+  "stream": false,
+  "messages": [
+    {
+      "role": "user",
+      "content": "for #WO-00139 tenant is home tomorrow 2–4pm. Please have vendor call tenant.",
+      "meta_data": {
+        "attachments": []
+      }
+    }
+  ],
+  "meta_data": {
+    "auth_bearer": "Bearer <jwt>",
+    "client_id": 935,
+    "work_order_number": "WO-00139",
+    "job_token": "<uuid from request-id=>",
+    "location_id": null,
+    "session_id": "<same uuid as top-level session_id>",
+    "source": "Web App"
+  }
+}
+```
+
+### curl template (remote)
+
+```bash
+SESSION="$(uuidgen)"
+curl -sS "https://api-testing-marketplace.vendoroo.ai/chat/api/chat" \
+  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer ${MARKETPLACE_JWT}" \
+  -d "{ ... }"
+```
+
+### Sanity checks (remote)
+
+- WO exists: `GET {apiBase}/api/WorkOrder/{jobToken}` or `ById/{workOrderId}` with **`MARKETPLACE_JWT`**
+- **`client_id`** on WO matches payload `meta_data.client_id`
+
+---
+
+## Required conventions (all environments)
+
+| Field | Rule |
+|-------|------|
+| **`session_id`** | **New UUID per trial** — duplicate at top-level **and** inside `meta_data` |
+| **`stream`** | `false` for scripted asserts; `true` only when testing SSE UI |
+| **`source`** | `Web App` or `Chrome Extension` for production-like PM; `Test` or `API` for isolated threads |
+| **`auth_bearer`** | Required on **remote** testing API only; omit for local mock |
+| **`work_order_number`** | Set when testing WO-scoped context/action; must match seed (mock) or real WO (remote) |
+| **`job_token`** | UUID from MP URL `request-id=` (remote) or mock seed `E2E-MOCK-*` (local) |
+| **`context_info`** | Leave **empty** for full E2E (do not pre-fill — skips normal context assembly) |
+
+---
+
+## Multi-turn flows
+
+Send **one HTTP request per turn** (or one message array per turn policy your script uses). Common patterns:
+
+| Pattern | Turns |
+|---------|--------|
+| **Single-shot mixed intent** | 1 user message → expect 2 tool calls same turn |
+| **Confirm “yes”** | Turn 1: offer → Turn 2: `yes` — must **not** re-register CC |
+| **Add more context** | Follow [`pm_action_request_context.md`](../../../services/roo/app/prompts/skills/pm_action_request_context.md) bundle rules |
+
+Keep **`session_id` constant** across turns of the **same** scenario; still use a **fresh** session per **trial** in N-run stats.
+
+---
+
+## Attachments (opt-in remote)
+
+When the test includes files and user opted into remote/S3:
+
+1. Upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** (`pmroo/` path under `docs-dev/`)
+2. Attach to **user** message `meta_data.attachments`:
+
+```json
+{
+  "originalFileName": "invoice.pdf",
+  "fileName": "<guid>.pdf",
+  "fileUrl": "https://tulumarketplace.s3.amazonaws.com/docs-dev/pmroo/<guid>.pdf",
+  "contentType": "application/pdf",
+  "fileSize": 245760,
+  "fileHash": "<sha256>"
+}
+```
+
+Per skill: file + neutral message → auto Context Capture; file + action → auto Action Request.
+
+---
+
+## Sanity checks before send
+
+**Local mock:** `GET http://localhost:8099/api/WorkOrder/ById/{workOrderId}` — see above.
+
+**Remote opt-in:**
+
+- WO exists via Marketplace API with **`MARKETPLACE_JWT`**
+- **`client_id`** on WO matches payload `meta_data.client_id`
+- Prompt version: check `VENDOROO_PM_V2_CLIENT_IDS` if behavior differs between V1/V2 clients
+
+Log **`session_id`** in report. Do **not** use Langfuse for local runs.
+
+---
+
+## Related
+
+- **`.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc`** — after send
+- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** — full PMRoo runbook (entry: **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`**)
+- **`services/roo/app/api/routers/chat.py`** — `prepare_params`, developer context injection
+- **`services/roo/app/engine/tools/vendoroo/pm.py`** — `register_pm_requests`

@@ -1,0 +1,39 @@
+---
+description: Format ResiRoo / chat DB exports — readable transcript (Section 1) plus full field detail (Section 2); never alter source data
+alwaysApply: false
+---
+
+# Conversation insight (exports & JSON)
+
+Use when the user provides **conversation message rows** (e.g. Postgres `messages`, JSON array with `id`, `conversation_id`, `role`, `content`) and wants a clear **readout** for QA, product, or docs.
+
+## Rules
+
+- **Do not modify the data:** reproduce text and values **exactly** as given (no paraphrase, no “fixing” typos, no translating unless the source already mixed languages). You may **reorder for display** only when needed: default is **chronological** by `id` ascending (oldest message first), unless the user asks for reverse order.
+- **Parse** string `content` for `assistant` rows as JSON when applicable; show **unicode escapes** as the intended characters (e.g. `\u2014` → —) only for **display**—the underlying meaning stays the same.
+- **Never crop/shorten/cut field values:** final reports must keep full field content intact (including long `Response`, `AIReasoning`, and `Evidence` text).
+
+## Section 1 — Conversation (look and feel)
+
+Goal: **skimmable chat** with clear roles and separation.
+
+- Use a **short header** line: conversation id, work order / user id if present in context.
+- For each turn in order:
+  - **Resident / User:** plain quoted or indented message text only (from `content` when `role` is `user`).
+  - **Assistant / Resiroo:** show **only** the resident-visible **`Response`** when embedded JSON includes `Content.Response`. If there is no `Response` field (malformed row), show the raw `content` string once, unchanged.
+- Mark **automated follow-ups** lightly when `IsFollowUp` is true (e.g. a subtitle *Follow-up*), still without inventing labels not implied by the data.
+- Use **horizontal rules** (`---` on its own line) **between turns** for scanability (blank line before and after each `---`).
+- Avoid dense tables in Section 1; keep it **chat-first**.
+
+## Section 2 — Full detail (all fields)
+
+Goal: **every field**, still readable.
+
+- For **user** rows: state `id`, `conversation_id`, `role`, and full `content` (verbatim).
+- For **assistant** rows: after parsing JSON, list **top-level** keys first (`State`, `IsEmergency`, `IsFollowUp`, etc.), then nested `Content` fields in a **flat or shallow bullet list** (`Title`, `Response`, `AIReasoning`, `Evidence`, `AISOWCompletion`, `AIConfidence`, `AIConfidenceReasoning`, etc.).
+- Use **verbatim** strings for all values; do **not** trim, summarize, or truncate any field value. Long `Evidence` may use a **fenced code block** to preserve quotes and newlines without reformatting the text.
+- If a field is **empty string**, show `(empty)` or `""` consistently—do not omit unless absent from JSON.
+
+## Optional
+
+- If the user supplies **only** Section 1 or **only** Section 2, follow what they ask; otherwise provide **both** sections when this rule is invoked with “conversation insight” or similar.

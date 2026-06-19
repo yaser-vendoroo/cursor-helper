@@ -1,0 +1,121 @@
+---
+description: >-
+  Upload a test image to AWS S3 using env vars from `.env.e2e.local`, build a
+  fetchable HTTPS URL, and reuse it in tests (RabbitMQ ImageUrls, Roo, HTTP).
+  Covers doc-type prefixes aligned with ai-core `file_utils`, ACL vs presigned
+  caveats, and never logging secrets.
+alwaysApply: false
+---
+
+# Upload photo for tests (`y-upload-photo`)
+
+Use this rule whenever you need a **real image file** available at a **stable HTTPS URL** for automated or manual tests (ResiRoo **`ImageUrls`**, Roo image flows, curl, Marketplace multipart where a URL is accepted, etc.).
+
+Stage copies or generated test images under **`cursor_workspace/`** per **y-mp-ai-temp** (`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`) — **not** the repo root.
+
+## Before generating or uploading
+
+1. **Ask first** — when you might generate images, use **AskQuestion** before **GenerateImage**: **“How many test images should be generated for this run?”** Options must include **`0 (no images)`**, **`1`**, **`2`**, **`3`**, and **`Use existing images only (no generation)`**. Many test cases need **no** new images.
+2. **Existing assets** — when the user chose **`Use existing images only`** or already has suitable files, stage and upload those; do **not** regenerate.
+3. **Quality bar** (when generating):
+   - **Realistic and relevant** to the work order and test case.
+   - **Normal quality** — one clear prompt per image; tenant-style snapshots. Do **not** over-engineer (no PIL/script fallbacks, extra retry pipelines, or ultra-detailed prompts unless a label must be readable).
+   - Details: **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc`** §4.
+
+## Where configuration lives
+
+Load **AWS S3** and credential variables **only** from:
+
+``.env.e2e.local` (repo root)`
+
+Use `set -a && source `.env.e2e.local` (repo root) && set +a` (or **Python + `dotenv`** in a one-off script) before **`aws s3`** / **`boto3`**. If **`AWS_*`** keys are missing there, add them to **`.env.e2e.local`** for your machine (do **not** commit); **`ai-core`** code that calls **`load_dotenv()`** without a path may still read the repo **`.env`** — align your shell env with whatever the upload command uses.
+
+**Do not** paste **`AWS_SECRET_ACCESS_KEY`**, access keys, or presigned query strings into chat, tickets, or commits. **Do not** commit **`.env.e2e.local`**.
+
+Expected variable **names** (values come from your local **`.env.e2e.local`** only):
+
+| Variable | Role |
+|----------|------|
+| **`AWS_ACCESS_KEY_ID`** | CLI / boto3 credential |
+| **`AWS_SECRET_ACCESS_KEY`** | CLI / boto3 credential |
+| **`AWS_S3_BUCKET_NAME`** | Target bucket |
+| **`AWS_REGION`** | Region for SDK / URL shape |
+| **`AWS_S3_BUCKET_PATH`** | Prefix inside the bucket (e.g. dev prefix ending with `/`) |
+| **`AWS_S3_HTTPS_URL`** (optional) | If set, used with **`build_s3_file_url()`** in code (see below) |
+
+## Object key layout (doc-type folders)
+
+[`ai-core/ai_core/utils/file_utils.py`](ai-core/ai_core/utils/file_utils.py) defines **`DOCUMENT_DIRECTORIES`** — use the same segment names when you hand-build keys so downstream code that expects “chat”, “communication”, etc. stays consistent:
+
+| `doc_type` | Folder segment | Typical use |
+|-----------:|----------------|-------------|
+| 1 | `communication/` | SOW-style docs |
+| 2 | `bid/` | Bids |
+| 3 | `editor/` | Editor |
+| 4 | `profile/` | Profile |
+| 5 | **`chat/`** | **Chat / message-adjacent images** (good default for generic test photos) |
+| 6 | `assets/` | Assets |
+| 7 | `invoice/` | Invoices |
+| 8 | `vendors/` | Vendor |
+
+Full key pattern (conceptually):
+
+```text
+{AWS_S3_BUCKET_PATH}{folder}{uniqueFileName}
+```
+
+Example file name: **`{uuid}.jpg`** (see **`generate_random_filename()`** in the same module).
+
+## Upload (AWS CLI)
+
+After sourcing **`.env.e2e.local`** (absolute path above), upload a local file:
+
+```bash
+set -a && source `.env.e2e.local` (repo root) && set +a
+AI_TEMP="`cursor_workspace/`uploads"
+mkdir -p "$AI_TEMP"
+# Example: copy or write your JPG into $AI_TEMP (never leave scratch images in repo root)
+LOCAL_JPG="$AI_TEMP/staging-ceiling-leak.jpg"
+# cp /path/to/source.jpg "$LOCAL_JPG"
+KEY="${AWS_S3_BUCKET_PATH}chat/$(uuidgen).jpg"
+aws s3 cp "$LOCAL_JPG" "s3://${AWS_S3_BUCKET_NAME}/${KEY}" \
+  --region "${AWS_REGION}"
+```
+
+- If your bucket allows ACLs (many orgs **do not**), you might add **`--acl public-read`** only if policy permits. Prefer **bucket policy** / **CloudFront** for public reads.
+- If objects stay **private**, generate a **presigned URL** for GET and pass **that full URL** into the test consumer before expiry:
+
+```bash
+aws s3 presign "s3://${AWS_S3_BUCKET_NAME}/${KEY}" --expires-in 3600 --region "${AWS_REGION}"
+```
+
+## Build the HTTPS URL for tests
+
+1. **Virtual-hosted–style** (common):
+
+   `https://{AWS_S3_BUCKET_NAME}.s3.{AWS_REGION}.amazonaws.com/{key}`
+
+   where **`key`** is the full object key **without** a leading slash (URL-encode if needed).
+
+2. **Code helper:** **`build_s3_file_url(doc_type, file_name)`** in **`file_utils`** — requires **`AWS_S3_HTTPS_URL`** and **`AWS_S3_BUCKET_PATH`** to be set consistently; it stitches **`https_url` + `bucket_path` + directory + file_name`**.
+
+3. **Smoke-check** before long test runs: **`curl -fI "<url>"`** should return **200** (or follow redirects) from a **clean network** (same visibility Roo / Marketplace will have).
+
+## Use the URL in tests
+
+- **RabbitMQ / ResiRoo payloads:** JSON **`AdditionalData.ImageUrls`** expects entries the service can **HTTP GET** (see **[`my_docs/local_image_flow_testing.md`](../../../my_docs/local_image_flow_testing.md)** in this repo). Use **`https://...`** URLs, not `file://` paths.
+- **Marketplace UI / API:** Prefer **multipart** uploads where the API expects bytes (**`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, **`POST /api/Chat/Add`**, etc.). Use **S3 URLs** when the flow explicitly consumes a **URL** (e.g. some payloads or copy-paste fixtures).
+
+## Troubleshooting
+
+| Issue | What to check |
+|--------|----------------|
+| **403** on GET URL | Object ACL / bucket policy / OAC; try **presigned URL** or fix public-read policy with security owner. |
+| **Signature / region errors** on CLI | **`AWS_REGION`** matches bucket region; credentials not expired. |
+| **Wrong path** | **`AWS_S3_BUCKET_PATH`** includes trailing segment your org expects (`docs-dev/` vs `docs/`). |
+| Roo still cannot fetch | URL must be reachable **from the container/network** running Roo (localhost URLs will not work from Docker unless tunneled). |
+
+## Scope
+
+- **In scope:** one-off or scripted **S3 upload → URL → paste into test JSON / env / script**; alignment with **`file_utils`** path layout.
+- **Out of scope:** changing bucket IAM or org security policy (escalate to infra); **Marketplace-native** file upload flows (use **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** / Chat rules for multipart).

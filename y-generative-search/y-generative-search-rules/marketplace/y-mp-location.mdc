@@ -1,0 +1,116 @@
+---
+description: >-
+  Marketplace (testing) Location API: resolve `.env.e2e.local` LOCATION label to
+  numeric id (`SearchLocations`, `GetByClientId`), then CRUD via POST/PUT/DELETE
+  `/api/Location`. Same JWT + browser-like headers as other MP rules.
+alwaysApply: false
+---
+
+# Marketplace: Location API (`y-mp-location`)
+
+Use this rule for **Location** operations on **Marketplace testing** via HTTP—especially **`LOCATION` → `locationId`** for **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** and scripts. Resolve **`CLIENT` → `CLIENT_ID`** first when needed via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`**.
+
+Any saved responses, debug JSON, or scratch files: **`cursor_workspace/`** per **y-mp-ai-temp**.
+
+## Configuration
+
+Load secrets and URLs **only** from:
+
+``.env.e2e.local` (repo root)`
+
+- **`MARKETPLACE_JWT`**, **`MARKETPLACE_URL`**, **`VENDOROO_BASE_API_URL`** (optional), **`CLIENT_ID`**, **`LOCATION`** (human label / unit name from MP).
+- **Headers** on every call: `Authorization: Bearer <jwt>`, **`User-Agent`** (desktop Chrome string), **`Origin`** + **`Referer`** = **`MARKETPLACE_URL`** (without trailing issues—trim slash if needed). Testing MP often **403** without **`User-Agent`**.
+
+**OpenAPI:** [https://api-testing-marketplace.vendoroo.ai/swagger/v1/swagger.json](https://api-testing-marketplace.vendoroo.ai/swagger/v1/swagger.json) — tag **Location**, schemas **`LocationCreateDto`**, **`LocationDetailDto`**, **`LocationSearchResultDtoPaginatedListApiResult`**, etc.
+
+---
+
+## Read / search
+
+### 1) Search by free text (best for `LOCATION` in `.env.e2e.local`)
+
+**`GET {api}/api/Location/SearchLocations`**
+
+| Query param | Notes |
+|-------------|--------|
+| **`SearchText`** | Required for label search — use the same string as **`LOCATION`** (URL-encoded). |
+| **`ClientId`** | Set to **`CLIENT_ID`** to scope to that client. |
+| **`PageSize`** | e.g. `20` (optional but recommended). |
+| **`PageNumber`** | **Use `1` for the first page.** On testing MP, **`PageNumber=0` triggers HTTP 500**. Omitting **`PageNumber`** and sending only **`SearchText`**, **`ClientId`**, and **`PageSize`** also works. |
+
+Parse **`data.items`** (or PascalCase equivalents): each hit includes **`id`**, **`name`**, **`address`**, etc. Pick the row whose **`name`** **exactly equals** **`LOCATION`** if possible; otherwise the closest single match and confirm with the user.
+
+**Example (placeholders only):**
+
+```text
+GET {api}/api/Location/SearchLocations?SearchText=Yaser%20LOC%201&ClientId=198&PageNumber=1&PageSize=20
+```
+
+### 2) List all locations for a client (fallback + disambiguation)
+
+**`GET {api}/api/Location/GetByClientId?clientId={CLIENT_ID}`**
+
+Returns **`data`**: array of **`LocationDetailDto`**. Client-side filter:
+
+- **Exact:** `loc.name.strip().lower() == LOCATION.strip().lower()`
+- **Substring:** `LOCATION.lower() in (name + " " + address).lower()` if labels are messy
+
+Use this when **`SearchLocations`** is empty, returns multiple ambiguous rows, or errors.
+
+### 3) Other reads (optional)
+
+- **`GET {api}/api/Location`** — list-shaped response in OpenAPI; behavior depends on auth context—prefer **`GetByClientId`** / **`SearchLocations`** for automation.
+- **`GET {api}/api/Location/History/{locationId}`**, **`GET …/Notes/{locationId}`**, **`GET …/GetPOCByLocationId/{locationId}`** — audit / notes / POC (see Swagger).
+
+---
+
+## Create
+
+**`POST {api}/api/Location`**  
+**Body:** JSON **`LocationCreateDto`** (`application/json` or OData content-type variants Swagger lists).
+
+Typical fields: **`clientId`**, **`name`**, **`haveAddress`**, **`address`**, **`city`**, **`state`**, **`zipCode`**, **`country`**, coordinates, **`data`**, etc. Follow **`LocationCreateDto`** for required combinations in your environment.
+
+**Response:** **`LocationDetailDtoApiResult`** — use returned **`data.id`** as the new **`locationId`**.
+
+---
+
+## Update
+
+**`PUT {api}/api/Location?id={locationId}`**  
+**Body:** JSON **`LocationCreateDto`** (same schema as create; include **`id`** in body if required by your build—see Swagger).
+
+---
+
+## Delete
+
+**`DELETE {api}/api/Location/{id}`**  
+**Path:** integer location **`id`**. Returns generic **`ApiResult`**. Prefer soft-delete semantics if your org discourages hard deletes—confirm with the team before automating deletes.
+
+---
+
+## Related endpoints (not full CRUD on the row)
+
+Use Swagger when you need:
+
+- **`POST /api/Location/AssignUser`**, **`POST /api/Location/BulkUpdate`**, **`PATCH /api/Location/BatchUpdate/{id}`**
+- **`POST/PUT/DELETE` `…/LocationPolicy`** and **`…/LocationPolicy/Assignment`**
+- **`POST /api/Location/{id}/AddDocument`**, **`DELETE …/DeleteDocument/…`**
+- **`POST /api/Location/GetWithPagination`** — advanced list (needs **`LocationSearchDtoPaginationRequest`**; easy to misconfigure—prefer **`SearchLocations`** + **`GetByClientId`** for agents)
+
+---
+
+## Linking to work orders
+
+After resolving **`locationId`** from **`LOCATION`**, pass it to **`POST /api/WorkOrder`** (multipart `WorkOrder` JSON) per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**. Optionally store **`MARKETPLACE_LOCATION_ID=<id>`** in **`.env.e2e.local`** to skip lookup on repeat runs (do not commit secrets).
+
+---
+
+## Troubleshooting
+
+| Symptom | Action |
+|--------|--------|
+| **403** on API | Add **`User-Agent`**, **`Origin`**, **`Referer`**; refresh JWT. |
+| **500** on **`SearchLocations`** with pagination | Avoid **`PageNumber=0`**; use **`PageNumber=1`** or omit **`PageNumber`**. |
+| No hits | **`GetByClientId`** + manual filter; verify **`CLIENT_ID`** matches the client that owns the location. |
+| Multiple matches | Prefer **exact `name` == `LOCATION`**; else ask the user which **`id`**. |

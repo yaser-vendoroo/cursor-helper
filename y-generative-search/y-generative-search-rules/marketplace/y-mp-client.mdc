@@ -1,0 +1,192 @@
+---
+description: >-
+  Marketplace (testing) Client API: search by name (`SearchByName`,
+  `SearchWithPagination`), read by id, and reusable client creation/update via
+  `/api/Client` using approval-gated multipart form submissions. Same JWT +
+  browser-like headers as `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`.
+alwaysApply: false
+---
+
+# Marketplace: Client API (`y-mp-client`)
+
+Use this rule for **Client** (tenant / PM company) operations on **Marketplace testing** via HTTP - especially resolving **`CLIENT`** (display name or slug) -> **`CLIENT_ID`** for **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** and **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, and creating new clients through a reusable ask-then-approve flow.
+
+Any saved responses, debug JSON, or scratch files: **`cursor_workspace/`** per **y-mp-ai-temp**.
+
+## Configuration
+
+Load secrets and URLs **only** from:
+
+``.env.e2e.local` (repo root)`
+
+- **`MARKETPLACE_JWT`**, **`MARKETPLACE_URL`**, **`VENDOROO_BASE_API_URL`** (optional), **`CLIENT`** (search hint), **`CLIENT_ID`** (when already known).
+- **Headers** on every call: `Authorization: Bearer <jwt>`, **`User-Agent`** (desktop Chrome string), **`Origin`** + **`Referer`** = **`MARKETPLACE_URL`**. Testing MP often **403** without **`User-Agent`**.
+
+**OpenAPI:** [https://api-testing-marketplace.vendoroo.ai/swagger/v1/swagger.json](https://api-testing-marketplace.vendoroo.ai/swagger/v1/swagger.json) — tag **Client**, schemas **`ClientSearchDto`**, **`ClientSearchDtoPaginationRequest`**, **`ClientDetailDto`**, etc.
+
+---
+
+## Pagination quirk (same family as Location)
+
+On **testing MP**, **`PageNumber = 0`** tends to return **HTTP 500** for client list/search endpoints checked below. Use **`PageNumber = 1`** for the first page (or omit **`PageNumber`** on **`SearchByName`** when only **`PageSize`** is needed—verify if your build differs).
+
+---
+
+## Read / search
+
+### 1) Search by name (simple GET)
+
+**`GET {api}/api/Client/SearchByName`**
+
+| Query param | Notes |
+|-------------|--------|
+| **`Name`** | Substring / name filter (URL-encoded). Map from **`CLIENT`** in `.env.e2e.local` (e.g. `sandbox2` → try `Sandbox`, `Sandbox 2`, or the display string you see in MP). |
+| **`IsActive`** | Optional boolean string, e.g. `true`. |
+| **`PageNumber`** | **Use `1` for first page** (avoid **`0`**). |
+| **`PageSize`** | e.g. `20`. |
+| **`ExcludeParentClients`** | Optional per Swagger. |
+
+Response shape: **`data.items`** — each row includes **`id`**, **`name`**, **`outboundDisplayName`**, **`token`** (public token—treat as sensitive), **`defaultAssistantId`**, etc.
+
+Pick **`id`** where **`name`** **exactly matches** the MP client name if possible; otherwise choose the best row and confirm with the user.
+
+**Example (placeholders):**
+
+```text
+GET {api}/api/Client/SearchByName?Name=Sandbox&IsActive=true&PageNumber=1&PageSize=20
+```
+
+### 2) Search with filters (POST)
+
+**`POST {api}/api/Client/SearchWithPagination`**  
+**Body:** JSON **`ClientSearchDtoPaginationRequest`**
+
+```json
+{
+  "pageNumber": 1,
+  "pageSize": 20,
+  "item": {
+    "name": "Sandbox",
+    "isActive": true
+  }
+}
+```
+
+- **`item`**: **`ClientSearchDto`** — optional fields: **`name`**, **`address`**, **`email`**, **`phone`**, **`isActive`**, **`supervisorId`**, **`unAssignedSupervicor`** (Swagger spelling).
+- Response: **`data.items`**, **`totalCount`**, pagination flags.
+
+Use this when you need **structured filters** beyond a single **`Name`** query param.
+
+---
+
+## Read one client
+
+### Summary row
+
+**`GET {api}/api/Client/{id}`** — path **`id`** = numeric **`CLIENT_ID`**. Returns a **client summary** (e.g. **`name`**, **`address`**, contact fields—shape per build).
+
+### Extended detail
+
+**`GET {api}/api/Client/GetClientDetail/{id}`** — richer **`ClientDetailDto`** (package, flags, PM/Roo settings pointers, etc.). Prefer when scripts need onboarding / feature flags.
+
+**`GET {api}/api/Client/GetClientLocationsAssignmentsDetail/{id}`** — locations and assignment context for that client (pairs with **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`**).
+
+---
+
+## New client creation workflow (required)
+
+When the user asks to create a new client, always follow this sequence so runs are safe and reusable:
+
+1. **Pre-check for duplicates**
+   - Call **`GET /api/Client/SearchByName`** using the proposed name.
+   - If an exact match exists, stop and ask whether to reuse that client id instead of creating a duplicate.
+
+2. **Collect required inputs by asking questions**
+   - Ask for required minimum fields from backend DTO:
+     - **`name`** (required)
+     - **`email`** (required)
+   - Ask for optional-but-common fields (only include if provided): **`outboundDisplayName`**, **`address`**, **`phone`**, **`timeZone`**, **`isActive`**, **`shortName`**, **`isParentClient`**, **`childClients`**, **`packageId`**, geo fields.
+   - Ask whether a logo file should be uploaded (**`LogoImage`**). If yes, ask for a local file path.
+
+3. **Draft and show the create payload**
+   - Build a draft **`ClientCreateDto`** JSON from user answers.
+   - Show a concise "create preview" (field/value summary) before sending any write request.
+   - Never echo JWTs or other secrets.
+
+4. **Require explicit approval before write**
+   - Ask for a clear confirmation such as: **"Approve creating client `<name>`"**.
+   - Do not send **`POST /api/Client`** without explicit user approval in the same conversation.
+
+5. **Execute create**
+   - Send **`POST {api}/api/Client`** as **`multipart/form-data`**:
+     - form part **`ClientDto`** = JSON object (or JSON string, per client tooling)
+     - optional form file **`LogoImage`**
+   - Use the same required auth/origin headers from this rule.
+
+6. **Verify and report**
+   - Confirm response success and extract new **`id`** from response `data`.
+   - Verify with **`GET /api/Client/{id}`** (or `SearchByName`) and report the created client summary to the user.
+   - Ask whether to persist **`CLIENT_ID=<new id>`** to `.env.e2e.local` for later `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc` / y-mp-work-order steps.
+
+---
+
+## Create
+
+**`POST {api}/api/Client`**
+
+Backend binding pattern is multipart form:
+
+- Controller accepts **`[FromForm] ClientCreateWithFileDto`**
+- **`ClientCreateWithFileDto`** includes:
+  - **`LogoImage`** (optional file)
+  - **`ClientDto`** (JSON payload for **`ClientCreateDto`**)
+
+Minimum create payload fields:
+
+- **`ClientDto.name`** (required)
+- **`ClientDto.email`** (required)
+
+**Agents:** prefer **Swagger** + one known-good request shape when implementing create - do **not** guess large **`ClientDto`** graphs. Never log secrets.
+
+---
+
+## Update
+
+**`PUT {api}/api/Client`**
+
+Same multipart form pattern as create (**`[FromForm] ClientCreateWithFileDto`** with **`ClientDto`** and optional **`LogoImage`**). Confirm required/nullable fields with Swagger before update automation.
+
+---
+
+## Delete
+
+**`DELETE {api}/api/Client/{id}`** — path **`id`** = numeric client id. Returns **`ApiResult`**. Prefer **disable / archive** flows if your org restricts deletes—confirm before automating.
+
+---
+
+## Related endpoints (not full CRUD on the core row)
+
+Use Swagger when you need onboarding, Rooceptionist, guidelines, child clients, etc., for example:
+
+- **`GET /api/Client/GetChildClients/{parentClientId}`**
+- **`PUT /api/Client/OnboardingById/{clientId}`**, **`GET /api/Client/public/{token}`**
+- **`GET/POST …/ResirooSetting`**, **`…/RooceptionistSetting`**, **`…/ProcessGuideline`**, etc.
+
+---
+
+## Linking to locations and work orders
+
+1. Resolve **`CLIENT`** → **`CLIENT_ID`** using **`SearchByName`** / **`SearchWithPagination`** above.  
+2. Optionally persist **`CLIENT_ID`** in **`.env.e2e.local`** (do not commit).  
+3. Use **`CLIENT_ID`** in **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** (`SearchLocations`, `GetByClientId`) and **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** (`WorkOrderCreateDto.clientId`).
+
+---
+
+## Troubleshooting
+
+| Symptom | Action |
+|--------|--------|
+| **403** | Add **`User-Agent`**, **`Origin`**, **`Referer`**; refresh JWT. |
+| **500** with **`PageNumber=0`** | Switch to **`PageNumber=1`** (GET or POST body). |
+| No hits for **`CLIENT`=`sandbox2`** | Try broader **`Name=Sandbox`** and pick **`Sandbox 2`**, or use the display name from MP. |
+| Ambiguous multiple **`Sandbox*`** rows | Prefer **exact `name` match**; else ask the user which **`id`**. |

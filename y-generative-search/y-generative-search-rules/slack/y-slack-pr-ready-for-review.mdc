@@ -1,0 +1,377 @@
+---
+description: >-
+  Slack PR-ready template: by default always post to #generative-search-team.
+  Use DM/self or any other destination only when the user explicitly asks.
+  Headline “Ready for review 👀”, plain PR/Task/Summary lines, mentions line
+  (no Reviewers: label). Before sending any Slack message, run a mandatory
+  confirmation gate with the user (summary, mentions, destination, PR link,
+  and calendar line when applicable). User must confirm the PR review meeting
+  is on Google Calendar before the calendar sentence is included. Before
+  moving a Jira task to In Review, verify ten required fields are filled
+  (Assignee, Product Owner, Release Coverage, Labels, Priority, Quality Owner,
+  Sprint, Story Point estimate, Fix versions, Reporter) — wait for the user
+  to fill gaps and re-check before transitioning.
+alwaysApply: false
+---
+
+# Slack — PR ready for review
+
+Use when the user asks to **Slack** that a **PR is ready for review**, **notify on Slack**, or follow this template after a PR exists (e.g. `gh pr create` succeeded or they supply a PR number / URL).
+
+## Default destination (Slack)
+
+Default policy: send PR-ready notifications to `#generative-search-team` unless the user explicitly asks for another destination.
+
+| Situation | **`channel_id` for `slack_send_message`** |
+|-----------|-------------------------------------------|
+| **Default (no override)** | The channel **`#generative-search-team`**. Resolve its **channel id** (**`C…`**) and use that id. **Do not** default to the user’s DM. |
+| **Testing / self** | When the user says **to myself**, **DM me**, **for testing**, **send to me**, or equivalent, use **their** Slack **user** **`channel_id`** (**`U…`**) or an existing **DM** id (**`D…`**) if you already have it from a prior successful send to them. |
+| **Someone else** | When they name another person or channel (e.g. **“send to Ali”**, **`#other-channel`**), resolve **`slack_search_users`** / **`slack_search_channels`** and use that id. **Do not** invent ids. |
+
+The **Slack app / bot** used by Cursor must be **in** **`#generative-search-team`** (invited) or **`chat:write`** posts will fail—if send fails with **not_in_channel** (or similar), tell the user to invite the app to that channel.
+
+### Resolving **`#generative-search-team`** → **`C…`**
+
+1. Try **`slack_search_channels`** with **`generative-search-team`** (or **`#generative-search-team`**).
+2. If **no results**, try **`slack_search_public_and_private`** with a broader query (**`generative search team`**, **`generative-search`**) and read the **`Channel: #generative-search-team (ID: C…)`** line from a hit (message search still returns the channel header).
+3. If still unresolved, ask the user for the **channel id** or confirm the channel name in Slack.
+
+---
+
+## Prerequisite — Google Calendar helper (before Slack confirmation gate)
+
+**Hard gate:** do **not** open the Slack **mandatory confirmation gate** (summary, mentions, destination, calendar line, send) until **Step A** below is complete or the user explicitly skips the meeting.
+
+### Step A — Run GC Meet Helper first (mandatory)
+
+Before any Slack **`AskQuestion`**, run **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for the PR in scope:
+
+1. **Step 0 (mode)** — **`AskQuestion`**: **Generate title and description only** / **Create draft event in Google Calendar** / **`other`**.
+2. **Discover PR** — unless the user already named PR **#941** / URL.
+3. **Draft + approve** title and styled description per y-gc-meet-helper.
+4. **Path A (generate-only):** hand off copy-paste into Google Calendar; **stop** — wait for the user to finish the event (time, guests, Meet).
+5. **Path B (create draft):** create draft event via Calendar MCP (15 min from now, no guests); return event link; user may edit in Calendar UI.
+
+**Do not** jump to “Is the meeting on your calendar?” or other Slack confirmations in the **same turn** as Step A starts — finish y-gc-meet-helper (or stop at handoff) first.
+
+### Step B — Calendar line decision (after Step A)
+
+Only **after** Step A handoff or draft create, ask whether the PR review meeting is on Google Calendar:
+
+- **Yes — include calendar line** → include **`:calendar: PR review meeting is already on your calendar. Please check it.`** in the Slack draft.
+- **Not yet — wait** → **stop**; do not continue to Slack send.
+- **No meeting — omit calendar line** → proceed to the Slack confirmation gate without the calendar sentence.
+
+The calendar reminder sentence must **not** appear unless the user confirms the meeting exists.
+
+**When invoked from Task PR flow (`y-git-create-pr.mdc`):** Step A = Task PR step 16 (Google Calendar PR review meeting (see `.cursor/y-rules/git/y-y-git-create-pr.mdc`)). Step B + Slack gate = step 17 — only after step 16 is satisfied.
+
+---
+
+## Mandatory confirmation gate (before any Slack send)
+
+Before calling **`slack_send_message`** (DM, channel, or any destination):
+
+1. Complete **[Prerequisite — Google Calendar helper](#prerequisite--google-calendar-helper-before-slack-confirmation-gate)** (Step A, then Step B).
+2. Then ask the user and get explicit confirmation for **all** items below.
+
+Use a structured question flow (prefer **`AskQuestion`**) and do **not** send anything until all required answers are confirmed.
+
+1. **Confirm Google Calendar meeting (Step B — after y-gc-meet-helper)**
+   - Ask whether the PR review meeting is **already on Google Calendar** (only after Step A handoff or draft create).
+   - **Not yet — wait** → **stop**; do not continue to Slack send in this turn.
+   - **No meeting — omit calendar line** → skip calendar sentence in item 6 below.
+   - **Yes — meeting is on my calendar** → include the calendar sentence in the draft (confirm again in item 6 if needed).
+
+2. **Confirm task summary**
+   - Show the draft `Summary:` text and ask if it is correct.
+   - If the user asks for edits, update it and confirm again.
+
+3. **Select who to mention**
+   - Ask who should be mentioned in the Slack message.
+   - **Default:** PR reviewers resolved from GitHub review requests.
+
+4. **Choose destination**
+   - Ask where to send the message:
+     - `#generative-search-team`
+     - myself (DM)
+     - list of reviewers (**multi-select**)
+   - If multiple destinations are selected, confirm that sending to all selected destinations is intended.
+
+5. **Confirm PR link and number**
+   - Ask the user to confirm the exact PR URL and PR number before send.
+
+6. **Confirm full message draft (including calendar line)**
+   - Show the complete Slack message in a fenced code block.
+   - If the calendar sentence is included, confirm the meeting is on Google Calendar.
+   - If the user chooses **Not yet**, **stop** and wait.
+
+Only after all **required** confirmations above are complete, proceed with **`slack_send_message`**.
+
+When batching **`AskQuestion`** items in one form, **calendar / meeting ready** must be confirmed **before** send — never treat the calendar line as default boilerplate.
+
+---
+
+## Post-send Jira confirmation (required)
+
+After the Slack message is sent successfully, ask for one more explicit confirmation:
+
+- **Question:** “Do you want me to move this Jira task to In Review now?”
+- **Options:** Yes / No
+
+Rules:
+
+1. Do **not** transition Jira before this post-send confirmation.
+2. If user says **Yes**, run **[Jira required fields before In Review](#jira-required-fields-before-in-review)** — transition **only** when every required field passes.
+3. If user says **No**, stop and keep Jira status unchanged.
+4. If Jira key is unclear, ask once to confirm the exact issue key before the field check.
+
+---
+
+## Jira required fields before In Review
+
+**Applies whenever** a flow moves a VAP task to **In Review** — including post-Slack confirmation, **y-git-create-pr** Task PR step 17, and **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` Step P2**.
+
+**Do not** call **`transitionJiraIssue`** until **all ten** required fields below are filled. If any are missing, **stop**, list them, and **wait** for the user to update Jira — then **re-fetch** and re-check. There is **no** “proceed anyway” skip for these fields.
+
+### Required fields (all must be filled)
+
+| # | Field (Jira UI name) | Filled when… |
+|---|----------------------|--------------|
+| 1 | **Assignee** | `assignee` is set (not unassigned) |
+| 2 | **Product Owner** | Custom/user field **Product Owner** has a value |
+| 3 | **Release Coverage** | Custom/user field **Release Coverage** has a value |
+| 4 | **Labels** | `labels` array has **at least one** label |
+| 5 | **Priority** | `priority` is set |
+| 6 | **Quality Owner** | Custom/user field **Quality Owner** has a value |
+| 7 | **Sprint** | Active sprint is set (sprint field or equivalent on the issue) |
+| 8 | **Story Point estimate** | Custom/user field **Story Point estimate** has a numeric value |
+| 9 | **Fix versions** | `fixVersions` array has **at least one** version |
+| 10 | **Reporter** | `reporter` is set |
+
+### How to check
+
+1. Resolve **`<JIRA-KEY>`** from branch (`VAP-\d+`), PR body, Slack **`Task:`** link, or ask once.
+2. Call **`getJiraIssue`** (Atlassian MCP, `cloudId: vendoroo-dev.atlassian.net`, `issueIdOrKey: <JIRA-KEY>`, `responseContentFormat: markdown`).
+3. Read standard fields from the API **`fields`** object and custom fields by **display name** in the markdown response (Product Owner, Release Coverage, Quality Owner, Story Point estimate, Sprint).
+4. Present a checklist table: each row **Filled ✅** or **Missing ❌** with the current value (or “empty”).
+
+### When any field is Missing ❌
+
+1. Tell the user which fields are still empty and ask them to fill them in Jira.
+2. Use **`AskQuestion`**:
+   - **I've filled them — re-check**
+   - **Cancel** (do not transition)
+3. On **I've filled them — re-check**: call **`getJiraIssue`** again and repeat until **all ten** show **Filled ✅**.
+4. Do **not** transition in the same turn as the first failed check — wait for the user to confirm they updated Jira.
+
+### When all fields pass
+
+1. Call **`getTransitionsForJiraIssue`** for **`<JIRA-KEY>`**.
+2. Confirm **In Review** (or project equivalent) is available.
+3. Transition via **`transitionJiraIssue`**.
+4. Confirm the new status to the user.
+
+**Agent must not edit Jira fields** as part of this check — the user fills them manually, then asks for re-check.
+
+---
+
+## At a glance
+
+| Piece | Rule |
+|--------|------|
+| **Where to send** | **`#generative-search-team`** unless the user overrides (see **Default destination**). |
+| **Headline** | **`Ready for review: 👀`** (literal emoji U+1F440) |
+| **PR** | **`PR: `** + full GitHub PR URL, **one line** |
+| **Task** | **`Task: `** + `https://vendoroo-dev.atlassian.net/browse/<KEY>` (from branch **`VAP-\d+`** or user), **one line** |
+| **Summary** | **`Summary: `** + **1–2** outcome sentences (from PR title/body/commits), **plain text**, no checklist noise |
+| **Calendar note** | Add one short sentence: **`:calendar: PR review meeting is already on your calendar. Please check it.`** — **only when** the user confirmed the meeting exists (see **Prerequisite — Google Calendar** below) |
+| **Reviewers** | **No `Reviewers:` label** — only **`<@USER_ID>, …`** (or plain fallbacks / see edge cases) |
+| **After send** | Ask confirmation, then **Jira required fields** checklist before In Review transition |
+| **Spacing (MCP)** | **`\n\n`** between headline, **`PR:`**, **`Task:`**, **`Summary:`**, optional calendar line, and mentions line |
+| **Glue fix** | If **`Task:`** sticks to **`PR:`**, prefix **`Task:`** with **`\u200b`** |
+
+---
+
+## Message template (required)
+
+**First line:** **`Ready for review: 👀`** — not “PR is ready for review”.
+
+**Labels — plain text only:** **`PR:`**, **`Task:`**, **`Summary:`** in ASCII. No Slack mrkdwn asterisks for “bold” (Cursor **`slack_send_message`** often renders them as italic). No Unicode stylistic bold.
+
+**One line per URL field:** **`PR: `** + URL and **`Task: `** + Jira URL on single lines each; do **not** put the label on one line and the URL on the next.
+
+**Paragraph breaks:** Use **`\n\n`** between **every** block (headline → **`PR:`** → **`Task:`** → **`Summary:`** → optional calendar line → mentions) when building the **`message`** string for **`slack_send_message`**.
+
+**Calendar reminder sentence (optional):** Add after `Summary:` and before mentions **only when** the user confirmed the PR review meeting is on Google Calendar (see **Prerequisite — Google Calendar**):
+
+**`:calendar: PR review meeting is already on your calendar. Please check it.`**
+
+If there is no meeting, or the user has **not** confirmed it yet, **omit** this sentence entirely.
+
+**Template with calendar line (when meeting confirmed):**
+
+```text
+Ready for review: 👀
+PR: <GITHUB_PR_URL>
+
+Task: <JIRA_BROWSE_URL>
+
+Summary: <One or two short sentences: what the PR fixes, improves, or adds—outcome-focused. No markdown headings in the summary body.>
+
+:calendar: PR review meeting is already on your calendar. Please check it.
+
+<@USER_ID_1>, <@USER_ID_2>, <@USER_ID_3>
+```
+
+**Template without calendar line (no meeting, or not confirmed yet):**
+
+```text
+Ready for review: 👀
+PR: <GITHUB_PR_URL>
+
+Task: <JIRA_BROWSE_URL>
+
+Summary: <One or two short sentences…>
+
+<@USER_ID_1>, <@USER_ID_2>, <@USER_ID_3>
+```
+
+**`Summary:`** — Prefer **one line**, **two sentences max**. Keep the summary body roughly **≤ 320 characters** unless the user asks for more. **Do not** paste secrets, tokens, or long internal-only URLs from the PR into **`Summary:`**. Strip checklist / template boilerplate from the PR **Description** when compressing.
+
+**Last line — mentions only:** Do **not** write **`Reviewers:`**. Use **comma + space** between entries. If there is **nobody** to @mention, **omit** the line **or** use a single plain line: **`(No reviewers requested)`** (no **`@`**).
+
+**Example (calendar line included — meeting confirmed by user):**
+
+```text
+Ready for review: 👀
+PR: https://github.com/Vendoroo/generative-search/pull/807
+
+Task: https://vendoroo-dev.atlassian.net/browse/VAP-2668
+
+Summary: Improves Resiroo when image analysis fails or is empty: we still attach image URLs for context, skip errored vision rows in descriptions, and keep image numbering consistent for partial results.
+
+:calendar: PR review meeting is already on your calendar. Please check it.
+
+<@U08DXPXGN5U>, <@U097377FRLZ>
+```
+
+---
+
+## Agent workflow (end-to-end)
+
+0. **GC Meet Helper (Step A)** — run **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** first: mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event. **Stop** after handoff until the user finishes the event. **Do not** open the Slack confirmation gate in the same turn you start Step A.
+0b. **Calendar line (Step B)** — after Step A, **`AskQuestion`**: meeting on calendar? (yes / not yet / no meeting). **Not yet** → stop.
+1. **Resolve PR** — **`gh pr view <n> --json url,title,body,commits,reviewRequests,assignees`** (or **`gh pr view --json …`** on the current branch). If there is **no PR**, stop and tell the user to open a PR first. (May overlap with y-gc-meet-helper PR discovery — reuse data when already fetched.)
+2. **Jira key** — Parse **`VAP-\d+`** from **`git branch --show-current`** (or user message). Build **`Task:`** link. If **multiple** keys appear, prefer the branch key; if unclear, use the first linked ticket from the PR **Description** or ask once.
+3. **Summary** — Write **1–2** sentences from **title + Description + commit subjects**; outcome-only; no **`##`**, no unchecked checklist dumps.
+4. **Slack user ids** — For each **`reviewRequests`** entry with **`__typename":"User"`**, **`slack_search_users`** (query: **`login`**, shortened handle if your org maps that way, or **email** if GitHub returned one). Collect **`<@USER_ID>`** in GitHub order.
+5. **Assemble** — Concatenate with **`\n\n`**; include the calendar sentence **only** if step 0 / confirmation gate confirmed the meeting exists; apply **`\u200bTask:`** only if **`Task:`** still glues to **`PR:`** in Slack.
+6. **Resolve destination** — **Default:** resolve **`#generative-search-team`** → **`C…`** per **Resolving `#generative-search-team` → `C…`** above. **Override only when explicit:** if the user clearly asked to send **to me / for testing / DM**, use **their** **`U…`** (or known **`D…`**); if they named **another user or channel**, resolve that id. **Never** use DM as default for “send Slack” or “PR ready”.
+7. **Run confirmation gate** — Ask the mandatory questions in **Mandatory confirmation gate (before any Slack send)** and get explicit confirmation on all required items (calendar first when applicable).
+8. **Send** — **`slack_send_message`** with **`channel_id`** from step 6 and **`message`** from step 5, only after step 7 is fully confirmed.
+9. **Post-send Jira confirmation** — Ask if the user wants to move the Jira task to In Review now.
+10. **Jira required fields** — If user confirms Yes, run **[Jira required fields before In Review](#jira-required-fields-before-in-review)** (re-check loop until all ten fields pass).
+11. **Transition Jira** — Only after step 10 passes; call **`transitionJiraIssue`**. If user said No at step 9, do not change Jira state.
+
+---
+
+## Resolving reviewers (GitHub → Slack)
+
+**Email from GitHub:** Usually unavailable on **`GET /users/{login}`**; optional **`gh api users/<login> --jq '{login,email,name}'`**.
+
+**`slack_search_users`:** Prefer **exact email** match when email exists; else **`login`**; else a **known** short handle (e.g. org suffix stripping **only** if consistently safe). Read **`User ID`** from the Slack result text. **Never** invent **`U…`** ids.
+
+**No Slack match for a user:** For that slot use **plain GitHub `login` or `name`**, or **drop** the slot—**never** a fake **`<@>`**.
+
+**`__typename":"Team"`** in **`reviewRequests`:** There is **no** Slack **`User ID`**. Append the **team `name` or `slug` as plain text** on the same last line after user mentions (e.g. **`<@U…>, my-team-slug`**) **or** omit and tell the user to add the team ping manually—**do not** guess a **`<@>`** for a team.
+
+**Without Slack MCP:** Last line = comma-separated **Slack display names** or **GitHub `login`** (no **`<@>`** unless ids are known).
+
+---
+
+## Field reference
+
+| Field | Source / rule |
+|--------|----------------|
+| **`PR:`** | **`gh pr view <n> --json url -q .url`** (or current branch). Use the repo’s real **`html_url`** from GitHub (not a guessed host). |
+| **`Task:`** | **`https://vendoroo-dev.atlassian.net/browse/<KEY>`**. **`KEY`** from branch **`VAP-\d+`**, else user, else first ticket in PR body, else **`(no Jira key — add link manually)`**. |
+| **`Summary:`** | Compressed outcome from **`title`**, **Description** (human prose only), **`commits[].messageHeadline`**. |
+| **Mentions** | **`slack_search_users`** → **`<@USER_ID>`**; see **Resolving reviewers** for teams and fallbacks. |
+
+---
+
+## Output vs Slack MCP
+
+- **Copy-paste (default):** Output the filled template in a **fenced code block** for the user to paste into Slack.
+- **`slack_send_message`:** Pass the full string as **`message`** (UTF-8 so **👀** is valid). **`channel_id`** = **default channel** (**`#generative-search-team`** → **`C…`**) unless the user overrides (self / testing / named user or channel). **Every `<@USER_ID>` notifies that user**—only include people who should be pinged. Always run and complete the **mandatory confirmation gate** first.
+- After send, always run **Post-send Jira confirmation**, then **[Jira required fields before In Review](#jira-required-fields-before-in-review)** before any transition.
+
+---
+
+## What not to do
+
+- Do **not** post Slack tokens, webhooks, or bot secrets in chat or in this rule file.
+- Do **not** paste private emails or secrets into **`Summary:`** or into shared channels unless the user asked.
+- Do **not** guess **`U…`** / **`C…`** / **`D…`** ids—resolve via **`slack_search_*`** tools (or ask the user).
+- Do **not** send PR-ready pings to a **DM** by default; use **`#generative-search-team`** unless the user asked otherwise.
+- Do **not** open the Slack confirmation gate before **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** (Step A) — generate title/description or create draft event first.
+- Do **not** send any Slack message before finishing the **mandatory confirmation gate** (Step B + items below).
+- Do **not** include **`:calendar: PR review meeting is already on your calendar`** unless Step A is done and the user confirmed the meeting exists on Google Calendar (Step B).
+- Do **not** move Jira to In Review automatically after Slack send; always ask, then run the **required-fields checklist** and wait for the user to fill gaps before transitioning.
+
+---
+
+## MCP setup and troubleshooting
+
+Slack tools come from the **Slack MCP server**. If **`CallMcpTool`** reports Slack is unavailable, or channel/user search returns nothing while other MCP servers work, fix configuration before falling back to manual paste.
+
+### 1. Enable Slack in `~/.cursor/mcp.json`
+
+Add a **`slack`** entry (alongside trello, google-calendar, etc.):
+
+```json
+"slack": {
+  "url": "https://mcp.slack.com/mcp",
+  "auth": {
+    "CLIENT_ID": "3660753192626.8903469228982"
+  }
+}
+```
+
+**Reload Cursor** after editing (Command Palette → **Developer: Reload Window**, or restart).
+
+### 2. Connect OAuth
+
+**Settings → MCP → Slack → Connect** and approve workspace access. Workspace admins may need to approve the Slack MCP app once.
+
+### 3. Server name in tool calls
+
+Depending on how Slack is loaded, the MCP server identifier may be:
+
+| Source | Server id for **`CallMcpTool`** |
+|--------|----------------------------------|
+| Entry in **`~/.cursor/mcp.json`** | **`user-slack`** |
+| Cursor **Slack** marketplace plugin | **`plugin-slack-slack`** |
+
+Either works when connected. If one fails, try the other before giving up.
+
+### 4. Bot must be in the channel
+
+Invite the Cursor Slack app to **`#generative-search-team`** if **`slack_send_message`** fails with **not_in_channel**.
+
+### 5. Resolving `#generative-search-team` when channel search is empty
+
+**`#generative-search-team`** is a **private** channel — **`slack_search_channels`** often returns no hits even when the bot can post. Use this order:
+
+1. **`slack_search_channels`** with **`generative-search-team`**
+2. If empty → **`slack_search_public_and_private`** with **`Ready for review`** or **`generative-search-team`** and read **`Channel: #generative-search-team (ID: C…)`** from a hit
+3. Cached id (verify with search if send fails): **`C0AL9JWTX3N`**
+
+---
+
+## Optional tweaks
+
+- **Emoji:** Replace **👀** with another character or Slack shortcode if the user prefers; keep **`Ready for review:`** unless they ask to change the wording.
+- **Headline detail:** If the user wants the PR number in the first line, use **`Ready for review (#<n>): 👀`** only when **`n`** is known from **`gh pr view`**.
+- **Channel rename:** If the workspace renames the channel, update the **default channel name** in this rule to match.

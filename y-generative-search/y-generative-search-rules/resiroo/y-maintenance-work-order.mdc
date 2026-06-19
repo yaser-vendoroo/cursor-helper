@@ -1,0 +1,155 @@
+---
+description: Maintenance work orders for AI testing — resident reporting checklist, full WO template, tenant voice, optional mock photos after AskQuestion confirms count (0 allowed)
+alwaysApply: false
+---
+
+# Maintenance work orders (resident content + full template)
+
+Use this when you need **sample work orders**, **test fixtures**, **marketplace-style WO text**, or **realistic resident submissions** for maintenance triage (e.g. Resiroo). Pair with **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** when the output must map to RabbitMQ / **`AdditionalData`**.
+
+## Image generation (AskQuestion first)
+
+**Do not call image generation until the user confirms how many images are needed.** Many test cases need **zero** images — that is normal.
+
+Before **GenerateImage** (or any image tool):
+
+1. Use **AskQuestion** with prompt **“How many test images should be generated for this work order / scenario?”**
+2. Options must include **`0 (no images)`** and small counts (**`1`**, **`2`**, **`3`**). Add **`Use existing images only (no generation)`** when assets may already exist.
+3. **Never substitute a guess** — wait for the answer.
+
+**Order of work:** (1) Produce the work order text (section 3, including **Image Descriptions** when photos are plausible). (2) **Only if the user chose a count > 0**, generate that many images in the **same turn**, matching **Image Descriptions** and the scenario. (3) Save **filenames or paths** under **`cursor_workspace/`** per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`**.
+
+**Flow:** Apply **Resident reporting (checklist)** so `Description` and tone feel real; then output the **full structure** below unless the user asks for a minimal variant.
+
+---
+
+## 1. Resident reporting (checklist)
+
+Imagine you are the **resident** opening a **maintenance request**. Include enough detail so staff can triage without guessing.
+
+### What to cover
+
+1. **Where** — Unit or address (if the portal asks for it), and **which room or system** (e.g. “kitchen sink,” “hall bathroom,” “AC thermostat wall”).
+2. **What is wrong** — Plain language: what you see, hear, or feel (leak, no heat, breaker tripped, pest sightings, etc.). One **main** problem per message keeps things clear; if there are **two** issues, say both **clearly**.
+3. **How long / how often** — “Since yesterday,” “every night for a week,” “gets worse when it rains.”
+4. **Safety** — Say if there is **smoke, strong gas smell, sparks, major active water**, or **no heat in freezing weather** / **no AC in extreme heat** if that applies.
+5. **What you tried** — e.g. reset breaker, turned water off, changed filter, bait/traps for pests—**even if** it did not fix it.
+6. **Photos or video** — If you can, attach **clear** pictures of the problem area (wide + close-up). For pests, a photo helps identify the pest when safe to take.
+7. **Access** — Pets, alarm codes only if your building asks for them, preferred time window, or “need someone home.”
+8. **What you want** — e.g. “need someone to look at it,” “not sure if this is urgent”—**without** demanding a specific vendor or timeline if the portal does not ask for that.
+
+### What makes a strong case
+
+- **Specific** location + **specific** symptom (not only “something is broken”).
+- **Honest** about duration and anything you already did.
+- **Safety** called out when it might be an emergency.
+
+Use this when writing **resident `Content`** for manual tests or training examples so scenarios match how people actually report issues.
+
+---
+
+## 2. Voice and quality
+
+- Output must read like a **real tenant submission**, not a spec or checklist.
+- Use **natural, simple English (CEFR about B1–B2)** — clear words, short sentences, still professional enough for work orders.
+- **Do not use placeholders** (no `TBD`, `[name]`, `XXX`, or “your city here”). Use **plausible fictional** names, numbers, and addresses instead.
+- **Do not exaggerate** drama or add long backstory. Stick to what a resident would type.
+- **Vary scenarios** across runs: plumbing, electrical, HVAC, appliances, structural, etc.
+- Mix **emergency** and **non-emergency** examples when generating **multiple** work orders; for a **single** example, pick one level and stay consistent.
+- **Emergency** examples should include **clear urgency signals** (active leak, gas/smoke smell, no heat when very cold, sparking, flooding, etc.) when appropriate.
+- **Avoid repeating** the same opening lines, same address pattern, or same issue type across consecutive examples.
+
+---
+
+## 3. Structure (follow exactly)
+
+Use this section order and headings. **Description** and **PM Note** follow the rules below.
+
+```markdown
+Title:
+<short, clear issue title>
+
+Client:
+<realistic full name>
+
+Creation Date (UTC):
+<realistic datetime>
+
+Location:
+<real US or Canada address>
+
+Phone:
+<realistic phone number format>
+
+Description:
+- Write like a tenant (not technical).
+- 3-5 bullet points describing symptoms.
+- Include timing (when it started).
+- Include observable facts only (no diagnosis unless obvious).
+
+PM Note:
+- Short, technical note for maintenance team.
+- Mention likely cause and what to check.
+
+Resident Availability:
+<realistic schedule>
+
+Image Descriptions:
+- Provide 3 realistic photo descriptions (not URLs).
+- Each should describe what the tenant would photograph.
+```
+
+### Field rules
+
+| Section | Rules |
+|--------|--------|
+| **Title** | Short issue label a PM would scan (e.g. “Bathroom ceiling stain”, not a paragraph). |
+| **Client** | Realistic full name (vary cultures; avoid famous names). |
+| **Creation Date (UTC)** | Believable timestamp; can be recent. |
+| **Location** | Realistic **US or Canada** street address (include unit/apt if typical). |
+| **Phone** | Valid-looking format for that region (do not use real public hotlines as “the tenant’s” number). |
+| **Description** | **Tenant voice** — bullets only under **Description**, 3–5 bullets, symptoms + when it started + what they see/hear/smell. No jargon like “compressor short cycle” unless the tenant would say it. |
+| **PM Note** | **Internal / technical** — likely cause, parts to check, safety note if needed. Keep short. |
+| **Resident Availability** | Concrete windows (weekdays, evenings, weekend) in plain language. |
+| **Image Descriptions** | Exactly **three** lines (or three bullets), each describing a **photo the tenant would plausibly send** (wide shot, close-up, label, etc.). **No URLs.** These lines are the **brief** the agent uses for generated images (below). |
+
+---
+
+## 4. Mock photos (optional — user confirms count)
+
+Apply **Image generation (AskQuestion first)** at the top of this file before any **GenerateImage** call.
+
+When the user chooses a count **> 0**:
+
+- Generate **exactly** that many images — no extra “just in case” assets.
+- **Realistic and relevant** — each photo must match the work order issue, location, and test case (e.g. under-sink leak for plumbing, fridge nameplate for appliance make/model tests).
+- **Normal quality** — clear tenant-style phone snapshots (wide shot, close-up, label as needed). One straightforward prompt per image. Do **not** over-engineer (no elaborate PIL pipelines, multi-step retries, or hyper-detailed prompts unless the test case requires readable text on a label).
+- Align generated shots with **Image Descriptions** when those bullets exist; if the user asked for fewer images than descriptions, pick the most relevant ones.
+- After generation, give **paths or filenames** under **`cursor_workspace/`**; do **not** claim these are real resident photos.
+
+When the user chooses **`0 (no images)`** or **`Use existing images only`**: do **not** call **GenerateImage**. Keep **Image Descriptions** as planning text only when useful, or omit them if the scenario has no photo angle.
+
+**Limitations:** Images are **AI-generated mockups** for testing — not evidence, not production resident uploads. If generation is **unavailable or fails**, state that in **one short line** and do **not** pretend images were produced.
+
+---
+
+## 5. What not to do
+
+- Do not output bare angle-bracket templates unless the user explicitly wants an empty form.
+- Do not add sections outside the structure above unless the user asks.
+- Do not label the example “Sample” or “Fictional” inside the work order body unless the user wants disclaimers.
+
+---
+
+## 6. Quick reference (minimal shape)
+
+If the user only wants a **short** description block without the full marketplace form, you may use a compact variant — **only when they ask for “short” or “minimal”**:
+
+```markdown
+Description:
+<2-4 sentences in tenant voice>
+```
+
+Mock photos are **optional** for this minimal variant — still use **AskQuestion** before generating.
+
+Otherwise default to the **full structure** in this file; generate mock photos **only after** the user confirms a count **> 0** (see **Image generation (AskQuestion first)**).

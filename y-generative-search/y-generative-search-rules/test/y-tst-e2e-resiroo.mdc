@@ -1,0 +1,333 @@
+---
+description: ResiRoo E2E — Local or MP Testing, Live APIs or Mock, RabbitMQ or Chat API ingress; mandatory AskQuestion pre-flight; optional post-E2E Slack + Jira handoff. Sub-rule of y-tst-e2e.
+alwaysApply: false
+---
+
+# ResiRoo E2E testing (`y-tst-e2e-resiroo`)
+
+Use this rule for **all** ResiRoo end-to-end manual test runs. It replaces the archived runbooks in **`cursor_back/rules/`** (`mp-e2e-testing.mdc`, `rr-e2e-test.mdc`).
+
+**Entry point:** When starting from **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **Resiroo** first, then follow this rule. When Resiroo is already clear, invoke this rule **directly** (skip Q0).
+
+Final report format: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+
+---
+
+## Mandatory pre-flight (AskQuestion only)
+
+**Do not start any E2E step until all applicable questions are answered.** Use the **AskQuestion** tool for each; never substitute free-text guesses.
+
+| Step | ID | When | Prompt | Options |
+|------|-----|------|--------|---------|
+| Q1 | `e2e_env` | Always | Test environment | `Local` · `MP (Testing)` |
+| Q2 | `e2e_data_mode` | Always | Data source | `Live MP APIs` · `Mock (local mp_mock)` |
+| Q3 | `e2e_ingress` | **`Local` only** | Resident message ingress | `RabbitMQ` · `Chat API` |
+| Q4 | `e2e_seed_source` | Mock only | How to prepare seed data | `Generate realistic seed` · `Fetch once from MP-Testing` |
+| Q5 | `e2e_client_id` | Fetch only | Client id for fetch | `Use CLIENT_ID from .env.e2e.local` · `Enter specific client id` |
+| Q6 | `e2e_image_count` | Test case uses or may use resident photos | How many test images to generate? | `0 (no images)` · `1` · `2` · `3` · `Use existing images only (no generation)` |
+
+**Image generation (Q6 and sub-rules):** Do **not** call **GenerateImage** until Q6 is answered (when applicable). **`0`** is valid. Generated images must be **realistic, relevant** to the work order / test case, and **normal quality** — no over-engineered generation pipelines. Upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`**; scenario text via **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc**.
+
+**Branching after Q1–Q2:**
+
+| Env | Data mode | Path |
+|-----|-----------|------|
+| Local | Live MP APIs | WO setup via sub-rules (if needed) → ingress (Q3) → verify Postgres |
+| Local | Mock | `make mp-mock-e2e-up` → ingress (Q3) → verify Postgres |
+| MP (Testing) | Live MP APIs | WO + ForceResiroo + SMTP resident email (ingress = SMTP; skip Q3) |
+| MP (Testing) | Mock | **Blocked** — ask user to choose `Local` + Mock or Live MP APIs |
+
+---
+
+## Unified AI core (RabbitMQ and Chat API)
+
+Both ingress channels converge on the **same ResiRoo AI pipeline**:
+
+1. `POST /chat/api/chat`
+2. `prepare_chat_data()` in [`services/roo/app/api/services/resiroo_preparation.py`](../../../services/roo/app/api/services/resiroo_preparation.py)
+3. Same prompts, context, WO lookup, image analysis, and LLM engine
+
+**RabbitMQ path:** `ChatMessageHandler` delegates to the chat API internally (`_make_chat_api_request`).
+
+### Ingress parity (what differs)
+
+| Area | RabbitMQ | Chat API |
+|------|----------|----------|
+| **Transport** | MP queue → `message_buffer` → debounce → `resirooQueue` → handler → chat API | Direct `POST /chat/api/chat` |
+| **Wait time** | Debounce window + LLM (~1–6 min typical) | Immediate (no debounce) |
+| **`source`** | Always `RabbitMQ` | Use `Test` or `API` for E2E (not `RabbitMQ` unless intentionally matching production key) |
+| **Conversation key** | `user_id\|session\|resident\|RabbitMQ` | `user_id\|session\|resident\|{source}` — **different thread if source differs** |
+| **Auth** | Token middleware skipped when `source=RabbitMQ` | Bearer required in `meta_data.auth_bearer` or `Authorization` header |
+| **`meta_data`** | Full MP `AdditionalData` from `MessageJObject` | Caller supplies MP-style keys (`ImageUrls`, `ResidentUserId`, `LocationTimeZone`, …) |
+| **Outbound** | MP `MessageJObject` envelope + `TimelineSummary` to producer queue | `Result` JSON; no MP outbound queue |
+| **Batching** | Multiple messages merged with `\n===\n` | One HTTP request = one turn |
+
+**E2E rule:** Do **not** pre-fill `context_info` on chat API requests — that skips the full `prepare_chat_data()` pipeline (same as production ResiRoo).
+
+---
+
+## Environment variables
+
+### `VENDOROO_BASE_API_URL` (MP API switch)
+
+| Mode | Value (Roo / roo-worker in Compose) |
+|------|-------------------------------------|
+| **Live MP Testing** | `https://api-testing-marketplace.vendoroo.ai` |
+| **Mock (`mp_mock` in Compose)** | `http://mp-mock:8099` |
+| **Mock on host, Roo in Docker** | `http://host.docker.internal:8099` |
+| **Both on host** | `http://127.0.0.1:8099` |
+
+Also keep **`VENDOROO_ADMIN_AUTH_BEARER`** non-empty (mock ignores validation).
+
+**Do not edit `.env`** for mock mode. Use **`make mp-mock-e2e-up`** (applies [`mp_mock/docker-compose.smoke.yml`](../../../mp_mock/docker-compose.smoke.yml) so `roo` / `roo-worker` get `VENDOROO_BASE_API_URL=http://mp-mock:8099`). After mock runs, restore live MP with **`make mp-mock-e2e-off`**.
+
+**Shared infra note:** `make mp-mock-e2e-up` is the same target PMRoo uses — always run **`make mp-mock-e2e-off`** when finished so local `roo` is not left on mock for unrelated sessions.
+
+### Other
+
+| Variable | Notes |
+|----------|--------|
+| `ROO_HOST` | **`roo`** on `roo-worker` (not `localhost`) |
+| `RABBITMQ_CONSUMER_QUEUE` | Inbound debounce queue (e.g. `aiAgentQueue`) |
+| `RESIROO_QUEUE` | Batched handler queue (e.g. `resirooQueue`) |
+| `RESIROO_DEBOUNCE_WINDOW_MINUTES` | Often 1–5 locally |
+
+---
+
+## Work order data
+
+**Unless the user supplies verified WO data, do not invent ids.**
+
+| Situation | Action |
+|-----------|--------|
+| **Default** | **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` |
+| **Mock mode** | Seed `cursor_workspace/e2e_seed/`; zero real MP calls during the run |
+| **User-supplied WO** | Only when user provides real `workOrderId`, `ResidentUserId`, and verified `clientId` |
+
+---
+
+## Local + RabbitMQ ingress
+
+### Preconditions
+
+- Docker stack: **RabbitMQ**, **Postgres**, **`roo`**, **`roo-worker`**, **`roo-beat`**, **Redis**
+- **`ROO_HOST=roo`** on worker
+- Valid **`VENDOROO_BASE_API_URL`** (live or mock)
+
+### Steps
+
+1. Build payload per **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc**
+2. Optionally seed **`pm_company_instructions`** (from `e2e_seed/instructions/{client_id}.md` in Mock mode)
+3. Publish to **`RABBITMQ_CONSUMER_QUEUE`** via [`scripts/publish_rabbitmq.py`](../../../scripts/publish_rabbitmq.py) or Management API
+4. Wait **debounce + LLM** (~1–6 min)
+5. **Postgres checks:**
+   - `message_buffer`: `payload->>'ObjectId' = '<ObjectId>'` → `Todo` → `Done`
+   - `conversations`: `user_id = ObjectId`, `source = 'RabbitMQ'`
+   - `messages`: latest `assistant` JSON — `State`, `Response`, `AIReasoning`, `Evidence`
+
+### Outdoor automated temperature (HVAC tests)
+
+See archived notes in [`cursor_back/rules/resiroo/rr-e2e-test.mdc`](../../../cursor_back/rules/resiroo/rr-e2e-test.mdc). Tool row with real **°F** vs automation-exhausted line — report which occurred.
+
+---
+
+## Local + Chat API ingress
+
+### Request shape
+
+```json
+{
+  "messages": [{ "role": "user", "content": "Resident message text" }],
+  "user_id": "<workOrderId>",
+  "session_id": "default",
+  "user_type": "resident",
+  "source": "Test",
+  "stream": false,
+  "meta_data": {
+    "ImageUrls": [],
+    "WorkOrderId": 158220,
+    "ResidentUserId": "<uuid>",
+    "LocationTimeZone": "America/Toronto"
+  }
+}
+```
+
+- **`user_id`** = work order id (numeric string)
+- **Do not** set `context_info` (full preparation must run)
+- **`source`**: use `Test` or `API` for E2E — keeps conversation separate from RabbitMQ runs
+
+### Steps
+
+1. `POST http://localhost:8800/chat/api/chat` (or Compose port mapping)
+2. Include **`Authorization: Bearer …`** or `meta_data.auth_bearer` unless testing RabbitMQ skip path
+3. Verify Postgres: `conversations` / `messages` with matching **`source`** (not `RabbitMQ` unless you set it)
+
+---
+
+## MP (Testing) + Live MP APIs
+
+Full orchestration (resident ingress = **SMTP email**, not RabbitMQ):
+
+1. Load `.env.e2e.local` (repo root) (never print secrets)
+2. Create or reuse WO — **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`
+3. **ForceResiroo** — `POST /api/WorkOrder/ForceResiroo/{jobToken}` → verify success before first resident email
+4. **SMTP** — `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`: approval before **each** send; **`BulkMessageAssign` once** for first inbox message only
+5. Verify WO timeline — `GetChatMessagesByJobTokenAsync`
+
+Required constraints: see archived [`cursor_back/rules/marketplace/mp-e2e-testing.mdc`](../../../cursor_back/rules/marketplace/mp-e2e-testing.mdc).
+
+---
+
+## Mock mode (`mp_mock`)
+
+**Zero real MP API calls during the test run.** Fetch-once (Q4/Q5) is a separate setup step only.
+
+1. Seed **`cursor_workspace/e2e_seed/`** (generate, `mp_mock/scripts/fetch_seed.py`, or bundled via Make)
+2. **`make mp-mock-e2e-up`** — copies example seed if needed, starts **`mp-mock`**, and recreates **`roo`** + **`roo-worker`** with `VENDOROO_BASE_API_URL=http://mp-mock:8099` (no `.env` edit)
+3. Run Local ingress path (RabbitMQ or Chat API)
+4. When done with mock: **`make mp-mock-e2e-off`** to restore live MP URL from `.env`
+
+**Mock server only** (no Roo re-point): `make mp-mock-up` · stop: `make mp-mock-down`
+
+Seed layout and mock stack: [`mp_mock/README.md`](../../../mp_mock/README.md).
+
+---
+
+## Artifact location
+
+| Artifact | Path |
+|----------|------|
+| E2E reports | `cursor_workspace/ai_test/e2e/` |
+| Seed data | `cursor_workspace/e2e_seed/` |
+| Payload fixtures | `cursor_workspace/` (not repo root `ai_tests/`) |
+
+Filename: `YYYY-MM-DD-HHMMSS-<scenario-slug>-report.md`
+
+---
+
+## Sub-rules
+
+| Rule | When |
+|------|------|
+| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` | Entry point — Q0 Resiroo vs PMRoo when agent type not yet chosen |
+| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc** | RabbitMQ payload |
+| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** | Live WO via UI |
+| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` | Live WO via API |
+| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc` | MP Testing SMTP |
+| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc** | Scenario text |
+| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc` | Image URLs |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
+| `.cursor/y-rules/git/y-y-git-create-pr.mdc` | Open Task PR when none exists yet |
+| `.cursor/rules/qa-jira-sync.mdc` | Post E2E verdict comment to Jira (optional) |
+
+---
+
+## Post-E2E handoff (optional — after final report)
+
+Run **only after** the E2E report is written under **`cursor_workspace/ai_test/e2e/`** per `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`. Do **not** skip the report to jump straight to Slack or Jira.
+
+### When this applies
+
+- E2E was run for a **Jira task** that has (or will have) a **Task PR** on GitHub.
+- The user is finishing the test pass and may want reviewers notified or the ticket moved to **In Review**.
+
+If there is **no PR yet**, mention `.cursor/y-rules/git/y-y-git-create-pr.mdc` (Task PR → **`testing`**) before Slack — Slack requires an open PR URL.
+
+---
+
+### Step P1 — Slack PR ready for review (mandatory AskQuestion)
+
+Before any Slack work, use **`AskQuestion`**:
+
+| Option | Meaning |
+|--------|---------|
+| **Send Slack** | Follow `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` end-to-end for this PR |
+| **Skip** | Do not send Slack in this flow (default when user declines or Slack MCP unavailable) |
+| **`other`** | User wants copy-paste-only template, a different channel, or to defer |
+
+In the prompt, show the **PR number and URL** from **`gh pr view`** (current branch or user-supplied). If no PR exists, say so and offer to open one via **y-git-create-pr** first.
+
+**When the user chooses Send Slack:**
+
+1. Read and follow **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its gates (Google Calendar prerequisite when applicable, mandatory confirmation gate, full message draft).
+2. Resolve PR details with **`gh pr view <n> --json url,title,body,reviewRequests,assignees`**.
+3. **Default destination:** **`#generative-search-team`** unless the user overrides in that rule.
+4. Send with **`slack_send_message`** only after all confirmations in the Slack rule.
+5. If Slack MCP is unavailable, offer the filled template in a fenced code block for manual paste — still confirm summary, mentions, and PR link before output.
+
+**When the user chooses Skip:** proceed to [Step P2 — Jira In Review](#step-p2--jira-in-review-mandatory-askquestion) if applicable; do not send Slack.
+
+---
+
+### Step P2 — Jira In Review (mandatory AskQuestion)
+
+**Do not** transition Jira automatically after E2E or after writing the report.
+
+| Path | When to ask | Rule |
+|------|-------------|------|
+| **After successful Slack send** | Required | Use the Slack rule's **Post-send Jira confirmation** — *"Do you want me to move this Jira task to Review now?"* (**Yes** / **No**). Transition **only** on **Yes**. |
+| **Slack skipped** | After P1 **Skip** (or no PR for Slack) | Use **`AskQuestion`**: *"Move this Jira task to In Review now?"* (**Yes** / **No**). Transition **only** on **Yes**. |
+
+**On either path, when the user answers Yes:** run [Step P2a — Jira required fields](#step-p2a--jira-required-fields-before-transition) **before** calling **`transitionJiraIssue`**.
+
+---
+
+### Step P2a — Jira required fields (before transition)
+
+Follow **Jira required fields before In Review (see `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** in **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — same checklist and re-check loop for **all** In Review transitions from E2E handoff.
+
+**Summary — all ten fields must be filled before transition:**
+
+| Field |
+|-------|
+| Assignee |
+| Product Owner |
+| Release Coverage |
+| Labels |
+| Priority |
+| Quality Owner |
+| Sprint |
+| Story Point estimate |
+| Fix versions |
+| Reporter |
+
+**Workflow:**
+
+1. **`getJiraIssue`** → show **Filled ✅ / Missing ❌** table for every field above.
+2. If **any Missing ❌** → list gaps, ask user to fill in Jira, **`AskQuestion`**: **I've filled them — re-check** / **Cancel**. **Do not** transition until re-check passes.
+3. When **all Filled ✅** → **`getTransitionsForJiraIssue`** → **`transitionJiraIssue`** to **In Review**.
+
+**When user says No** (at the initial In Review question): leave Jira status unchanged — skip P2a.
+
+**Linking E2E to Jira:** Posting test results as a Jira comment is separate — see `.cursor/rules/qa-jira-sync.mdc` when the user asks to sync QA results. Filling required Jira fields is **still mandatory** before In Review even if a QA comment was posted.
+
+---
+
+### Post-E2E handoff — what not to do
+
+- Do **not** send Slack before the E2E report exists (unless the user explicitly overrides).
+- Do **not** auto-send Slack or auto-transition Jira without **`AskQuestion`** confirmation.
+- Do **not** move Jira to **In Review** before the user's explicit **Yes** (whether asked from the Slack rule or Step P2).
+- Do **not** transition Jira without running **Step P2a** / **Jira required fields before In Review (see `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** (re-fetch after user fills gaps).
+- Do **not** include the **calendar reminder sentence** in Slack unless the user confirmed the PR review meeting is on Google Calendar (per **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**).
+- Do **not** invent PR URLs or Jira keys — resolve from **`gh pr view`** and branch/report metadata.
+
+---
+
+## Pass/fail hints
+
+- **Emergency / toilet wording:** semantic equivalents count as PASS (see archived `rr-e2e-test.mdc`)
+- **No `message_buffer` row:** wrong queue / host / credentials
+- **Stuck `Todo`:** debounce / worker / beat not running
+- **`Done` but no assistant row:** wrong `ROO_HOST`, API error — check `roo` / `roo-worker` logs
+- **Empty `client_id`:** invalid WO id or mock seed missing — fix seed or create real WO
+- **Chat API with pre-set `context_info`:** preparation skipped — not a full E2E of production path
+
+---
+
+## Security
+
+- Never expose JWTs, SMTP passwords, or secret env dumps in reports.
+- Share only non-sensitive verification evidence.

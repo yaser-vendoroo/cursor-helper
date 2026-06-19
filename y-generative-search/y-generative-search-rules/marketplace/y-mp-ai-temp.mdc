@@ -1,0 +1,21 @@
+---
+description: >-
+  Canonical directory for agent-generated temporary and test artifacts for
+  Marketplace workflows; forbids throwing scratch files in the repo root.
+alwaysApply: false
+---
+
+# Marketplace: temporary files (`cursor_workspace`)
+
+Whenever you create **any** throwaway file while following **`.cursor/y-generative-search/y-generative-search-rules/marketplace/`** rules—multipart bodies, downloaded JSON, staged images before **`aws s3 cp`**, **`mktemp`** targets, **`curl -o`** dumps, one-off script outputs, or similar—write **only** under:
+
+``cursor_workspace/``
+
+## Rules
+
+- **`mkdir -p`** that path (and subdirs such as **`cursor_workspace/marketplace/`**, **`cursor_workspace/uploads/`**) before writing.
+- **Do not** put test or temporary files in the **repository root** (`generative-search/`) or arbitrary paths elsewhere unless the user explicitly asked for a **committed** fixture location.
+- Use **unique** names: **`mktemp "$AI_TEMP/marketplace/wo.XXXXXX"`**, UUIDs in filenames, or timestamps—so parallel runs do not clobber each other.
+- Keep **`cursor_workspace/`** out of version control: ensure **`cursor_workspace/`** appears in the repo root **`.gitignore`** (add it if missing).
+
+Other Marketplace rules reference this path in their examples.

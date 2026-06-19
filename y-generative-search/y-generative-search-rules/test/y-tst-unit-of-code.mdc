@@ -1,0 +1,120 @@
+---
+description: Manual unit tests; no code fixes until asked; Docker Compose; cursor_workspace/ai_test artifacts with full HTTP detail
+alwaysApply: false
+---
+
+# Manual unit-of-code verification (engineer-style)
+
+Use when you (or the user) want **confidence that a specific unit**—usually one **class** or small **module**—**behaves correctly**, without necessarily **adding pytest**, **changing product code**, or opening a PR.
+
+This is **interactive verification**: read the code, choose cases, **run them** in the real environment (container, `uv`/`poetry`, REPL, small one-off script), observe outputs and logs, then:
+
+1. **Summarize in chat** (concise, **numbered** cases).
+2. **Write a detailed artifact** under **`cursor_workspace/`** (Markdown: requests, responses, logs—see below).
+
+## What this is not
+
+- **Not** a substitute for automated tests when the user explicitly asks for `pytest` or CI.
+- **Not** ResiRoo E2E — use **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** (Q0 = Resiroo) or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** directly.
+- **Not** permission to refactor unrelated code or “fix” style without a separate request.
+- **Not** an excuse to skip reading the implementation—cases must map to real branches and contracts.
+
+## Do not change product code while testing (unless the user asks)
+
+- **Finish the manual test run first** — run the cases, capture evidence, write the **`cursor_workspace/`** report and the **chat** summary.
+- **Do not** edit application/library code to “fix” failures, work around bugs, or make cases pass **during** that testing pass. Treat bugs and odd behavior as **findings** in the report (pass/fail/skipped + what happened).
+- **After** the report is done, if the user **explicitly asks** to debug, fix, or resolve an issue, you may **then** change code in a **follow-up** step (still keep changes scoped to what they asked for).
+
+This keeps **verification** (what does it do today?) separate from **remediation** (change the code).
+
+## Workflow
+
+1. **Docker Compose — before testing** — When verification runs against **Compose-managed** services (e.g. `roo`, workers), **rebuild images and recreate containers** from the **repository root** so the stack matches the current tree and **`env_file`** values (e.g. root `.env`) are loaded into running containers:
+   - **Rebuild images:** `docker compose build` (use `docker compose build --no-cache` for a full rebuild when needed).
+   - **Recreate services:** `docker compose up -d --force-recreate` (optionally limit to services under test, e.g. `roo`).
+   - Pass **`-f`** flags exactly as in this repo’s **Makefile** / dev docs (e.g. `docker-compose.yml` + `docker-compose.dev.yml` if that is the standard stack).
+   Skip this step only when the user explicitly runs tests **outside** Docker (e.g. host `uv run` only).
+
+2. **Locate the unit** — full import path (e.g. `app.net_insight.web_search.openai_web_search.OpenAIWebSearch`). Open the file and note **public methods**, **env vars**, **exceptions**, and **side effects** (HTTP, disk, Redis, etc.).
+
+3. **Infer numbered test cases** from the code and docstrings, not only the happy path. Assign **Case 1, Case 2, …** in a fixed order (same numbers in chat and in `cursor_workspace/` artifact):
+   - **Case N — Happy path** — typical inputs; expected shape of return values.
+   - **Case N — Configuration** — missing/invalid env; `is_configured()` / `settings_snapshot()` if present.
+   - **Case N — Inputs** — empty string, whitespace-only, oversized payload, invalid types if the API allows.
+   - **Case N — Errors** — HTTP 4xx/5xx, timeouts, malformed JSON responses (as far as you can simulate safely).
+   - **Case N — Idempotence / purity** — whether repeated calls are safe; global env mutation.
+
+4. **Run in the right context** — prefer the same Python env as `services/roo` (e.g. project venv, `docker exec` into the app container, or `uv run` from `services/roo` if that matches how imports resolve). Load **`.env`** only as needed; **never paste secrets** into the chat or into `cursor_workspace/` files (redact tokens, use placeholders like `Bearer <REDACTED>`).
+
+5. **Record evidence** — short excerpts in chat; **full detail** (including HTTP request/response as below) goes to **`cursor_workspace/`**. When you call **methods** on the unit, note **args** and **returns** (or exceptions) so the report can include them. Follow **“Do not change product code while testing”** above—no fixes in the product tree until the user asks.
+
+6. **Report in chat (concise)** — use a fixed shape so scans are fast:
+
+   - **Unit:** `module.Class` (or function)
+   - **Environment:** where it ran (host vs container), relevant env flags (no secrets)
+   - **Cases run:** **numbered** list — **Case 1 — …** → pass / fail / skipped (same numbering as `cursor_workspace/` artifact). When a case exercises a **method** (or callable), include **arguments** and **return value** (or exception) in short form so direction of data flow is obvious.
+   - **Notable behavior:** 2–4 sentences on correctness vs code intent
+   - **Risks / gaps:** what was **not** exercised and why
+   - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/openai_web_search/2026-04-14-143052-manual-verification.md`)
+
+## Detailed artifact: `cursor_workspace/` directory
+
+For every manual verification run, add **one Markdown file** (or a small folder per run) under the repo root **`cursor_workspace/ai_test/`** so engineers can audit **how** the unit was exercised without rereading the whole chat.
+Always keep generated AI-test artifacts inside this directory tree (do not write them in repo root or arbitrary folders).
+Do **not** write new test artifacts under root-level **`ai_tests/`**; use **`cursor_workspace/ai_test/`** only.
+
+**Naming — do not overwrite prior reports**
+
+- **Never** reuse or replace an existing report file to “update” a run: each verification pass gets a **new** file.
+- **Always** include **date and time** in the filename (not date alone). That way multiple runs on the **same calendar day** keep separate files and nothing is lost.
+- If a generated name already exists (unlikely if time includes seconds), pick a new suffix (e.g. add `-2`) rather than overwriting.
+
+**Suggested path pattern:**
+
+`cursor_workspace/ai_test/<short-unit-slug>/<YYYY-MM-DD>-<HHMMSS>-manual-verification.md`
+
+Use **24-hour local time** for `<HHMMSS>` (e.g. `143052` for 14:30:52). Avoid `:` in filenames for portability.
+
+Examples: `cursor_workspace/ai_test/openai_web_search/2026-04-14-143052-manual-verification.md`, `cursor_workspace/ai_test/weather_resolver/2026-04-14-091003-manual-verification.md`
+
+**What to include in that Markdown file (more detail than chat):**
+
+- **Title** — unit import path, date, environment (container name / host).
+- **Cases overview (required)** — near the top of the report (after title/metadata), include **all** cases exercised in this run as a **markdown table** or a **single list**. For **each** case, state clearly:
+  - **What is tested** — short description of the scenario (inputs, env, or branch).
+  - **Expected result** — what correct behavior should look like (return shape, status, side effect, or “should raise …”), **before** you compare to what you observed.
+  - When the case calls a **method** or other **callable** on the unit under test, also include **arguments passed** and **value returned** (see **Method calls** below) — either in the overview row or by reference to the detail section for that case.
+  - You may add an **Outcome** column or suffix (pass / fail / skipped) if it fits the same table or list; otherwise record outcome in the detailed sections below.
+  Do **not** omit cases: the overview must enumerate **every** Case 1 … Case N from this verification pass.
+- **Method calls — arguments and return values (required)** — Whenever verification exercises a **method** (instance or class/static) or a **function** under test, document for **each** such call in the report (overview table/list and/or the numbered detail for that case):
+  - **Callable** — full name if useful (e.g. `ClassName.method_name`).
+  - **Arguments** — actual values passed (or `()` for none). Use literals or structured snippets; **redact** secrets. For `self`-style methods, omit `self` unless it matters; include keyword args explicitly.
+  - **Return value** — what was returned: `None`, a repr/string summary, or structured fields (e.g. dataclass fields, dict keys). If the call **raises**, record **exception type** and **message** instead of a return.
+  This makes **data direction** (inputs → outputs) auditable without rereading the script.
+- **Numbered cases (detail)** — **Case 1**, **Case 2**, … — **same numbers and names** as in the overview and in the chat summary. Expand with evidence (HTTP, logs, parsed values) under each heading or subsection. **Repeat** args and return for each method exercised here if not already fully shown in the overview.
+- Per case (when applicable):
+  - **Intent** — what behavior was checked.
+  - **Setup** — env vars (names only, values redacted or “set” / “unset”), command used to run (e.g. `docker exec … python -c '…'`).
+  - **Request (API / network)** — when the unit performs HTTP or similar calls, document clearly:
+    - **Method + full URL** (or path template). For query params, list **names** and **redacted** values (e.g. `key=<REDACTED>`, `q=New+York`).
+    - **Request body** — full shape; for JSON, paste a **redacted** example (no API keys, bearer tokens, or PII).
+  - **Response (API / network)** — for each relevant call:
+    - **HTTP status code** (and error code from JSON body if present).
+    - **Response headers** — include **material** ones (e.g. `content-type`, `x-ratelimit-*`, `cf-ray`, cache headers). Omit huge defaults unless relevant.
+    - **Response body** — full JSON if small; otherwise **truncated** with `…` and note “truncated”; redact secrets if any appear in payloads.
+  - **Non-HTTP I/O** — file paths, Redis keys, DB identifiers (no secrets).
+  - **Observed output** — stdout/stderr excerpts. For **method/function** calls, always tie **args → return** (or **args → raised**); do not rely on prose alone.
+  - **Result** — pass / fail / skipped and **why**.
+- **Appendix (optional)** — links to source files (`services/roo/...`), relevant env keys from `.env.example`, curl equivalents for replay (without real keys).
+
+If a case was **skipped** (no network, no key), document **Case N — Skipped** with the blocker.
+
+Do **not** commit large binary logs; paste **short** relevant lines only. **Redact** secrets consistently in URL, headers, and bodies.
+
+## Language
+
+Write the **chat summary** and the **`cursor_workspace/` Markdown** in **English at CEFR B2**: short sentences, professional tone, **no** filler.
+
+## When the user names a class (example)
+
+If they say e.g. *“check `OpenAIWebSearch`”*, you still apply this rule: run **Workflow step 1** (Docker Compose rebuild/recreate) when tests use containers; **read** `openai_web_search.py`, list env vars (`OPENAI_WEB_SEARCH_URL`, `OPENAI_API_KEY`, …), run **`is_configured`**, then **`search`** / **`complete_json`** with a tiny prompt if credentials exist; otherwise report **skipped network cases** and what you validated offline—**with matching Case numbers** in chat and under **`cursor_workspace/ai_test/`** (include **request/response** detail in the artifact as above). For every **method** you invoke, record **arguments** and **return value** (or exception) in the artifact per **Method calls** above. **Do not** change product code during that pass unless the user asks you to fix something afterward.

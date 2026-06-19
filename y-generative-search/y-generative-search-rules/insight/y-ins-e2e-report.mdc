@@ -1,0 +1,161 @@
+---
+description: Reusable final markdown report structure for Marketplace and local Resiroo E2E runs, with technical evidence, outcomes, and QA/Product transcript format.
+alwaysApply: false
+---
+
+# Insight: reusable E2E report (`y-ins-e2e-report`)
+
+Use this rule when an E2E or manual-E2E run needs a final report artifact.
+
+This is a shared report contract for:
+
+- Unified ResiRoo and PMRoo E2E flows — entry `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`; runbooks `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` · `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`
+
+Invoking rules can add extra required fields for their scenario.
+
+## Report artifact policy
+
+- Output one **Markdown report file** per run.
+- Save artifacts under **`cursor_workspace/`** (invoking rule can require a specific subdirectory).
+- Do not overwrite previous reports.
+- Filename must include **date + time** (`YYYY-MM-DD-HHMMSS`) plus a short scenario slug.
+- If a value is not verified, write **`(not verified)`** explicitly.
+
+## Required report structure (in this order)
+
+Formatting rule for all sections:
+
+- Any bullet or line that uses a `label: value` pattern must format the label in bold.
+- Use this style consistently: `- **Label:** value`.
+- Apply this to all report sections, not only the transcript section.
+- Keep values unbolded unless another rule explicitly requires emphasis.
+- Colons that are part of normal prose (not a `label: value` field) are allowed without bold labels.
+- This applies to nested bullets too (for example under verification blocks).
+- Do not leave unlabeled continuation lines under transcript or evidence fields.
+- If a field value is multiline, either:
+  - keep it on one line with explicit `\n` markers, or
+  - continue on indented lines under the same bullet without creating a new unlabeled block, or
+  - **(required when the value contains Markdown)** put the value in a **fenced code block** (use `text` as the language tag) on the lines immediately after the label.
+- **Markdown-in-values rule (mandatory):** when a stored value contains Markdown-formatted text (for example a leading `#`/`##`/`###`/`####` header, `**bold**`, `> blockquote`, list bullets that would re-flow, or backtick fences), you **must** render it inside a fenced ` ```text ` block. Do not paste it inline as bullet text and do not escape characters one by one — the fenced block preserves the value verbatim and prevents the report’s outline from being polluted by embedded headers.
+- Choose the smallest block that fits: only wrap the offending value (typically `Content`, `AIReasoning`, `Evidence`), not the whole message group.
+- Always announce the block with a labeled bullet that ends with `:`, e.g. `- **Content (verbatim — fenced because the value contains Markdown):**`, then a blank line, then the fenced block.
+
+### Run metadata
+
+- Date/time (local timezone)
+- Flow/rule used
+- Environment (e.g. `Local + mp_mock (PMRoo)`, `testing MP`, `local docker`, `mixed`, etc.)
+- Scenario name
+
+### Goal and scope
+
+- Goal of this run
+- What was in scope
+- What was out of scope
+
+### What was executed
+
+- Numbered steps actually executed
+- Skipped steps and reason
+- Key setup choices (for example queue, API base, debounce wait)
+
+### Verification evidence
+
+- API/UI proof lines with status codes where relevant
+- Queue/worker/debounce evidence where relevant
+- Database evidence where relevant
+- Timeline/progress evidence where relevant
+
+### Key identifiers
+
+List all identifiers relevant to the run (only those that apply), for example:
+
+- `woNumber`
+- `jobToken`
+- `workOrderId` / `ObjectId`
+- `clientId`
+- `locationId`
+- message ids (`Message-ID`, inbox message id, message row id)
+- conversation ids
+
+### Results
+
+- Expected behavior vs observed behavior
+- Pass/fail/partial outcome per core expectation
+
+### Issues, risks, and next actions
+
+- Blockers or anomalies
+- Whether each issue blocks the goal
+- Exact next action
+
+### Final outcome
+
+- Final status: pass / fail / partial
+- One concise conclusion sentence
+
+### Summary (required as final section)
+
+Include this section at the end of the report.
+
+Summary section can include one or more test cases.
+For each case, add a subheading with the test case code (for example `#### TST-BUG-001`), then include that case summary and transcript under it.
+
+Summary must include:
+
+- Test case code
+- Environment label (single value; examples: `Local`, `Local + Mock`, `MP (Testing)`; include ingress when relevant: `Local / RabbitMQ`, `Local / Chat API`)
+- Work order
+- Pass/Fail result
+
+For these three Summary fields, always render them as bullet lines (not a table):
+
+- Environment
+- Work order
+- Pass/Fail result
+
+Required bullet format:
+
+- **Environment:** `<environment>`
+- **Work order:** `<work order>`
+- **Pass/Fail result:** `<pass/fail result>`
+
+For conversation output in this section:
+
+- Display each message from older to newer.
+- Include each message date/time under label `Time` using concise format `DD Mon YYYY HH:MM:SS` (for example `19 May 2026 16:30:24`).
+- Keep values verbatim (no cropping/shortening).
+- Do not use fenced code blocks **except** when a value contains Markdown-formatted text — in that case the **Markdown-in-values rule** above applies and you **must** wrap the offending value in a ` ```text ` fenced block to keep it verbatim and stop embedded `#` headers from breaking the report outline.
+- Do not display raw JSON format. (JSON or JSONB values should be flattened into `label: value` bullets, not pasted as a fenced JSON block.)
+- Keep content human readable in markdown.
+- Use **bold** style only for field labels, never for field values.
+- Keep transcript blocks compact and easy to scan. Do not use one markdown row per field when compact grouping is possible.
+- Do not add a wrapper label like `Message:` before grouped fields.
+- Prefer grouped lines with separators (`|` or `,`) and bold labels, for example: `- **Message ID:** 2640 | **Role:** tool | **ConversationId:** 295 | **Time:** 19 May 2026 16:30:24`.
+
+Preferred transcript style for this section:
+
+- One message block at a time (resident/system/assistant as they occurred chronologically).
+- `---` between message blocks.
+- For assistant messages, include all relevant fields in readable form (for example MessageId, ConversationId, Response, State, Title, AISOWCompletion, AIReasoning, Evidence, IsEmergency, IsFrustrated, IsPhoneCallRequested).
+- For assistant messages, place these two compact bullet lines immediately after the grouped message header line:
+  - `- **State:** ... | **Title:** ... | **AISOWCompletion:** ...`
+  - `- **IsEmergency:** ... | **IsFrustrated:** ... | **IsPhoneCallRequested:** ...`
+- Do not add a parent bullet such as `Details:` for these two lines.
+- When a transcript message includes attached or analyzed images (for example RabbitMQ `ImageUrls`, Marketplace uploads, or stored `messages.images`), add an **Images** field **after** **Content** (user messages) or after the other assistant fields for that block. Omit **Images** when the message has no images.
+- **Images** format (use fetchable HTTPS URLs when available; resolve S3 `DocType` + `FileName` to public URL per `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc` if needed):
+
+```markdown
+- **Images:**
+  - https://example.com/image-1.jpg
+  - https://example.com/image-2.jpg
+```
+
+- List one URL per nested bullet under **Images:**; do not comma-join URLs on one line.
+
+## Content and security rules (mandatory)
+
+- Keep critical stored values intact (do not crop/trim `Response`, `AIReasoning`, `Evidence` when reported).
+- Do not expose tokens, passwords, or secret env values.
+- Include only non-sensitive evidence needed for verification.
+- Keep language concise and professional (B2 English).

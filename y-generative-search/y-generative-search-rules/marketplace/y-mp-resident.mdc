@@ -1,0 +1,129 @@
+---
+description: >-
+  Marketplace (testing) Resident API flow: resolve or create resident user id via
+  `GET /api/UserContactInformation/GetOrCreateResidentUser` with duplicate checks,
+  explicit approval before write, and post-create verification.
+alwaysApply: false
+---
+
+# Marketplace: Resident API (`y-mp-resident`)
+
+Use this rule for resident identity operations on Marketplace testing via HTTP, especially when you need a valid `ResidentUserId` for Resiroo and work-order testing flows.
+
+Any saved responses, debug JSON, or scratch files: **`cursor_workspace/`** per **y-mp-ai-temp**.
+
+## Configuration
+
+Load secrets and URLs only from:
+
+``.env.e2e.local` (repo root)`
+
+- Required auth/runtime vars: `MARKETPLACE_JWT`, `MARKETPLACE_URL`, `VENDOROO_BASE_API_URL` (optional fallback).
+- Optional resident hint vars for faster reuse: `RESIDENT_NAME`, `RESIDENT_EMAIL`, `RESIDENT_PHONE`, `RESIDENT_USER_ID`.
+- Headers on every call: `Authorization: Bearer <jwt>`, `User-Agent` (desktop Chrome string), `Origin` + `Referer` = `MARKETPLACE_URL`.
+
+OpenAPI: `https://api-testing-marketplace.vendoroo.ai/swagger/v1/swagger.json` (endpoint under `UserContactInformation`).
+
+---
+
+## Core endpoint (create-or-resolve)
+
+### Get or create resident user
+
+`GET {api}/api/UserContactInformation/GetOrCreateResidentUser`
+
+Query params:
+
+- `phoneNumber` (optional)
+- `email` (optional)
+- `name` (optional but recommended)
+
+Contract behavior from backend:
+
+- At least one of `phoneNumber` or `email` is required; otherwise returns bad request (`invalid input`).
+- If a user already exists for that phone/email, endpoint returns the existing user id.
+- If no user exists, endpoint creates a new user with role `Resident` and returns the new id.
+
+Because this endpoint can write, always follow the approval workflow below.
+
+---
+
+## Required approval workflow (reusable)
+
+When the user asks to create a resident, do this sequence every time:
+
+1. **Collect inputs by asking questions**
+   - Require at least one contact method:
+     - `email`, or
+     - `phoneNumber`
+   - Ask for `name` (recommended for readability, even if technically optional).
+   - Normalize phone formatting before calls (trim spaces, keep consistent dialing format).
+
+2. **Pre-check for existing contact**
+   - For each provided contact, call:
+     - `GET /api/UserContactInformation/SearchByContactInformation/{contactInformation}`
+     - Optional query: `clientId` if caller needs client-scoped checks.
+   - If found, inspect `data.userId` and `data.userRoleId` (`Resident` role id is `3`).
+   - If found and role is resident, present it as reusable candidate.
+   - If found and role is not resident, warn the user that `GetOrCreateResidentUser` may return that non-resident user id due contact dedupe.
+
+3. **Show execution preview**
+   - Present a concise preview:
+     - endpoint + query values
+     - whether action is likely "reuse existing" or "create new"
+     - possible risk (contact mapped to non-resident user)
+
+4. **Require explicit approval before write**
+   - Ask for a clear confirmation such as:
+     - `Approve create/resolve resident for <email or phone>`
+   - Do not call `GetOrCreateResidentUser` without explicit approval in the current conversation.
+
+5. **Execute create/resolve**
+   - Call `GET /api/UserContactInformation/GetOrCreateResidentUser` with collected query params.
+   - Capture returned id as `residentUserId`.
+
+6. **Verify and report**
+   - Re-check by contact using `SearchByContactInformation`.
+   - Confirm `userId` matches returned id and `userRoleId == 3` when possible.
+   - Report final result as:
+     - resident user id
+     - name/email/phone found
+     - role check status
+
+7. **Optional env persistence**
+   - Ask whether to persist `RESIDENT_USER_ID=<id>` in `.env.e2e.local` (do not commit).
+
+---
+
+## Example call shape
+
+```text
+GET {api}/api/UserContactInformation/GetOrCreateResidentUser?phoneNumber=%2B15551234567&email=resident%40example.com&name=Ada%20Tenant
+```
+
+---
+
+## How this connects to other MP rules
+
+Use resulting `residentUserId` as:
+
+- `AdditionalData.ResidentUserId` in `.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`
+- resident identity context in `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`
+- resident-related E2E steps in `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`
+
+For client and location ids used alongside residents:
+
+- `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`
+- `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`
+
+---
+
+## Troubleshooting
+
+| Symptom | Action |
+|--------|--------|
+| `invalid input` | Provide at least one of `phoneNumber` or `email`. |
+| 403 on MP testing | Add `User-Agent`, `Origin`, `Referer`; refresh JWT. |
+| Returned id belongs to non-resident role | Pre-check via `SearchByContactInformation`; use a different contact or confirm reuse explicitly. |
+| Contact search not found after create | Retry with normalized contact (trim/normalized phone); verify with both phone and email if both were provided. |
+

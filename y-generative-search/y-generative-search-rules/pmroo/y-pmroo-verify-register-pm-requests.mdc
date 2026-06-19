@@ -1,0 +1,130 @@
+---
+description: Verify PMRoo register_pm_requests outcomes — local response + GenSearch DB default; optional remote MP timeline and n8n; pair with y-tst-e2e / y-tst-e2e-pmroo.
+alwaysApply: false
+---
+
+# PMRoo — verify `register_pm_requests`
+
+Use **after** a PMRoo E2E chat turn (or multi-turn flow). Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo).
+
+**Local default:** Layers 1–2 only. Skip Langfuse, MP timeline, and n8n unless the user explicitly opted into remote verification in pre-flight.
+
+---
+
+## Layer 1 — Response / tool calls (local default)
+
+Inspect the **`POST /chat/api/chat`** response JSON (`stream: false`).
+
+- Confirm **`register_pm_requests`** tool calls in the response: count, order, arguments (`type`, `quoted_messages`, `description`, `work_order_number`)
+- **Mixed intent:** expect **2 calls** — `Context Capture` **first**, `Action Request` **second**
+- **`quoted_messages` must differ** between the two calls (not the full PM text twice)
+
+**Do not use Langfuse** for local PMRoo pass/fail. Langfuse is **opt-in remote only** when the user explicitly requests trace inspection on a remote deploy.
+
+---
+
+## Layer 2 — GenSearch `pm_action_requests` (primary pass/fail)
+
+Connect with **`POSTGRES_DB_*`** from repo **`.env`** (read-only).
+
+### By session
+
+```sql
+SELECT
+  id,
+  type,
+  quoted_messages,
+  description,
+  status,
+  work_order_id,
+  created_at,
+  is_urgent
+FROM pm_action_requests
+WHERE session_id = '<session_uuid>'
+ORDER BY id;
+```
+
+### Pass criteria (VAP-2752 / VAP-3258)
+
+| Check | Pass |
+|-------|------|
+| Row count | Matches intent (0 / 1 / 2) |
+| Mixed: order | Lower `id` = `Context Capture`, next = `Action Request` |
+| Mixed: quotes | **Different** `quoted_messages` per row |
+| Mixed: content | CC quote = factual slice; AR quote = action slice |
+| Status | Moves to `proceed` after n8n on **remote** runs; **`pending` is normal on local mock** — do not fail classification repro on `status` alone |
+| Duplicates | No 3+ rows for one bundled intent; no identical quote+type pairs |
+
+### Export for reports
+
+Save row dump (no secrets) into E2E report **Verification evidence** section.
+
+---
+
+## Layer 3 — Marketplace WO timeline (opt-in remote only)
+
+**Skipped in local mock default.** Use only when user chose **DB + MP WO timeline** or **DB + MP + n8n** and **Live MP APIs** in pre-flight.
+
+Requires **Live MP APIs** + n8n processed rows (or manual re-run).
+
+1. **`MARKETPLACE_JWT`** from **`.env.e2e.local`**
+2. Fetch messages: `GET {apiBase}/api/Chat/GetChatMessagesByJobTokenAsync?jobToken=<uuid>` (or equivalent per your MP build)
+3. Count new lines since test start; compare text to `description` + `quoted_messages` from DB rows
+4. **Context Capture** lines often use `MessageType` **2023** (`PM_Context_Updated_By_PMRoo`) after n8n
+
+| Symptom | Likely cause |
+|---------|----------------|
+| DB 2 rows, MP 2 lines, **same quote twice** | LLM duplicated `quoted_messages` (Jun 8 case) |
+| DB 2 rows, MP 4 lines | n8n retry or duplicate processing — check n8n + row `status` history |
+| DB 0 rows, MP lines appear | Not PMRoo `register_pm_requests` — different ingress |
+| DB rows `pending` forever (remote) | n8n flow **inactive** or failed (e.g. null `DefaultAssistantId`) |
+
+---
+
+## Layer 4 — n8n (opt-in remote only)
+
+**Skipped in local mock default.** Only when user chose **DB + MP + n8n** verification, **Live MP APIs**, and flow is **active**.
+
+- Workflow: `GenChat Action Requests V2.4 [Test]` (or user’s duplicate)
+- **Read-only:** `GET /api/v1/executions?workflowId=…` — do not activate/deactivate/edit
+- **`N8N_API_KEY`** from **`.env.e2e.local`** — never log
+- Correlate execution time with `pm_action_requests.created_at`
+
+If flow is off, report **`(n8n skipped — flow inactive)`** and rely on Layer 2 only.
+
+---
+
+## Mixed-intent reference message
+
+**Local mock (seed WO):** `for #158220-1 tenant is home tomorrow 2–4pm. Please have vendor call tenant.`
+
+**Remote (example):** `for #WO-00139 tenant is home tomorrow 2–4pm. Please have vendor call tenant.`
+
+| Row | type | quoted_messages (expected) |
+|-----|------|----------------------------|
+| 1 | Context Capture | factual slice (availability / context half) |
+| 2 | Action Request | action slice (vendor call / instruction half) |
+
+**Observed failure (2026-06-08):** both rows carried the **full** message → duplicate MP quote text.
+
+---
+
+## conversations / messages (optional debug)
+
+```sql
+SELECT m.role, m.content, m.created_at
+FROM messages m
+JOIN conversations c ON c.id = m.conversation_id
+WHERE c.session_id = '<session_uuid>'
+  AND c.user_type = 'property_manager'
+ORDER BY m.created_at;
+```
+
+Use for transcript section of E2E report — see **`.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`**.
+
+---
+
+## Security
+
+- **SELECT only** on production-shared DBs unless user confirms otherwise
+- Redact JWTs and API keys in all artifacts

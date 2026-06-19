@@ -1,0 +1,251 @@
+---
+description: PMRoo E2E — local docker + mp_mock default; Chat API ingress, register_pm_requests + optional remote MP/n8n; mandatory AskQuestion pre-flight. Sub-rule of y-tst-e2e.
+alwaysApply: false
+---
+
+# PMRoo E2E testing (`y-tst-e2e-pmroo`)
+
+Use this rule for **all** PMRoo (Property Manager) end-to-end manual test runs — especially **Context Capture**, **Action Request**, **mixed intent**, and **duplicate comment** bugs (e.g. [VAP-2752](https://vendoroo-dev.atlassian.net/browse/VAP-2752) under epic [VAP-3258](https://vendoroo-dev.atlassian.net/browse/VAP-3258)).
+
+**Entry point:** When starting from **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **PMRoo** first, then follow this rule. When PMRoo is already clear, invoke this rule **directly** (skip Q0).
+
+Final report format: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+
+Skill reference: [`.cursor/skills/roo-chat-testing/SKILL.md`](../../../.cursor/skills/roo-chat-testing/SKILL.md).
+
+---
+
+## Local-only default (current policy)
+
+**Unless the user explicitly opts into remote MP Testing**, run PMRoo E2E entirely on localhost:
+
+| Step | Command / target |
+|------|------------------|
+| Start mock stack | **`make mp-mock-e2e-up`** — starts `mp-mock`, recreates `roo` / `roo-worker` with `VENDOROO_BASE_API_URL=http://mp-mock:8099` ([`mp_mock/docker-compose.smoke.yml`](../../../mp_mock/docker-compose.smoke.yml)) |
+| Chat API | **`http://localhost:8800/chat/api/chat`** (`docker-compose.dev.yml` maps `8800:8000`) |
+| GenSearch DB | **`localhost:5432`** — `POSTGRES_DB_*` from repo **`.env`** |
+| MP API (inside Roo) | **`http://mp-mock:8099`** (container) / **`http://localhost:8099`** (host sanity checks) |
+| Tear down | **`make mp-mock-e2e-off`** — restores live `VENDOROO_BASE_API_URL` from **`.env`** for other work |
+
+**Blocked by default during a local PMRoo run:**
+
+- `api-testing-marketplace.vendoroo.ai` chat API or Marketplace REST
+- PM Web UI on testing MP
+- n8n API / workflow triggers
+- **Langfuse** — skip for local pass/fail; use chat JSON response + GenSearch SQL only
+- Editing root **`.env`** or **`.env.e2e.local`** for mock mode
+
+If a step would call testing MP, use mock seed data or stop and ask the user to opt into remote (Q1/Q2).
+
+**Shared infra note:** `make mp-mock-e2e-up` is the same target ResiRoo uses — always run **`make mp-mock-e2e-off`** when finished so local `roo` is not left on mock for unrelated sessions.
+
+---
+
+## Mandatory pre-flight (AskQuestion only)
+
+**Do not start any E2E step until all applicable questions are answered.** Use the **AskQuestion** tool; never substitute free-text guesses.
+
+| Step | ID | When | Prompt | Options |
+|------|-----|------|--------|---------|
+| Q1 | `pm_e2e_env` | Always | Test environment | **`Local (docker roo)` — default** · `MP (Testing) — Chat API` (opt-in — remote APIs) · `MP (Testing) — PM chat UI` (opt-in — remote APIs) |
+| Q2 | `pm_e2e_data_mode` | Always | Data source | **`Mock (local mp_mock)` — default when Local** · `Live MP APIs` (opt-in — calls testing MP) |
+| Q3 | `pm_e2e_verify` | Always | Verification depth | **`GenSearch DB only` — default for classification bugs** · `DB + MP WO timeline` · `DB + MP + n8n (flow must be active)` |
+| Q4 | `pm_e2e_wo` | Unless user supplied WO ids | Work order setup | `Use mock seed WO (default)` · `Use existing WO (user provides ids)` · `Create WO via mp-work-order API` (opt-in remote) · `Use CLIENT/LOCATION from .env.e2e.local` (opt-in remote) |
+| Q5 | `pm_e2e_attachment_count` | Test case uses or may use file upload | How many PM attachments? | `0 (no files)` · `1` · `2` · `Use existing S3 URLs only (no upload)` |
+
+**Branching after Q1–Q2:**
+
+| Env | Data mode | Path |
+|-----|-----------|------|
+| **Local** | **Mock (default)** | `make mp-mock-e2e-up` → Chat API `localhost:8800` → verify GenSearch DB |
+| Local | Live MP APIs (opt-in) | WO setup via remote APIs (if needed) → Chat API → verify GenSearch (+ MP if Q3) |
+| MP (Testing) — Chat API | Live MP APIs | WO setup → `POST` testing chat API → verify DB + MP |
+| MP (Testing) — PM chat UI | Live MP APIs | WO setup → browser PM chat → verify DB + MP |
+| MP (Testing) | Mock | **Blocked** — choose `Local` + Mock or Live MP APIs |
+
+**Attachment uploads (Q5 > 0, opt-in):** follow **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** (`AWS_S3_BUCKET_PATH=docs-dev/pmroo/`) — hits real S3; prefer Q5=`0` for local-only runs. Attach metadata in `messages[].meta_data.attachments` per **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc**.
+
+---
+
+## PMRoo pipeline (what you are testing)
+
+```text
+PM message → POST /chat/api/chat (user_type=property_manager)
+          → LLM + pm-action-request-context skill
+          → register_pm_requests (0–N times)
+          → GenSearch pm_action_requests rows (status=pending → proceed)
+          → n8n v2.4 (if active, remote opt-in) → MP tChatMessages / email
+```
+
+**Ingress for PMRoo E2E is always Chat API** (or PM Web UI on remote opt-in, which calls the same API). Do **not** use RabbitMQ for standard PMRoo runs.
+
+---
+
+## Environment variables
+
+### Local mock (default)
+
+- GenSearch DB: **`POSTGRES_DB_*`** from repo **`.env`**
+- No **`MARKETPLACE_JWT`** required for local chat (`ENVIRONMENT=dev` in smoke overlay)
+- Mock WO ids from **`cursor_workspace/e2e_seed`** (seeded by `make mp-mock-seed` from [`mp_mock/fixtures/example/`](../../../mp_mock/fixtures/example/))
+
+### Remote opt-in
+
+Load **`.env.e2e.local` (repo root)** (never print secrets). See **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc** for required keys.
+
+### Chat API hosts
+
+| Target | Base URL | When |
+|--------|----------|------|
+| **Local docker (default)** | `http://localhost:8800` (`docker-compose.dev.yml`) | Default PMRoo E2E |
+| Local (alt) | `http://localhost:8000` (`docker-compose.yml`) | If using non-dev compose |
+| Testing remote (opt-in) | `https://api-testing-marketplace.vendoroo.ai` | Q1 = MP Testing only |
+
+Local dev skips auth middleware when `ENVIRONMENT=development` or `dev`. Remote **always** needs `Authorization: Bearer …` or `meta_data.auth_bearer`.
+
+### `VENDOROO_BASE_API_URL` (WO lookup inside register_pm_requests)
+
+Same switch as ResiRoo — see `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` § Environment variables. For mock: **`make mp-mock-e2e-up`** / **`make mp-mock-e2e-off`**. Do **not** edit **`.env`** for mock mode.
+
+---
+
+## Work order data
+
+**Unless the user supplies verified WO data, do not invent ids.**
+
+| Situation | Action |
+|-----------|--------|
+| **Default (mock)** | Use seed WO from `cursor_workspace/e2e_seed` — e.g. `clientId=198`, `woNumber=158220-1`, `jobToken=E2E-MOCK-158220`, `workOrderId=158220` |
+| **Live APIs (opt-in)** | `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` or reuse WO from MP Testing UI — **do not invoke unless Q2 = Live MP APIs** |
+| **PMRoo does not need ForceResiroo** | Create WO only — **no** Start Resiroo step (unlike ResiRoo) |
+| **User-supplied WO** | Require numeric `workOrderId`, `woNumber`, `jobToken`, verified `clientId` |
+
+Capture **`work_order_number`**, **`job_token`**, **`client_id`** for `meta_data` — see payload rule.
+
+---
+
+## Local + mock + Chat API (default path)
+
+### Preconditions
+
+1. **Postgres** (GenSearch) and **Redis** running: `docker compose -f docker-compose.dev.yml up -d postgres redis`
+2. **`make mp-mock-e2e-up`** — mock MP + `roo` / `roo-worker` pointed at `mp-mock`
+3. **Fresh `session_id` per trial** (critical — developer WO context injects only on empty memory)
+
+### Request shape
+
+Build payloads per **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc** (local mock section).
+
+### Steps
+
+1. `POST http://localhost:8800/chat/api/chat` with `stream: false`
+2. Inspect **response JSON**: tool calls / assistant text — **do not use Langfuse** for local pass/fail
+3. Verify GenSearch per **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc** (Layer 1–2)
+4. **`make mp-mock-e2e-off`** when the run (or trial batch) is complete
+
+### Statistical runs (flaky LLM)
+
+For classification bugs, **N ≥ 10–20** trials per scenario with **new `session_id` each time**. Report `pass_count/total`. Stay on localhost for all trials.
+
+---
+
+## Opt-in only (remote) — MP (Testing) + Live MP APIs
+
+Use only when the user explicitly chose Q1 = MP Testing and Q2 = Live MP APIs.
+
+### Chat API path
+
+1. Load **`.env.e2e.local`**
+2. Create or reuse WO (Q4) via `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` if needed
+3. `POST https://api-testing-marketplace.vendoroo.ai/chat/api/chat` with **`MARKETPLACE_JWT`** as bearer (see payload rule)
+4. Verify DB + MP timeline per verify rule
+
+### PM chat UI path
+
+1. Open **`MARKETPLACE_URL`** from **`.env.e2e.local`**, log in as PM test user
+2. Open target WO workspace (`request-id=` / job token)
+3. Send scenario message(s) in PMRoo chat panel
+4. Capture **`session_id`** from DevTools / network if possible; else correlate via `pm_action_requests` by time + `user_id`
+5. Verify DB + MP timeline
+
+**n8n:** Testing flow **`GenChat Action Requests V2.4 [Test]`** may be **inactive** — if Q3 includes n8n, confirm with ops or use a personal duplicate workflow before expecting MP posts.
+
+Full WO → MP comment E2E requires **Live MP APIs + active n8n** (remote opt-in only).
+
+---
+
+## Pass / fail — register_pm_requests (VAP-2752 family)
+
+Use **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc** for SQL and MP checks.
+
+| Scenario | Pass |
+|----------|------|
+| **Context only** | 1 row, `type=Context Capture` |
+| **Action only** | 1 row, `type=Action Request` |
+| **Mixed intent** | **2 rows** — CC **then** AR (lower `id` = CC); **`quoted_messages` differ** per half |
+| **Policy / question** | 0 `register_pm_requests` when skill says answer in chat / policy path |
+| **"yes" after confirm** | No extra CC/AR beyond what mixed flow already registered |
+
+**Fail examples:**
+
+- Same full `quoted_messages` on both rows (duplicate text on MP even with 2 rows)
+- 3+ rows for one user intent
+- AR before CC in `id` order when both submitted same turn
+
+For local mock runs, `status=pending` is normal (n8n off) — do not fail classification repro on `status` alone.
+
+---
+
+## Artifact location
+
+| Artifact | Path |
+|----------|------|
+| E2E reports | `cursor_workspace/ai_test/e2e/` |
+| Payload fixtures | `cursor_workspace/` |
+| Mock seed | `cursor_workspace/e2e_seed/` |
+
+Filename: `YYYY-MM-DD-HHMMSS-<scenario-slug>-pmroo-report.md`
+
+---
+
+## Sub-rules
+
+| Rule | When |
+|------|------|
+| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` | Entry point — Q0 Resiroo vs PMRoo when agent type not yet chosen |
+| **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc** | Build `POST /chat/api/chat` body |
+| **.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc** | DB + optional MP + n8n verification |
+| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` | **Opt-in remote only** — create WO via live MP API |
+| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc` | **Opt-in remote only** — PM file attachments (real S3) |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/rules/qa-jira-sync.mdc` | Post results to Jira (optional) |
+| Skill [`roo-chat-testing`](../../../.cursor/skills/roo-chat-testing/SKILL.md) | N-trial repro, deepeval promotion |
+
+Prompt source of truth for classification: [`services/roo/app/prompts/skills/pm_action_request_context.md`](../../../services/roo/app/prompts/skills/pm_action_request_context.md).
+
+---
+
+## Post-E2E handoff (optional)
+
+Same optional Slack / Jira flow as `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` § Post-E2E handoff when the run ties to a Task PR.
+
+---
+
+## Pass/fail hints
+
+- **No `pm_action_requests` row:** tool not called — inspect chat response JSON for tool calls; check prompt version (`VENDOROO_PM_V2_CLIENT_IDS`)
+- **Rows exist, `status=pending` on local mock:** expected — n8n not running locally
+- **Rows exist, no MP comment (remote):** n8n inactive, `DefaultAssistantId` null, or `status` not `pending`
+- **Duplicate MP lines, 2 rows, same `quoted_messages`:** classification split failure (not n8n-only)
+- **3+ rows same `session_id`:** duplicate tool calls — VAP-2752
+- **Reused `session_id`:** invalid trial — developer context / memory carryover
+- **Left mock mode on:** run **`make mp-mock-e2e-off`** before other local work
+
+---
+
+## Security
+
+- Never expose JWTs, `N8N_API_KEY`, or DB passwords in reports or chat
+- GenSearch / MP DB: **`SELECT` only** unless user explicitly allows writes
+- n8n: **read-only** inspection unless user approves changes

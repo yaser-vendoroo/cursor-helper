@@ -1,0 +1,66 @@
+---
+description: Real work order + RabbitMQ payload checklist for Resiroo manual E2E
+alwaysApply: false
+---
+
+# Resiroo manual test — real work order payload
+
+Use this when you build a **real-case** inbound message for **`ChatMessageHandler`** / RabbitMQ. Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = Resiroo) for stack, queue, wait times, ingress choice, and reporting.
+
+## 1. Pick a real work order
+
+- **`ObjectId`** must be a **real** Vendoroo work order **numeric id** (string in JSON is fine, e.g. `"14580"`).
+- **`GET …/api/WorkOrder/ById/{id}`** must return **`clientId`** (non-empty). Empty **`client_id`** → weak or missing Resiroo client/location context.
+- Prefer a WO with **no** existing **`conversations`** where **`source = 'RabbitMQ'`** and **`user_id = ObjectId`**, so prior threads do not skew **`Title`** / triage.
+- **Weather-dependent HVAC tests (no heat / no AC vs outside temp):** the work order’s **service address** must be the one the function-first weather resolver uses in `services/roo/app/utils/web_insight/weather/resolve.py`. If automated outdoor °F is required for the test, confirm the weather provider chain and env in the **running** stack (see **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` → Outdoor automated temperature**). Do **not** edit **`.env`** unless the user explicitly allows it.
+
+## 2. Outer JSON (required)
+
+| Field | Value |
+|--------|--------|
+| **`ObjectId`** | Same id as the work order (string). |
+| **`ObjectType`** | `Chat` |
+| **`OperationType`** | `New` |
+| **`RoutingKey`** | `chat.request` |
+| **`MessageJObject`** | **String**: the **stringified** inner JSON (see below). Not a nested object. |
+
+## 3. Inner `MessageJObject` (required)
+
+| Field | Value |
+|--------|--------|
+| **`Type`** | `initMessage` (first message) or `SMS` (follow-ups). |
+| **`Content`** | Resident text (the scenario you are testing). |
+| **`AdditionalData`** | Object; see next table. |
+
+## 4. `AdditionalData` (required / usual)
+
+| Field | Required | Notes |
+|--------|------------|--------|
+| **`WorkOrderId`** | Yes | Same numeric id as **`ObjectId`**. |
+| **`ResidentUserId`** | Yes | Stable UUID per “resident” for the test run. |
+| **`ResidentName`** | Recommended | Used in copy and reports; may still mismatch if WO API supplies another name. |
+| **`ImageUrls`** | If no photos | Use `[]`. |
+| **`LocationTimeZone`** | Optional | IANA string if you need correct after-hours behavior. |
+| **`FollowUpSteps` / `DoNotDisturbSetting`** | Optional | Only if testing follow-up / DND; usually omit. |
+
+## 5. Sanity checks before publish
+
+- Queue = **`RABBITMQ_CONSUMER_QUEUE`** (e.g. **`aiAgentQueue`**), not **`test_queue`** unless you know the consumer uses it.
+- **`roo-worker`** can reach **`roo`** (**`ROO_HOST=roo`** in Compose when the worker calls the chat API).
+- After publish: new **`message_buffer`** row with **`payload->>'ObjectId'`** = your id; wait debounce + LLM before DB checks.
+
+## 6. Minimal shape (reference only)
+
+Outer object (pseudo; **`MessageJObject`** is one escaped string when sent):
+
+```json
+{
+  "ObjectId": "14580",
+  "ObjectType": "Chat",
+  "OperationType": "New",
+  "RoutingKey": "chat.request",
+  "MessageJObject": "{\"Type\":\"initMessage\",\"Content\":\"…\",\"AdditionalData\":{\"WorkOrderId\":14580,\"ResidentUserId\":\"…\",\"ResidentName\":\"…\",\"ImageUrls\":[]}}"
+}
+```
+
+Build with **`jq`** so quoting stays correct; see **`scripts/publish_rabbitmq.py`** for the same structure.

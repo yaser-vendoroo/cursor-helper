@@ -1,0 +1,55 @@
+---
+description: Unified Roo E2E entrypoint — Resiroo or PMRoo; mandatory AskQuestion Q0; delegates to y-tst-e2e-resiroo or y-tst-e2e-pmroo sub-rules.
+alwaysApply: false
+---
+
+# Unified E2E testing (`y-tst-e2e`)
+
+**Entry point** for **all** ResiRoo and PMRoo end-to-end manual test runs. This rule does **not** duplicate runbook steps — after Q0 it delegates to a path-specific sub-rule.
+
+Final report format: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+
+Skill reference (PMRoo statistical runs): [`.cursor/skills/roo-chat-testing/SKILL.md`](../../../.cursor/skills/roo-chat-testing/SKILL.md).
+
+---
+
+## Mandatory pre-flight — agent type (Q0)
+
+**Do not start any E2E step until Q0 is answered.** Use the **AskQuestion** tool; never substitute free-text guesses.
+
+| Step | ID | When | Prompt | Options |
+|------|-----|------|--------|---------|
+| Q0 | `e2e_agent_type` | Always (first) | Which E2E flow? | **Resiroo** · **PMRoo** |
+
+---
+
+## Route to sub-rule (after Q0)
+
+**Read and follow the matching sub-rule end-to-end** — including its own pre-flight (Q1–Q6 or Q1–Q5), env setup, ingress, verification, report, and optional post-E2E handoff. Do **not** skip or shorten sub-rule steps.
+
+| Q0 answer | Sub-rule | Scope |
+|-----------|----------|--------|
+| **Resiroo** | `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` | Local / MP Testing · Live APIs / Mock · RabbitMQ / Chat API / SMTP |
+| **PMRoo** | `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc` | Local + mp_mock default · Chat API · `register_pm_requests` · remote MP/n8n opt-in |
+
+**Direct sub-rule invoke:** If the user already named the agent (e.g. “run Resiroo E2E”) or attached only `y-tst-e2e-resiroo` / `y-tst-e2e-pmroo`, skip Q0 and follow that sub-rule.
+
+---
+
+## Sub-rules index
+
+| Rule | When |
+|------|------|
+| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` | Resident E2E — full runbook after Q0 = Resiroo |
+| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc` | Property Manager E2E — full runbook after Q0 = PMRoo |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report (both paths) |
+| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
+| `.cursor/rules/qa-jira-sync.mdc` | Post results to Jira (optional) |
+
+Path-specific payload, WO, and verification rules are listed inside each sub-rule.
+
+---
+
+## Mixed E2E (future)
+
+Not implemented. Run **Resiroo** and **PMRoo** as separate sessions (Q0 each time, or invoke each sub-rule directly) until a follow-up ticket adds mixed orchestration.
