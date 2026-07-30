@@ -30,6 +30,3 @@ Desktop.ini
 
 # Local test artifacts (rules target repos use cursor_workspace/; ignore if created here)
 cursor_workspace/
-
-# Cursor local wiring (symlinks to y-commands/, y-rules/, etc. — recreate locally)
-.cursor/
