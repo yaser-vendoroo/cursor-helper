@@ -1,5 +1,5 @@
 ---
-description: Trello insight — reports, Nightly submit/update, add to Todo, English polish; speaking-practice keywords
+description: Trello insight — daily report from Today Nightly to Nightly, Nightly submit/update, add to Todo, done archive; speaking-practice keywords
 alwaysApply: false
 ---
 
@@ -13,7 +13,7 @@ Unless the user **already chose** a mode in the same message, call **AskQuestion
 
 | ID | Label | Source / action |
 |----|--------|-----------------|
-| `daily_report` | Daily Report | **Done** + **today’s date list** (see below) |
+| `daily_report` | Daily Report | **Today Nightly to Nightly** (table + keywords + standup) |
 | `current_cards` | List of Current Cards | **Today Nightly to Nightly** — read only |
 | `todo_cards` | List of Todo Cards | **Todo** — read only |
 | `submit_current_task` | Submit / update current task | **Create** or **update** on **Today Nightly to Nightly** |
@@ -22,7 +22,7 @@ Unless the user **already chose** a mode in the same message, call **AskQuestion
 
 Map explicit phrases when the user skips the menu:
 
-- `ins-trello daily` → `daily_report`
+- `ins-trello daily` / `daily report` → `daily_report` *(source: **Today Nightly to Nightly** only)*
 - `ins-trello current` / `current cards` → `current_cards`
 - `ins-trello todo` → `todo_cards` *(list only — not add)*
 - `ins-trello submit` / `log my task` / `add to trello` / `add work to trello` / `update trello` → `submit_current_task`
@@ -36,6 +36,7 @@ Do not fetch or write Trello data until the user selects a mode (or named it exp
 1. **Prefer Trello MCP** when tools are available. Read schemas under `mcps/<trello-server>/tools/` before each `CallMcpTool`.
 2. **Setup reference:** `@unboxed-software/mcp-server-trello` via `~/.cursor/scripts/run-trello-mcp.sh` loading `.env.e2e.local` (repo root) (`TRELLO_API_KEY`, `TRELLO_API_TOKEN` / `TRELLO_TOKEN`). Do **not** use `@adriangrahldev/advanced-trello-mcp-server` (not on npm).
 3. **Fallback:** if MCP tools are missing but credentials work, use Trello REST API with the same env file.
+4. **Mode 6 date list (exception):** **do not** use MCP **`add_list_to_board`** — it has **no `pos`** and new lists land at the **left** of the board. Create the date list via **REST** with computed **`pos`** per [Mode 6 — date list position](#63a--date-list-position-mandatory).
 4. **Jira short title** (Modes 4–5): when a card has a **VAP-xxxx** / **vap-xxxx** id, fetch issue **summary** via **Atlassian MCP** (`getJiraIssue`) when available; shorten to a **brief title** (about 3–8 words). If Jira is unavailable, use the user’s description or chat context; ask once only if still unknown.
 5. **Read-only** for modes 1–3. **Mode 4** may **create** or **update** on **Today Nightly to Nightly**. **Mode 5** may **create** on **Todo**. **Mode 6** may **move cards and create a list** (see below).
 6. **Mode 4 / 5 list scope (mandatory):** when **adding or updating** work, fetch cards from **one list only** — **Today Nightly to Nightly** (Mode 4) or **Todo** (Mode 5). **Do not** scan the whole board, **Done**, date lists, or any other list to find a match. Cards on other lists are **out of scope** for Mode 4 updates unless the user explicitly asks to edit a card elsewhere.
@@ -44,7 +45,7 @@ Do not fetch or write Trello data until the user selects a mode (or named it exp
 
 1. Resolve the target **board** (default: user’s usual board from context, e.g. **My ROO Actions**; if ambiguous, list boards once and ask).
 2. Resolve lists by name (**case-insensitive** where noted):
-   - `daily_report` → see **Daily Report source lists** below
+   - `daily_report` → `Today Nightly to Nightly`
    - `current_cards` → `Today Nightly to Nightly`
    - `todo_cards` → `Todo`
    - `submit_current_task` → `Today Nightly to Nightly`
@@ -52,15 +53,13 @@ Do not fetch or write Trello data until the user selects a mode (or named it exp
    - `done` → **Done** + **Today Nightly to Nightly** + new **date list** (see Mode 6)
 3. If a required list is missing, show available list names and ask once.
 
-### Daily Report source lists (`daily_report`)
+### Daily Report source list (`daily_report`)
 
-Treat these as **Done** for the daily report (merge cards from all that exist):
+**Always** use **`Today Nightly to Nightly`** only — the same list as **current cards** (Mode 2).
 
-1. **`Done`** (or **`Completed`** — prefer `Done`).
-2. **Today’s date list** — list whose name matches the user’s **local calendar day**: **`YYYY Mon DD Ddd`** (example: `2026 Jun 05 Fri`).
-3. **Optional extra date list** — if the user names one (e.g. `2026 Jun 05 Fri`), include it even when it is not today.
-
-**Merge rules:** **Done** first, then **today’s date list**, then any **user-named date list**; **`pos` order** within each list; **dedupe** by card id (first list wins).
+- Fetch with **`GET /lists/{nightlyListId}/cards`** — **never** merge **Done**, date lists, or other lists unless the user explicitly names a **different** list for a one-off report.
+- Keep **list order** (`pos`, top → bottom).
+- **Mode 1 vs Mode 2:** same source list; Mode 1 adds **speaking-practice keywords** and **standup summary**; Mode 2 is **table only**.
 
 ## Card order (read modes)
 
@@ -79,7 +78,7 @@ When **creating** a new card on **Today Nightly to Nightly**, place it at the **
 
 ### Mode 1 — Daily Report (`daily_report`)
 
-Fetch and merge **Daily Report source lists**; enrich **name**, **labels**, **shortUrl**.
+Fetch all open cards in **Today Nightly to Nightly** only; enrich **name**, **labels**, **shortUrl**.
 
 ### Mode 2 — Current cards (`current_cards`)
 
@@ -284,15 +283,68 @@ Month is **3-letter English abbreviation** (`Jan` … `Dec`). Day is **unpadded*
 Execute **all three steps** in this order:
 
 1. **Nightly → Done** — move **every open card** from **Today Nightly to Nightly** to **Done** (preserve relative order within the list).
-2. **Create date list** — create a new list **immediately after** **Done** on the board, named with **6.2** format.
+2. **Create date list** — create a new list **immediately to the right of** **Done** on the board (next column after Done, **not** the leftmost list). Named with **6.2** format. Follow [6.3a](#63a--date-list-position-mandatory).
 3. **Done → date list** — move **every open card** currently in **Done** (including cards from step 1) into the **new date list** (preserve relative order).
 
-**REST hints:**
+**REST hints (cards):**
 
-- Move card: `PUT /1/cards/{id}` with `idList={targetListId}`.
-- Create list after **Done**: `POST /1/lists` with `name`, `idBoard`, and `pos` set **between** **Done** and the list that follows **Done** on the board (read list `pos` values; use midpoint, or Trello’s next-slot convention).
-- If **Nightly** is empty, skip step 1 and continue.
-- If **Done** is empty after step 1, still create the date list (step 2); step 3 moves nothing.
+- Move card: `PUT /1/cards/{id}` with `idList={targetListId}` (MCP `move_card` is fine).
+
+If **Nightly** is empty, skip step 1 and continue.
+If **Done** is empty after step 1, still create the date list (step 2); step 3 moves nothing.
+
+### 6.3a — Date list position (mandatory)
+
+**Problem:** MCP **`add_list_to_board`** only accepts `name` (+ `boardId`). Without **`pos`**, Trello places the new list at the **start** of the board (far left). That is **wrong** for this workflow.
+
+**Required:** create the date list with **Trello REST API** and an explicit **`pos`** so it sits **immediately after Done** (one column to the right of Done).
+
+**Preferred (repo script):** from the **cursor-helper repo root** (where `.env.e2e.local` lives), run:
+
+```bash
+bash y-generative-search/scripts/trello-create-date-list-after-done.sh <boardId> "<YYYY Mon D Ddd>"
+```
+
+The script loads `.env.e2e.local`, computes `pos` after **Done**, creates the list, verifies column order, and prints the new list id. Use that id for step 3 card moves.
+
+**Manual REST** (if the script is unavailable): follow the algorithm below.
+
+1. **Fetch lists with positions** (do not rely on MCP `get_lists` unless the response includes numeric **`pos`** for every list):
+
+   ```http
+   GET /1/boards/{boardId}/lists?fields=name,pos&key=...&token=...
+   ```
+
+   Load credentials from `.env.e2e.local` (`TRELLO_API_KEY`, `TRELLO_API_TOKEN` or `TRELLO_TOKEN`). Never print secrets.
+
+2. **Sort** lists by **`pos` ascending** (left → right on the board).
+
+3. **Find `doneList`** — name matches **Done** (case-insensitive).
+
+4. **Find `nextList`** — the list at index `doneIndex + 1` after sorting (the column **immediately right of Done**), if any.
+
+5. **Compute `newPos`:**
+
+   | Case | `newPos` |
+   |------|----------|
+   | `nextList` exists | `(Number(doneList.pos) + Number(nextList.pos)) / 2` |
+   | **Done** is rightmost (no list to its right) | `Number(doneList.pos) + 65536` |
+
+6. **Create the list:**
+
+   ```http
+   POST /1/lists?name={dateListName}&idBoard={boardId}&pos={newPos}&key=...&token=...
+   ```
+
+7. **Verify position (mandatory):** fetch lists again, sort by `pos`, confirm the new list is **exactly** at `doneIndex + 1`. If not, fix with:
+
+   ```http
+   PUT /1/lists/{newListId}?pos={newPos}&key=...&token=...
+   ```
+
+   Re-verify once. Report **List position:** *confirmed after Done* or the fix you applied.
+
+**Do not** use `pos=top`, `pos=bottom`, or MCP **`add_list_to_board`** for the date archive list.
 
 ### 6.4 — Duplicate date list name
 
@@ -328,7 +380,7 @@ After approval or clear intent:
    - **Action:** done workflow completed
    - **Board**
    - **Nightly → Done:** *n* cards moved (or “none”)
-   - **New date list:** exact name + link or list id
+   - **New date list:** exact name + link or list id + **position** (must be column immediately right of **Done**)
    - **Done → date list:** *m* cards moved (or “none”)
    - **Final state:** Nightly empty, Done empty
 
@@ -345,8 +397,8 @@ Deliver **table → recall keywords → standup summary**.
 ### A) Header + table
 
 - `# Trello Daily Report — <Weekday DD Mon YYYY>`
-- Metadata: **Board**, **source list(s)**, **timezone**, **as of** (local).
-- **Table** (merge order): | Card | Labels | List | Link | — omit **List** when all from Done only; titles **verbatim**.
+- Metadata: **Board**, **List:** Today Nightly to Nightly, **timezone**, **as of** (local).
+- **Table** (list order): | Card | Labels | Link | — titles **verbatim**.
 
 ### B) Speaking practice — recall keywords (required)
 
@@ -405,7 +457,7 @@ After successful run:
 - **Board**
 - **Steps:** Nightly → Done (*n*), new list created (*name*), Done → date list (*m*)
 - **Final state:** Today Nightly to Nightly empty · Done empty
-- **Date list:** name + link if available
+- **Date list:** name + link if available + **position confirmed after Done**
 
 If cancelled or waiting on AskQuestion, state that clearly.
 
@@ -414,7 +466,7 @@ If cancelled or waiting on AskQuestion, state that clearly.
 ## Errors
 
 - **MCP missing and REST fails:** explain setup; do not fabricate cards.
-- **Empty source lists (mode 1):** say clearly; keywords and standup state “nothing to report.”
+- **Empty Today Nightly to Nightly (mode 1):** say clearly; keywords and standup state “nothing to report.”
 - **Ambiguous board or list:** ask once.
 - **Mode 4 ambiguous card:** AskQuestion — update vs create new; do not guess when two cards on **Today Nightly to Nightly** match equally.
 - **Mode 4 ticket only on another list:** do **not** update that card; **create** on **Today Nightly to Nightly** (or ask once if the user meant a specific list).
@@ -422,6 +474,8 @@ If cancelled or waiting on AskQuestion, state that clearly.
 - **Mode 5 vague task:** AskQuestion before create.
 - **Mode 6 missing Done or Nightly list:** ask once; do not invent list names.
 - **Mode 6 duplicate date list:** AskQuestion — use existing vs cancel.
+- **Mode 6 wrong list position:** if the date list is not immediately right of **Done**, **`PUT /1/lists/{id}?pos=...`** with the [6.3a](#63a--date-list-position-mandatory) algorithm — do not leave it at the board’s left edge.
+- **Mode 6 used MCP `add_list_to_board`:** wrong tool for date lists — recreate position via REST **`PUT`** or delete empty misplaced list and create again with **`pos`**.
 - **Mode 6 partial failure:** report completed steps; no silent retry.
 
 ## Example prompts
