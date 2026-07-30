@@ -176,11 +176,11 @@ Before every numbered step below that runs shell commands, perform the **Command
 
 8. **Draft PR** — follow [Task PR — PR workflow](#task-pr--pr-workflow) and [Task PR — Description template](#task-pr--description-template-per-task-summary). Use **`.github/pull_request_template.md`** section headings plus **`## 🧪 Local Tests Report`** when confirmed (placed **before** **🚀 Deployment Notes**). Standard order: 📝 Description → 🔗 Related Jira Tickets → ✅ Required Checklist → 📋 Optional Checklist → 🧪 Local Tests Report (if confirmed) → 🚀 Deployment Notes → 📸 Screenshots/Examples.
 
-9. **Mandatory checklist input** — use **`AskQuestion`** for **Required** and **Optional** checklists per [Checklists — mandatory user input via question boxes](#checklists--mandatory-user-input-via-question-boxes). Task PR uses the **same defaults** as Release PR unless the diff clearly suggests otherwise.
+9. **Show full draft before confirmations** — output format per [Task PR — PR workflow](#task-pr--pr-workflow): title in one code block, full body in a second code block (with **proposed** checklist defaults, Local Tests Report if confirmed in step 7, and deployment notes from step 6). **Hard gate:** do **not** open any checklist or PR-body **`AskQuestion`** until both code blocks are in the **same** message — see [PR draft must be visible before draft approval](#pr-draft-must-be-visible-before-draft-approval-hard-gate).
 
-10. **Show full draft before confirmations** — output format per [Task PR — PR workflow](#task-pr--pr-workflow): title in one code block, full body in a second code block (with checklist choices from step 9 and Local Tests Report if confirmed in step 7).
+10. **Mandatory checklist input** — use **`AskQuestion`** for **Required** and **Optional** checklists per [Checklists — mandatory user input via question boxes](#checklists--mandatory-user-input-via-question-boxes). Task PR uses the **same defaults** as Release PR unless the diff clearly suggests otherwise. The user must have already seen the draft from step 9; defaults in the question should match what was shown.
 
-11. **Confirm PR title and body** — **`AskQuestion`** (approve / edit). **Hard gate:** the **same assistant message** must already contain (1) a fenced code block with the **PR title alone** and (2) a fenced code block with the **full PR body** — do **not** ask approve/edit until both blocks are visible. Revise and re-confirm if the user requests edits.
+11. **Confirm PR title and body** — **`AskQuestion`** (approve / edit). **Hard gate:** the **same assistant message** must already contain (1) a fenced code block with the **PR title alone** and (2) a fenced code block with the **full PR body** reflecting checklist answers from step 10 — do **not** ask approve/edit until both blocks are visible. If step 10 changed any checklist item, **re-paste** both blocks before this question. Revise and re-confirm if the user requests edits.
 
 12. **Reviewers + self-assignment** — multi-select **`AskQuestion`** with **at least 5** suggested GitHub usernames + **`other`**; require **at least one** reviewer. Always self-assign (`@me`).
 
@@ -218,8 +218,8 @@ Before every numbered step below that runs shell commands, perform the **Command
     **Update (existing PR):** apply the approved title/body/assignee/reviewers with **`gh pr edit`** or the GitHub REST API if **`gh pr edit`** fails. Re-fetch the PR URL and review requests after the update.
 
 16. **Google Calendar PR review meeting (before Slack)** — see [Task PR — Google Calendar PR review meeting](#task-pr--google-calendar-pr-review-meeting-before-slack). Run **after** step 15 succeeds and **before** any Slack send. **Two sub-steps — never skip 16a:**
-    - **16a — Run y-gc-meet-helper first (mandatory):** Read and follow **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for this PR (step 0 mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event). **Do not** open the calendar confirmation **`AskQuestion`** or step 17 Slack **`AskQuestion`** in the **same turn** you start 16a.
-    - **16b — Calendar confirmation (after 16a only):** After y-gc-meet-helper handoff or draft create, use **`AskQuestion`** for meeting status (wait / meeting ready / skip). **Wait** for explicit confirmation before Slack.
+    - **16a — Run y-agt-gc-meet-helper first (mandatory):** Read and follow **`y-rules/agent/y-agt-gc-meet-helper.mdc`** end-to-end for this PR (step 0 mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event). **Do not** open the calendar confirmation **`AskQuestion`** or step 17 Slack **`AskQuestion`** in the **same turn** you start 16a.
+    - **16b — Calendar confirmation (after 16a only):** After y-agt-gc-meet-helper handoff or draft create, use **`AskQuestion`** for meeting status (wait / meeting ready / skip). **Wait** for explicit confirmation before Slack.
 
 17. **Slack ready for review (optional — confirm first)** — see [Task PR — Slack ready for review](#task-pr--slack-ready-for-review-optional-last-step). Run **only after** step 15 succeeds **and** step **16b** is satisfied (meeting confirmed on calendar, or user chose to skip the calendar line). **Do not** send Slack before step 15 completes successfully or before step **16a** completes.
 
@@ -347,13 +347,13 @@ The same rules apply when updating a Task PR with **`gh pr edit`** or the REST A
 
 The Slack template may include **`:calendar: PR review meeting is already on your calendar. Please check it.`** — that line is **only truthful** when a PR review meeting actually exists on **Google Calendar**. This step runs **before Slack**.
 
-**Step 16a — y-gc-meet-helper (mandatory first; do not skip)**
+**Step 16a — y-agt-gc-meet-helper (mandatory first; do not skip)**
 
-Immediately after step 15 (PR on GitHub), **read and run** **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for the PR just created:
+Immediately after step 15 (PR on GitHub), **read and run** **`y-rules/agent/y-agt-gc-meet-helper.mdc`** end-to-end for the PR just created:
 
 1. **Step 0 (mode)** — **`AskQuestion`**: generate title/description only **or** create draft event in Google Calendar **or** **`other`**.
 2. Discover PR scope (reuse PR # from step 15 when possible).
-3. Draft + approve title and styled description per y-gc-meet-helper.
+3. Draft + approve title and styled description per y-agt-gc-meet-helper.
 4. **Generate-only path:** hand off copy-paste into Google Calendar; user finishes time, guests, and Meet manually.
 5. **Create-draft path:** create tentative 15-minute event starting **now** via Google Calendar MCP (no guests).
 
@@ -361,7 +361,7 @@ Immediately after step 15 (PR on GitHub), **read and run** **`.cursor/y-rules/ag
 
 **Step 16b — Mandatory confirmation — calendar meeting (only after 16a)**
 
-After step 15 (PR on GitHub) **and** step **16a** (y-gc-meet-helper handoff or draft create), use **`AskQuestion`** **before** Slack send:
+After step 15 (PR on GitHub) **and** step **16a** (y-agt-gc-meet-helper handoff or draft create), use **`AskQuestion`** **before** Slack send:
 
 | Option | Meaning |
 |--------|---------|
@@ -434,9 +434,9 @@ In the question prompt, show the **PR number and URL** from **`gh pr view`** (e.
 - Do **not** send Slack before step 15 completes (PR must exist on GitHub with final title/body/reviewers).
 - Do **not** send Slack with the **calendar reminder sentence** before the user confirms the PR review meeting is on Google Calendar (step **16b**).
 - Do **not** auto-send Slack without **`AskQuestion`** confirmation at steps **16b** and 17.
-- **Do not** skip step **16a** — run **y-gc-meet-helper.mdc** end-to-end before the calendar confirmation **`AskQuestion`** or any Slack offer.
+- **Do not** skip step **16a** — run **y-agt-gc-meet-helper.mdc** end-to-end before the calendar confirmation **`AskQuestion`** or any Slack offer.
 - **Do not** combine calendar confirmation and Slack **`AskQuestion`** in one form before step **16a** completes.
-- **y-gc-meet-helper.mdc** step 0 must be answered before create — do **not** auto-create Calendar events on the generate-only path.
+- **y-agt-gc-meet-helper.mdc** step 0 must be answered before create — do **not** auto-create Calendar events on the generate-only path.
 - Do **not** send Slack or transition Jira without the confirmations in **y-slack-pr-ready-for-review.mdc**.
 - Do **not** skip the **Send Slack / Skip** **`AskQuestion`** at the end of the Task PR flow — always offer it after create/update.
 
@@ -782,10 +782,12 @@ Same structure as [Task PR — PR workflow](#task-pr--pr-workflow). Follow **`.g
 
 ### PR draft must be visible before draft approval (hard gate)
 
-**Never** use **`AskQuestion`** to approve the PR title/body (Release step 8, Hotfix step 7, Task step 11, or final approval) until the **same assistant message** already contains:
+**Never** use **`AskQuestion`** for checklist confirmation, PR title/body approval (Release step 8, Hotfix step 7, Task step 11, or final approval), or calendar meeting draft approval until the **same assistant message** already contains:
 
-1. A fenced code block with the **full PR title** (single line).
-2. A fenced code block with the **full PR body** (all template sections, with proposed checklist and deployment defaults).
+1. A fenced code block with the **full PR title** (single line) — or calendar **title** in a `text` code block per **y-agt-gc-meet-helper**.
+2. A fenced code block with the **full PR body** (all template sections, with proposed checklist and deployment defaults) — or calendar **description** under **`### Description (copy from here)`**.
+
+**Checklist questions are not an exception** — show the full PR draft (with proposed checklist defaults) **before** Required/Optional checklist **`AskQuestion`** boxes.
 
 If the user says you skipped the draft, **stop**, paste both blocks, then ask for approval again. Do **not** ask reviewers, git commands, or **`gh pr create`** in a turn that omits these two blocks when draft approval is on the agenda.
 
@@ -807,6 +809,8 @@ If the user says you skipped the draft, **stop**, paste both blocks, then ask fo
 ## Checklists — mandatory user input via question boxes
 
 Applies to **Task PR, Hotfix PR, and Release PR**. Do **not** silently finalize checklist checkboxes. Use **`AskQuestion`** for **each checklist section** separately, with **pre-filled defaults** so the user can confirm quickly or change individual items.
+
+**Hard gate:** the user must already see the **full PR draft** (title + body code blocks with these proposed defaults) in the **same or a prior message** before any checklist **`AskQuestion`**. See [PR draft must be visible before draft approval](#pr-draft-must-be-visible-before-draft-approval-hard-gate).
 
 ### ✅ Required Checklist — one `AskQuestion`
 
@@ -1009,20 +1013,21 @@ Required for: VAP-1267
 | 1 | Scope + Jira ticket | After fetch and context gather | Show `git log origin/testing..HEAD`; warn if working tree is dirty |
 | 2 | Branch name | Before push (if needed) | Current or proposed name; include **`other`** |
 | 3 | Merge destination | Before drafting body | Default **`testing`** |
-| — | *Research Deployment Notes from task diff* | Before checklist questions | vs `origin/testing` |
-| 4 | **Local Tests Report** | Before drafting body | Optional; **`AskQuestion`** — show source path for author verification; embed full content in PR |
-| 5 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see above) |
-| 6 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
-| 7 | PR title + body | Before push | Approve / edit (body includes checklists, Local Tests Report if confirmed, Deployment Notes) |
-| 8 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
-| — | *Git: push (if needed)* | After steps 1–8 | Command intent confirmation |
-| 9 | **Final approval** | **After push, before `gh pr create` / update** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
-| — | *Git: create or update PR on remote* | After step 9 | Step 15 |
-| 10a | **y-gc-meet-helper** | **After PR on GitHub, before calendar confirm** | **Mandatory.** Run **y-gc-meet-helper.mdc** end-to-end (mode → draft → handoff or draft event). **Do not** skip to calendar/Slack questions |
+| — | *Research Deployment Notes from task diff* | Before showing draft | vs `origin/testing` |
+| 4 | **Local Tests Report** | Before showing draft | Optional; **`AskQuestion`** — show source path for author verification; embed full content in PR |
+| 5 | **Show PR draft** | Before checklist or body approval | Title + full body in two code blocks (proposed checklist + deployment defaults) — [hard gate](#pr-draft-must-be-visible-before-draft-approval-hard-gate) |
+| 6 | **Required Checklist** | After draft visible | One question box; 5 items with defaults matching the draft |
+| 7 | **Optional Checklist** | After draft visible | One question box; 4 items; defaults from diff analysis |
+| 8 | PR title + body | Before push | Approve / edit — **re-paste** both blocks if checklist changed; body includes final checklists, Local Tests Report if confirmed, Deployment Notes |
+| 9 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
+| — | *Git: push (if needed)* | After steps 1–9 | Command intent confirmation |
+| 10 | **Final approval** | **After push, before `gh pr create` / update** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+| — | *Git: create or update PR on remote* | After step 10 | Step 15 |
+| 10a | **y-agt-gc-meet-helper** | **After PR on GitHub, before calendar confirm** | **Mandatory.** Run **y-agt-gc-meet-helper.mdc** end-to-end (mode → draft → handoff or draft event). **Do not** skip to calendar/Slack questions |
 | 10b | **Google Calendar confirmation** | **After step 10a only** | **`AskQuestion`** wait / meeting ready / skip — user answers **after** creating or pasting the event from 10a |
 | 11 | **Slack ready for review** | **After step 10b satisfied** | Optional; **`AskQuestion`** Send / Skip; then **y-slack-pr-ready-for-review.mdc** if Send |
 
-Do **not** run **`gh pr create`** (or apply a PR update) until step **9 (final approval)** is explicitly granted. Do **not** send Slack until step **15** succeeds, step **10a** completes, step **10b** is satisfied, and step **11** is confirmed. **Do not** bundle steps 10a, 10b, and 11 in a single **`AskQuestion`** before y-gc-meet-helper runs.
+Do **not** run **`gh pr create`** (or apply a PR update) until step **10 (final approval)** is explicitly granted. Do **not** send Slack until step **15** succeeds, step **10a** completes, step **10b** is satisfied, and step **11** is confirmed. **Do not** bundle steps 10a, 10b, and 11 in a single **`AskQuestion`** before y-agt-gc-meet-helper runs.
 
 ### Release PR — confirmation order
 
@@ -1036,16 +1041,18 @@ The table below applies to **Release PR** only.
 | 3 | Fix version | Before git branch creation | From Confluence; include **`other`** |
 | 4 | Branch name | Before git branch creation | `release-<version>`; include **`other`** |
 | 5 | Merge destination | Before git branch creation | Default **`production`** |
-| 6 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see above) |
-| 7 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
-| 8 | PR title + body | Before git branch work | **Both title and body code blocks must appear in chat first**; then Approve / edit (body includes checklists + Deployment Notes) |
-| 9 | Reviewers | Before push | Multi-select, ≥1 required |
+| — | *Research Deployment Notes from release diff* | Before showing draft | vs `origin/production` |
+| 6 | **Show PR draft** | Before checklist or body approval | Title + full body in two code blocks — [hard gate](#pr-draft-must-be-visible-before-draft-approval-hard-gate) |
+| 7 | **Required Checklist** | After draft visible | One question box; 5 items with defaults matching the draft |
+| 8 | **Optional Checklist** | After draft visible | One question box; 4 items; defaults from diff analysis |
+| 9 | PR title + body | Before git branch work | Approve / edit — **re-paste** both blocks if checklist changed |
+| 10 | Reviewers | Before push | Multi-select, ≥1 required |
 | — | *Git: branch, cherry-pick, verify, push* | | Uses confirmed **`<origin-branch>`** |
-| 10 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+| 11 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
 
-**Deployment notes** are researched from the release diff **before step 7** — env vars in copy-paste `KEY=value` format with defaults.
+**Deployment notes** are researched from the release diff **before step 6** — env vars in copy-paste `KEY=value` format with defaults.
 
-Do **not** create the release branch until steps 1–9 are confirmed. Do **not** run **`gh pr create`** until step **10 (final approval)** is explicitly granted.
+Do **not** create the release branch until steps 1–10 are confirmed. Do **not** run **`gh pr create`** until step **11 (final approval)** is explicitly granted.
 
 ### Hotfix PR — confirmation order
 
@@ -1058,17 +1065,18 @@ The table below applies to **Hotfix PR** only.
 | 2 | **Origin branch** | Before commit lookup | **`testing`** / **`staging`** / **`other`** — default **`testing`** |
 | 3 | Branch name | Before git branch creation | `prod-<JIRA>`; include **`other`** |
 | 4 | Merge destination | Before git branch creation | Default **`production`** |
-| — | *Research Deployment Notes from hotfix diff* | Before checklist questions | vs `origin/production` |
-| 5 | **Required Checklist** | Before finalizing body | One question box; 5 items with defaults (see [Checklists](#checklists--mandatory-user-input-via-question-boxes)) |
-| 6 | **Optional Checklist** | Before finalizing body | One question box; 4 items; defaults from diff analysis |
-| 7 | PR title + body | Before git branch work | Approve / edit (body includes checklists + Deployment Notes) |
-| 8 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
+| — | *Research Deployment Notes from hotfix diff* | Before showing draft | vs `origin/production` |
+| 5 | **Show PR draft** | Before checklist or body approval | Title + full body in two code blocks — [hard gate](#pr-draft-must-be-visible-before-draft-approval-hard-gate) |
+| 6 | **Required Checklist** | After draft visible | One question box; 5 items with defaults matching the draft |
+| 7 | **Optional Checklist** | After draft visible | One question box; 4 items; defaults from diff analysis |
+| 8 | PR title + body | Before git branch work | Approve / edit — **re-paste** both blocks if checklist changed |
+| 9 | Reviewers | Before push | Multi-select, ≥1 required; self-assign `@me` |
 | — | *Git: branch from production, cherry-pick, verify, push* | | Cherry-picks from **`<origin-branch>`** |
-| 9 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
+| 10 | **Final approval** | **After push, before `gh pr create`** | Readiness summary + **`AskQuestion`**; **wait** for explicit yes |
 
-**Deployment notes** are researched from the hotfix diff **before step 6** — env vars in copy-paste `KEY=value` format with defaults.
+**Deployment notes** are researched from the hotfix diff **before step 5** — env vars in copy-paste `KEY=value` format with defaults.
 
-Do **not** create the hotfix branch until steps 1–8 are confirmed. Do **not** run **`gh pr create`** until step **9 (final approval)** is explicitly granted.
+Do **not** create the hotfix branch until steps 1–9 are confirmed. Do **not** run **`gh pr create`** until step **10 (final approval)** is explicitly granted.
 
 ---
 
@@ -1117,7 +1125,7 @@ Applies whenever you **`git stash`** during a **Hotfix PR** or **Release PR** fl
 
 - Do **not** finalize checklist checkboxes without **`AskQuestion`** for both Required and Optional sections.
 - Do **not** set Deployment Notes to `None` without reviewing the PR diff for env/config/migration/non-automated post-deploy needs.
-- Do **not** ask confirmation questions before showing the full suggested PR description/body (title block + body block first in the **same** message — see [PR draft must be visible before draft approval](#pr-draft-must-be-visible-before-draft-approval-hard-gate)).
+- Do **not** ask confirmation questions before showing the full suggested PR description/body (title block + body block first in the **same** message — see [PR draft must be visible before draft approval](#pr-draft-must-be-visible-before-draft-approval-hard-gate)). This includes **checklist** `AskQuestion` boxes — show the draft with proposed checklist defaults first.
 - Do **not** run an **`AskQuestion`** whose only purpose is “approve PR title + body” if that message does not already include the title code block and the full body code block.
 - Do **not** run shell commands without first explaining intent and getting confirmation via **`AskQuestion`** when the batch changes remotes or creates the PR.
 - Do **not** run **`gh pr create`** before **final approval** — push may happen earlier, but PR creation on the remote **must wait** for the user's explicit final yes.
