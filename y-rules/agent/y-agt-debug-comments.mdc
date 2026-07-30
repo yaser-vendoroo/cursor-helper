@@ -1,9 +1,9 @@
 ---
-description: Preserve the user's debug comments and instrumentation unless they ask to remove them
+description: Preserve the user's debug comments and instrumentation unless they ask to remove them (`y-agt-debug-comments`)
 alwaysApply: true
 ---
 
-# Debug comments and instrumentation
+# Debug comments and instrumentation (`y-agt-debug-comments`)
 
 When editing code:
 

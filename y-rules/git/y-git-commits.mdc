@@ -162,5 +162,5 @@ After all commits:
 
 ## Also apply
 
-- **B2 English** for all narration ([`y-communication-b2-english.mdc`](../agent/y-communication-b2-english.mdc)).
+- **B2 English** for all narration ([`y-agt-communication-b2-english.mdc`](../agent/y-agt-communication-b2-english.mdc)).
 - **Branch naming** when creating branches is out of scope here; if needed later, see [`y-git-branch-name.mdc`](y-git-branch-name.mdc).

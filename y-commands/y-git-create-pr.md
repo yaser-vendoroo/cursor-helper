@@ -33,7 +33,7 @@ After the choice, follow **only** the matching section in **y-git-create-pr.mdc*
 | [y-git-branch-name.mdc](../y-rules/git/y-git-branch-name.mdc) or `/y-git-branch-name` | Task PR branch naming |
 | [y-git-track-new-files.mdc](../y-rules/git/y-git-track-new-files.mdc) or `/y-git-track-new-files` | New task files still untracked |
 | `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Task PR — optional Slack after create |
-| `.cursor/y-rules/agent/y-gc-meet-helper.mdc` | Task PR — Calendar step before Slack |
+| [`y-agt-gc-meet-helper.mdc`](../y-rules/agent/y-agt-gc-meet-helper.mdc) | Task PR — Calendar step before Slack |
 
 ---
 

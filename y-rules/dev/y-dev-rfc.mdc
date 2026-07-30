@@ -1,0 +1,202 @@
+---
+description: >-
+  Draft or update a single self-contained technical RFC (proposal / recommendation)
+  with versioned sections, inline API contract, constraints, and trade-offs. One
+  document only — no split files or external links. Use AskQuestion per section
+  (recommended default pre-selected) before writing.
+alwaysApply: false
+---
+
+# RFC — technical proposal (`y-dev-rfc`)
+
+Draft or update **one self-contained RFC** (Request for Comments): a **recommended** technical solution, not a final spec.
+
+**Use when** the user wants an RFC, technical proposal, design proposal, or draft solution doc — or invokes **`@y-dev-rfc`**.
+
+**Output location:** follow **`y-agt-workspace`** — default **`cursor_workspace/rfc/<slug>/rfc-docs/`**; repo path (e.g. `docs/tickets/<KEY>/rfc-docs/`) only when the user wants it committed.
+
+**Revision history:** every version bump is a **new file** under **`rfc-docs/`** (never overwrite a prior version file).
+
+---
+
+## Principles
+
+1. **One document per version.** Put **everything** in a single RFC file for that version — solution, architecture, **API contract**, payloads, versioning, examples, rollout, testing. **Do not** create sibling contract/design docs. **Do** keep prior versions as separate files under **`rfc-docs/`** (plus a short index `README.md` in that folder).
+2. **Self-contained for external teams.** The RFC will be shared with people who **cannot** open Jira, GitHub, Confluence, or internal repos. **Do not** use external links or “see elsewhere” references. Inline all normative detail (endpoints, schemas, examples) in the RFC body.
+3. **Proposal, not final law.** State clearly this is for review; APIs and constraints are proposed.
+4. **Ask per section.** Before drafting, run **`AskQuestion`** for delivery path and **each optional section** — your recommendation is the **default selected** option, with a **short description** on every choice.
+5. **Right-size.** Small changes need a short RFC. Do not pad optional sections.
+6. **Wait for confirmation** before writing, unless the user already answered in the same thread.
+
+---
+
+## Workflow
+
+Follow in order. Skip steps the user already answered.
+
+### 1. Delivery mode
+
+Unless clear, **`AskQuestion`** (single-select):
+
+| Option | Description |
+|--------|-------------|
+| **`cursor_workspace/rfc/<slug>/rfc-docs/`** (default) | Local draft history — not committed; per **`y-agt-workspace`**. |
+| **`docs/tickets/<KEY>/rfc-docs/`** | Committed repo path for team handoff (versioned files). |
+| **Markdown only in chat** | No file write. |
+
+**Never** default to multiple *content* files for one RFC version (no `api-contract.md` split). **Always** keep each version bump as its own file under **`rfc-docs/`**.
+
+### 2. Confirm sections — AskQuestion (required)
+
+Before drafting or revising, **`AskQuestion`** with **`allow_multiple: true`**.
+
+**Rules for the question:**
+
+1. List **core sections** in the prompt text as **always included** (not selectable).
+2. Offer **every optional section** below as its own option.
+3. **Label format:** `Section name — short description (Recommended: Include)` or `(Recommended: Skip)`.
+4. **Pre-select** every option you recommend **Include**; leave **Skip** options unchecked.
+5. One short line in the prompt explaining why your defaults fit this change.
+
+**Core (always included — do not offer as toggles):**
+
+| Section | Content |
+|---------|---------|
+| **Summary** | Problem, recommended approach, expected outcome. |
+| **Goals** | What success looks like; outcomes only. |
+| **Proposed solution** | Recommended design: components, behavior, key decisions. |
+| **Constraints** | Technical, product, time, parity, compliance. |
+| **Open questions** | Numbered unresolved decisions. |
+
+**Optional (each = one AskQuestion option):**
+
+| Section | Short description for AskQuestion label | Default when… |
+|---------|-------------------------------------------|---------------|
+| **Context / background** | Domain, page, and system context the reader needs. | Cross-team or new feature → **Include** |
+| **Non-goals** | What this RFC explicitly does not deliver. | Scope creep risk → **Include** |
+| **Alternatives considered** | Options evaluated and why they were rejected. | Multiple viable designs → **Include** |
+| **API contract** | Full inline HTTP/RabbitMQ payloads, versioning, JSON examples. | Any new or changed interface → **Include** |
+| **Data model** | Tables, cache rows, new persisted fields. | New storage shape → **Include**; else **Skip** |
+| **Data flow / architecture** | Cross-service diagram and boundaries. | Multi-repo flow → **Include** |
+| **Security & privacy** | Auth, PII, trust boundaries. | Auth or client data → **Include** |
+| **Risks & mitigations** | Material rollout, perf, or dependency risks. | Non-trivial delivery → **Include** |
+| **Rollout / migration** | Phases, feature flags, deploy order. | Phased ship → **Include** |
+| **Testing approach** | Unit, integration, E2E, benchmark strategy. | QA sign-off needed → **Include** |
+| **Out of scope** | Related work explicitly excluded. | Stakeholders assume extras → **Include** |
+| **Implementation checklist** | Short per-team checkbox lists. | Multi-team handoff → **Include** |
+| **Ownership & estimate** | Who builds what; rough SP if known. | Multi-team → **Include** |
+
+Wait for the user's selection before writing. On **revise**, run AskQuestion again unless the user said to keep the same section set.
+
+### 3. Write or update
+
+- Include **core** sections always.
+- Include only **optional** sections the user selected (or defaults if they confirm without changes).
+- Order: **Summary → Goals →** optional (*catalog order*) **→ Proposed solution →** optional (*catalog order*) **→ Constraints →** optional (*catalog order*) **→ Open questions → Changelog**.
+- Within optional groups, use catalog order: Context, Non-goals, Alternatives, API contract, Data model, Data flow, Security, Risks, Rollout, Testing, Out of scope, Implementation checklist, Ownership.
+- On **every edit that changes meaning**, bump the version stamp (see Versioning) and write a **new file** under **`rfc-docs/`** — do **not** overwrite prior version files.
+- First draft: create `rfc-docs/v1.0-<stamp>.md` and update `rfc-docs/README.md` (Latest + table).
+- Revisions: copy latest → `rfc-docs/vX.Y-<new-stamp>.md`, edit only the new file, refresh the index.
+
+### 4. Handoff
+
+End with: status (`Draft`), version stamp, **file path** under `rfc-docs/`, sections included (bullet list), and **Open questions** still blocking review.
+
+---
+
+## Versioning
+
+Put the stamp in the **H1** and in a `version:` line under YAML frontmatter.
+
+**Pattern:** `<major>.<minor> <yyyy-mm-dd-hh-MM>`  
+**Example:** `1.2 2026-07-08-12-45`
+
+### File naming (revision history — required)
+
+Store every version under **`rfc-docs/`**:
+
+```text
+rfc-docs/v<major>.<minor>-<yyyy-mm-dd-hh-MM>.md
+```
+
+Example: `docs/tickets/VAP-2682/rfc-docs/v4.0-2026-07-14-1956.md`
+
+Also keep **`rfc-docs/README.md`** as an index with a **Latest** link and a version table. Update that index on every new version file.
+
+### Bump rules (every save)
+
+- **Minor (`x.Y+1`)** — typo, wording, added detail, new subsection, non-breaking API tweak, section reorder.
+- **Major (`X+1.0`)** — scope change, architecture pivot, breaking API/schema change, section removed or repurposed.
+
+Refresh the date-time to the save moment. First stamp: `1.0` + current date-time.
+
+**Do not** overwrite `v*.md` files from earlier versions. **Do not** edit in place and bump the stamp inside the same filename — always create a new file.
+
+When the RFC includes an API contract, also stamp **HTTP API version**, **payload `version`**, and **schema version** in a table inside the doc.
+
+---
+
+## Document shape
+
+```yaml
+---
+title: <short title>
+status: Draft
+version: 1.0 2026-07-08-12-45
+ticket: <JIRA-KEY or empty>
+---
+```
+
+```markdown
+# <Title> (<JIRA-KEY>) 1.0 2026-07-08-12-45
+
+> **Status:** Draft — for review, not a final specification.
+
+## Summary
+...
+
+## Goals
+...
+
+<!-- optional sections before Proposed solution: Context, Non-goals -->
+
+## Proposed solution
+...
+
+<!-- optional: Alternatives, Data flow, API contract, Data model -->
+
+## Constraints
+...
+
+<!-- optional: Security, Risks, Rollout, Testing, Out of scope, Implementation checklist, Ownership -->
+
+## Open questions
+1. ...
+
+## Changelog
+...
+```
+
+---
+
+## Style
+
+- B2 English. Short sentences. Bullets over long paragraphs.
+- **No external links** — no Jira URLs, GitHub paths as links, Confluence, or “see another file”. Ticket keys as plain text (`VAP-2682`) are fine.
+- **No dependency on other docs** — reader with only this export must understand the full proposal.
+- Repo paths: plain monospace when helpful, not hyperlinks.
+- Mermaid when clearer than text; follow workspace **diagrams** rule if installed.
+- **API contract** must include copy-pasteable JSON examples and field tables.
+- Keep implementation checklists short.
+
+---
+
+## Anti-patterns (do not)
+
+| Do not | Do instead |
+|--------|------------|
+| Create `api-contract.md` + `rfc.md` | One RFC file per version with **API contract** section |
+| Overwrite the same RFC file on version bump | New file under `rfc-docs/vX.Y-<stamp>.md` + update index |
+| Link to Jira / GitHub / internal repos | Inline ticket key + schemas |
+| Guess optional sections without AskQuestion | AskQuestion per section with recommended defaults |
+| Skip section descriptions in AskQuestion | Every option gets a one-line description |

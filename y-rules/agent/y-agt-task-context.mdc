@@ -1,9 +1,9 @@
 ---
-description: Task context — AC, stakeholder Summary, document titles (`y-task-context`)
+description: Task context — AC, stakeholder Summary, document titles (`y-agt-task-context`)
 alwaysApply: false
 ---
 
-# Task context (`y-task-context`)
+# Task context (`y-agt-task-context`)
 
 Use this rule when drafting **task-level** Markdown: **acceptance criteria** and **Summary** (for stakeholder review documents), and similar.
 

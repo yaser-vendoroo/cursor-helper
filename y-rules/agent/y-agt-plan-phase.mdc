@@ -1,0 +1,113 @@
+---
+description: >-
+  Pre-plan workflow — Jira context, solution approach, E2E scope, and guardrails
+  before CreatePlan. Thin orchestrator; delegates to other y-* rules.
+alwaysApply: false
+---
+
+# Plan phase (`y-agt-plan-phase`)
+
+Run this rule **before** `CreatePlan` or writing a plan file. Output shape is governed by [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc) — complete this phase first, then hand off to guidelines.
+
+**Use when** the user asks to plan, enters plan mode, invokes **`/y-agt-plan`**, or **`@y-agt-plan-phase`**.
+
+Artifact paths: follow [`y-agt-workspace.mdc`](y-agt-workspace.mdc) (plans → `.cursor/plans/`).
+
+---
+
+## Pipeline (follow in order)
+
+Skip steps the user already answered in the same thread.
+
+### 1. AskQuestion availability
+
+Every decision below must use **`AskQuestion`** — follow the mandatory gate pattern in [`y-git-commits.mdc`](../git/y-git-commits.mdc) § AskQuestion gates (no chat-only confirmation).
+
+**If `AskQuestion` is unavailable:** tell the user plainly that planning needs structured confirmations. Ask them to **continue without gates** or **stop**. Do **not** silently skip ticket, approach, or E2E questions.
+
+### 2. Jira ticket key
+
+If the user did not provide a ticket key (e.g. `VAP-1234`), **`AskQuestion`** before research. Allow **`other`** = no ticket → record under plan **`## Open questions`**.
+
+### 3. Fetch context
+
+When a key exists:
+
+- **Jira** — workspace **`jira-workflow`** rule: `getJiraIssue` with `contentFormat: "markdown"`; read **all** comments and linked issue references.
+- **GitHub** — `gh` only when the ticket links PRs/branches or implementation context needs it.
+- **Confluence** — Atlassian MCP only when the ticket links a page or the user points to a spec.
+- **Repo artifacts** — scan `docs/<KEY>/`, RFC paths, and test docs mentioned in the ticket or comments.
+
+Summarize findings briefly in chat before drafting the plan.
+
+### 4. Clarify ticket
+
+- **Vague or contradictory description** — apply [`y-team-task-refinement.mdc`](../team/y-team-task-refinement.mdc) **§ step 4 only** (vagueness check). **`AskQuestion`** on remaining gaps.
+- **Missing or thin AC** — [`y-agt-task-context.mdc`](y-agt-task-context.mdc) (AC structure).
+- **Thin overall context** — [`y-agt-task-context.mdc`](y-agt-task-context.mdc) § When ticket context is thin.
+
+Do **not** run the full refinement pipeline (create ticket, steps 1–8) — the ticket already exists.
+
+### 5. Solution approach (mandatory AskQuestion)
+
+| Option | Meaning |
+|--------|---------|
+| **Minimal and efficient** (default) | Smallest correct change; no drive-by refactors |
+| **Thorough / production-grade** | Deeper fix, broader hardening, more investigation |
+| **Quick fix** | Fast patch; limited root-cause analysis |
+| **`other`** | User describes a different bar |
+
+Record the choice in the plan **`## Constraints`** bullet **Solution approach**.
+
+### 6. Engineering guardrails
+
+Record in plan **`## Constraints`** (always):
+
+- **No side effects** — do not change unrelated code paths.
+- **No regressions** — preserve behavior outside the fix scope.
+- **No unrelated flow breaks** — unless the ticket requires fixing them.
+- **No over-engineering** — no premature abstractions or “while we’re here” refactors.
+
+### 7. E2E / testing scope (mandatory AskQuestion)
+
+| Option | Plan behavior |
+|--------|----------------|
+| **No E2E in this plan** | Omit E2E sub-tasks; note under **Out of scope** |
+| **E2E later** | Defer to **`## Open questions`** or **Out of scope** |
+| **Not needed** | State why (e.g. docs-only) |
+| **E2E in this plan** | Add optional plan **`## Testing`** with sub-tasks that **link** to rules below — no runbook copy |
+
+Record choice in **`## Constraints`** bullet **Testing scope**.
+
+**When E2E in this plan** and generative-search rules are installed, sub-tasks cite (in order):
+
+1. `y-generative-search/y-generative-search-rules/test/y-tst-testing-criteria.mdc`
+2. `y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`
+3. `y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed)
+4. `y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+
+Optional when relevant: `y-tst-unit-of-code`, `y-tst-test-case` ([`y-rules/test/y-tst-test-case.mdc`](../test/y-tst-test-case.mdc)), marketplace/resiroo/pmroo payload rules.
+
+For repos without generative-search rules, plan high-level testing only (pytest, manual QA).
+
+### 8. RFC (conditional)
+
+If **Thorough / production-grade** and design is still unclear: add a plan sub-task — **Read and follow [`y-dev-rfc.mdc`](../dev/y-dev-rfc.mdc)**. Do **not** inline the RFC workflow here.
+
+### 9. Branch (optional note only)
+
+If the plan mentions a branch, cite [`y-git-branch-name.mdc`](../git/y-git-branch-name.mdc). Do **not** run `git checkout` during planning.
+
+### 10. Hand off
+
+Only after steps 1–9 (or explicit skips): call **`CreatePlan`** per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
+
+**Post-implementation** (not this phase): PR and Local Tests Report → [`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc). That rule requires the **full PR draft** (title + body code blocks) in chat **before** checklist or approve/edit **`AskQuestion`** gates.
+
+---
+
+## Do not
+
+- Duplicate plan section catalogs, AC templates, Jira MCP tables, or E2E runbooks from other rules.
+- Run full **`y-team-task-refinement`** on an existing ticket.
+- Call **`CreatePlan`** before solution approach and E2E scope are resolved or explicitly deferred.

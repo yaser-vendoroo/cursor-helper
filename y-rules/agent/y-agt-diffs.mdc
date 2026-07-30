@@ -1,11 +1,11 @@
 ---
-description: Task-related git unified diffs — one fenced diff per file, copy-paste for docs
+description: Task-related git unified diffs — one fenced diff per file, copy-paste for docs (`y-agt-diffs`)
 alwaysApply: false
 ---
 
-# Diffs for documentation
+# Diffs for documentation (`y-agt-diffs`)
 
-Use this rule when the user asks for **task-related changes in git diff style**, **copy-paste diffs**, or **`@y-diffs`** so they can drop the output into **handoff docs**, **Confluence**, **Jira**, or similar.
+Use this rule when the user asks for **task-related changes in git diff style**, **copy-paste diffs**, or **`@y-agt-diffs`** so they can drop the output into **handoff docs**, **Confluence**, **Jira**, or similar.
 
 ## Goals
 
@@ -60,4 +60,4 @@ Use this rule when the user asks for **task-related changes in git diff style**,
 
 ## Relation to other rules
 
-- Complements **y-task-context** / handoff docs: diffs are **evidence**; the narrative (Summary, AC) stays in prose unless the user wants everything in one paste.
+- Complements **y-agt-task-context** / handoff docs: diffs are **evidence**; the narrative (Summary, AC) stays in prose unless the user wants everything in one paste.

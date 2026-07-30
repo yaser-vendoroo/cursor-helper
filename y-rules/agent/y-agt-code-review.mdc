@@ -1,0 +1,126 @@
+---
+description: >-
+  Senior code review of unpushed commits vs origin; AskQuestion gates; optional
+  markdown report. Read-only — no edits, commits, or push.
+alwaysApply: false
+---
+
+# Code review (`y-agt-code-review`)
+
+Use when the user invokes **`/y-agt-code-review`**, **`@y-agt-code-review`**, or asks for a **code review**, **PR review before push**, or **review of local commits**.
+
+Act as a **senior software engineer**. Assess the work **only** from Git history.
+
+Prose: **B2 English** per [`y-agt-communication-b2-english.mdc`](y-agt-communication-b2-english.mdc).
+
+---
+
+## Hard limits
+
+- **Review only** commits that exist **locally** but are **not yet on remote `origin`** (unpushed commits).
+- **Do not** review **uncommitted** work: no staged, unstaged, or untracked files in scope.
+- **Read-only:** no edits, fixes, new commits, or push unless the user clearly asks for separate changes in the same session.
+
+---
+
+## Workflow
+
+1. `git fetch origin` (when network allows).
+2. Run in parallel where useful:
+
+```bash
+git branch --show-current
+git status --short
+git log @{upstream}..HEAD --oneline
+```
+
+3. **Find commits to review:**
+   - Prefer: `git log @{upstream}..HEAD` when upstream is set and tracks `origin/...`.
+   - If upstream is not set: `git log origin/$(git branch --show-current)..HEAD` **only if** `origin/<current-branch>` exists.
+   - If still unclear: compare to `origin/testing` or the base branch named in the user message.
+   - If you **cannot** determine a fair comparison to **origin**, say so briefly — **do not** review uncommitted diffs instead.
+
+4. Review the **combined diff** (`git diff <base>..HEAD` or per-commit `git show`), not the whole repository. **State the comparison base** in chat and in any report.
+
+5. **Uncommitted changes** — if `git status` shows staged, unstaged, or untracked files, **`AskQuestion`** before reviewing:
+
+| Option | Meaning |
+|--------|---------|
+| **Review unpushed commits only** (default) | Ignore working tree |
+| **Stop — I will commit first** | End review; user commits then re-runs |
+| **`other`** | User explains different intent |
+
+Use **`AskQuestion`** for every gate — no chat-only confirmation (same pattern as [`y-git-commits.mdc`](../git/y-git-commits.mdc) § AskQuestion gates).
+
+---
+
+## What to check (prioritize by risk)
+
+- **Correctness & edge cases** — happy path, null/empty inputs, error paths, concurrency/async if relevant
+- **Fit with the codebase** — naming, patterns, imports, project conventions (see **CONTRIBUTING.md** when present)
+- **Scope** — unrelated refactors or drive-by changes
+- **Tests & regressions** — coverage gaps, broken tests
+- **Security & safety** — secrets, injection, authz, PII/logging, unsafe defaults
+- **Operability** — logging, metrics, config, migrations, backward compatibility
+- **Docs & API contracts** — public behavior or integrations needing updates
+
+---
+
+## Output — chat
+
+- Be **direct**: **blocking** vs **follow-ups** vs **nits**.
+- Point to **files/lines** when possible.
+- Do **not** block on style nits when behavior is correct and consistent with surrounding code.
+
+**Verdict:** Approve | Approve with follow-ups | Request changes
+
+### When everything looks good
+
+Reply in chat with verdict, one-line summary, and any **residual risks** only. **No file required.**
+
+---
+
+## Output — markdown report
+
+When there is **blocking** feedback, **follow-ups**, or **residual risks**, write a **concise markdown file** per [`y-agt-workspace.mdc`](y-agt-workspace.mdc):
+
+| Location | When |
+|----------|------|
+| `cursor_workspace/code-review/<jira-key-or-branch-slug>.md` | **Default** |
+| `docs/<JIRA-KEY>/code-review.md` | User explicitly wants a committed repo doc |
+
+Keep the doc **short** (roughly one screen):
+
+```markdown
+# <KEY> — Code review (unpushed commits)
+
+**Branch:** …
+**Base:** …
+**Commits reviewed:** N (hashes)
+**Verdict:** Approve | Approve with follow-ups | Request changes
+
+## Scope
+(table or bullet list of commits + files)
+
+## What works well
+(bullets — only if useful)
+
+## Blocking
+(numbered — must fix before merge; omit section if none)
+
+## Follow-ups
+(numbered — non-blocking; omit if none)
+
+## Residual risks
+(bullets — omit if none)
+```
+
+Also give a **brief chat summary** with verdict and the file path.
+
+---
+
+## Do not
+
+- Review the whole repo or uncommitted diffs as a substitute when unpushed-commit scope cannot be determined.
+- Produce long essays or duplicate the full diff in the report.
+- Auto-fix issues as part of the review task.

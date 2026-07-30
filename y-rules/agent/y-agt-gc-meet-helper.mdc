@@ -6,9 +6,9 @@ description: >-
 alwaysApply: false
 ---
 
-# GC Meet Helper — Calendar PR review (`y-gc-meet-helper`)
+# GC Meet Helper — Calendar PR review (`y-agt-gc-meet-helper`)
 
-Use when the user asks to **prepare a PR review meeting**, **Google Calendar meeting text**, **calendar title/description for a PR**, or similar — especially after a PR exists or during the Task PR flow (`.cursor/y-rules/git/y-git-create-pr.mdc` step 16).
+Use when the user asks to **prepare a PR review meeting**, **Google Calendar meeting text**, **calendar title/description for a PR**, or similar — especially after a PR exists or during the Task PR flow ([`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc) step 16).
 
 ---
 
@@ -196,7 +196,7 @@ Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select,
 2. **Confirm scope** — when needed.
 3. **Gather data** — `gh pr view`, Jira keys, headlines, summaries.
 4. **Draft** — title in `text` code block; description as styled Markdown under **`### Description (copy from here)`**.
-5. **Approve draft** — **`AskQuestion`**: Approve / Edit / Cancel.
+5. **Approve draft** — **`AskQuestion`**: Approve / Edit / Cancel. **Hard gate:** the **same assistant message** must already contain the title code block and styled description from step 4 — do **not** ask approve/edit until both are visible. If the user says you skipped the draft, **stop**, paste them, then ask again.
 
 ### Path A — Generate title and description only
 
@@ -222,6 +222,7 @@ Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select,
 - Do **not** check free/busy or avoid overlaps — **always start at current date/time**.
 - Do **not** add **attendees** or send **invite emails** on draft create.
 - Do **not** default to **30 minutes** — use **15 minutes** unless the user overrides.
+- Do **not** run an **`AskQuestion`** to approve calendar title/description before the draft title block and **`### Description (copy from here)`** section are in the **same** message.
 - Do **not** put the chat description in a fenced code block (styling lost on paste).
 - Do **not** output HTML for manual paste.
 - Do **not** omit **Task:** / **PR:** URL lines on any task block.
@@ -230,5 +231,5 @@ Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select,
 
 ## Related rules
 
-- **`.cursor/y-rules/git/y-git-create-pr.mdc`** — Task PR step 16: run this helper; step 0 asks generate vs create draft.
+- [`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc) — Task PR step 16: run this helper; step 0 asks generate vs create draft.
 - **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — Slack calendar line only after the meeting exists on Calendar.

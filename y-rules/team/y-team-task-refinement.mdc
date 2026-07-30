@@ -18,7 +18,17 @@ Turn a rough idea, bug report, or feature request into a **clear, well-scoped tr
 
 **Designed for small teams:** simple, fast, role-agnostic. Keep the interaction light — ask only what matters, suggest good defaults, and let the user override anything.
 
-> This rule is **self-contained**. It does not rely on any other rule, and nothing should be required to read it. Safe to copy into another team's workspace as-is (just edit the **Team config** block below).
+> This rule is **self-contained** for ticket *creation*. Safe to copy into another team's workspace as-is (just edit the **Team config** block below).
+
+---
+
+## Planning from an existing ticket
+
+**Not** the full pipeline below (steps 1–8) — the tracker item already exists.
+
+When the user wants an **implementation plan** for an existing Jira key, follow **`y-agt-plan-phase`** ([`y-rules/agent/y-agt-plan-phase.mdc`](../agent/y-agt-plan-phase.mdc)) instead of running refinement end-to-end.
+
+Reuse **§ step 4** (Gather context — vagueness check) from this rule when the existing Jira description is unclear.
 
 ---
 

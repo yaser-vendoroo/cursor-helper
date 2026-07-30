@@ -44,15 +44,15 @@ The **Slack app / bot** used by Cursor must be **in** **`#generative-search-team
 
 ### Step A — Run GC Meet Helper first (mandatory)
 
-Before any Slack **`AskQuestion`**, run **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** end-to-end for the PR in scope:
+Before any Slack **`AskQuestion`**, run **`y-rules/agent/y-agt-gc-meet-helper.mdc`** end-to-end for the PR in scope:
 
 1. **Step 0 (mode)** — **`AskQuestion`**: **Generate title and description only** / **Create draft event in Google Calendar** / **`other`**.
 2. **Discover PR** — unless the user already named PR **#941** / URL.
-3. **Draft + approve** title and styled description per y-gc-meet-helper.
+3. **Draft + approve** title and styled description per y-agt-gc-meet-helper.
 4. **Path A (generate-only):** hand off copy-paste into Google Calendar; **stop** — wait for the user to finish the event (time, guests, Meet).
 5. **Path B (create draft):** create draft event via Calendar MCP (15 min from now, no guests); return event link; user may edit in Calendar UI.
 
-**Do not** jump to “Is the meeting on your calendar?” or other Slack confirmations in the **same turn** as Step A starts — finish y-gc-meet-helper (or stop at handoff) first.
+**Do not** jump to “Is the meeting on your calendar?” or other Slack confirmations in the **same turn** as Step A starts — finish y-agt-gc-meet-helper (or stop at handoff) first.
 
 ### Step B — Calendar line decision (after Step A)
 
@@ -77,7 +77,7 @@ Before calling **`slack_send_message`** (DM, channel, or any destination):
 
 Use a structured question flow (prefer **`AskQuestion`**) and do **not** send anything until all required answers are confirmed.
 
-1. **Confirm Google Calendar meeting (Step B — after y-gc-meet-helper)**
+1. **Confirm Google Calendar meeting (Step B — after y-agt-gc-meet-helper)**
    - Ask whether the PR review meeting is **already on Google Calendar** (only after Step A handoff or draft create).
    - **Not yet — wait** → **stop**; do not continue to Slack send in this turn.
    - **No meeting — omit calendar line** → skip calendar sentence in item 6 below.
@@ -260,9 +260,9 @@ Summary: Improves Resiroo when image analysis fails or is empty: we still attach
 
 ## Agent workflow (end-to-end)
 
-0. **GC Meet Helper (Step A)** — run **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** first: mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event. **Stop** after handoff until the user finishes the event. **Do not** open the Slack confirmation gate in the same turn you start Step A.
+0. **GC Meet Helper (Step A)** — run **`y-rules/agent/y-agt-gc-meet-helper.mdc`** first: mode → discover PR → draft title/description → generate-only handoff **or** create draft Calendar event. **Stop** after handoff until the user finishes the event. **Do not** open the Slack confirmation gate in the same turn you start Step A.
 0b. **Calendar line (Step B)** — after Step A, **`AskQuestion`**: meeting on calendar? (yes / not yet / no meeting). **Not yet** → stop.
-1. **Resolve PR** — **`gh pr view <n> --json url,title,body,commits,reviewRequests,assignees`** (or **`gh pr view --json …`** on the current branch). If there is **no PR**, stop and tell the user to open a PR first. (May overlap with y-gc-meet-helper PR discovery — reuse data when already fetched.)
+1. **Resolve PR** — **`gh pr view <n> --json url,title,body,commits,reviewRequests,assignees`** (or **`gh pr view --json …`** on the current branch). If there is **no PR**, stop and tell the user to open a PR first. (May overlap with y-agt-gc-meet-helper PR discovery — reuse data when already fetched.)
 2. **Jira key** — Parse **`VAP-\d+`** from **`git branch --show-current`** (or user message). Build **`Task:`** link. If **multiple** keys appear, prefer the branch key; if unclear, use the first linked ticket from the PR **Description** or ask once.
 3. **Summary** — Write **1–2** sentences from **title + Description + commit subjects**; outcome-only; no **`##`**, no unchecked checklist dumps.
 4. **Slack user ids** — For each **`reviewRequests`** entry with **`__typename":"User"`**, **`slack_search_users`** (query: **`login`**, shortened handle if your org maps that way, or **email** if GitHub returned one). Collect **`<@USER_ID>`** in GitHub order.
@@ -315,7 +315,7 @@ Summary: Improves Resiroo when image analysis fails or is empty: we still attach
 - Do **not** paste private emails or secrets into **`Summary:`** or into shared channels unless the user asked.
 - Do **not** guess **`U…`** / **`C…`** / **`D…`** ids—resolve via **`slack_search_*`** tools (or ask the user).
 - Do **not** send PR-ready pings to a **DM** by default; use **`#generative-search-team`** unless the user asked otherwise.
-- Do **not** open the Slack confirmation gate before **`.cursor/y-rules/agent/y-gc-meet-helper.mdc`** (Step A) — generate title/description or create draft event first.
+- Do **not** open the Slack confirmation gate before **`y-rules/agent/y-agt-gc-meet-helper.mdc`** (Step A) — generate title/description or create draft event first.
 - Do **not** send any Slack message before finishing the **mandatory confirmation gate** (Step B + items below).
 - Do **not** include **`:calendar: PR review meeting is already on your calendar`** unless Step A is done and the user confirmed the meeting exists on Google Calendar (Step B).
 - Do **not** move Jira to In Review automatically after Slack send; always ask, then run the **required-fields checklist** and wait for the user to fill gaps before transitioning.
