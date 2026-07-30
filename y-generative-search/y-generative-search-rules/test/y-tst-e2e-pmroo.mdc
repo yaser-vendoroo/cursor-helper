@@ -204,7 +204,7 @@ For local mock runs, `status=pending` is normal (n8n off) — do not fail classi
 | Payload fixtures | `cursor_workspace/` |
 | Mock seed | `cursor_workspace/e2e_seed/` |
 
-Filename: `YYYY-MM-DD-HHMMSS-<scenario-slug>-pmroo-report.md`
+Filenames: `YYYYMMDD-HHMMSS-<scenario-slug>-pmroo-report.md` (full) and `...-pmroo-report-compact.md` (shareable). H1 title must use the same `YYYYMMDD-HHMMSS` run timestamp — see `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
 
 ---
 

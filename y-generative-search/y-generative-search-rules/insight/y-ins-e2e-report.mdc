@@ -1,5 +1,7 @@
 ---
-description: Reusable final markdown report structure for Marketplace and local Resiroo E2E runs, with technical evidence, outcomes, and QA/Product transcript format.
+description: >-
+  Reusable final markdown report structure for Marketplace and local ResiRoo/PMRoo
+  E2E runs — full internal report plus a compact shareable variant for other teams.
 alwaysApply: false
 ---
 
@@ -13,17 +15,24 @@ This is a shared report contract for:
 
 Invoking rules can add extra required fields for their scenario.
 
+---
+
 ## Report artifact policy
 
-- Output one **Markdown report file** per run.
-- Save artifacts under **`cursor_workspace/`** (invoking rule can require a specific subdirectory).
+- Output **two Markdown report files** per run:
+  1. **Full report** — complete internal record (local setup, execution detail, issues).
+  2. **Compact report** — shareable with other teams; sanitized per [Compact shareable report](#compact-shareable-report) below.
+- Save both under **`cursor_workspace/`** (invoking rule can require a specific subdirectory, e.g. `cursor_workspace/ai_test/e2e/`).
 - Do not overwrite previous reports.
-- Filename must include **date + time** (`YYYY-MM-DD-HHMMSS`) plus a short scenario slug.
-- If a value is not verified, write **`(not verified)`** explicitly.
+- Filename must include **date + time** as **`YYYYMMDD-HHMMSS`** (24-hour **local** time when the run finished; no separators in the date) plus a short scenario slug.
+- Compact file uses the **same basename** as the full report with **`-compact`** immediately before `.md` (for example `20260730-161245-leak-check-report-compact.md` when the full file is `20260730-161245-leak-check-report.md`).
+- Write the **full report first**, then produce the **compact report** from it (same facts, sanitized presentation).
+- **Report type** in **Metadata** must be exactly **`Detailed`** (full file) or **`Compact`** (shareable file) — no other values.
+- If a value is not verified, write **`(not verified)`** explicitly in both files.
 
-## Required report structure (in this order)
+---
 
-Formatting rule for all sections:
+## Formatting rules (both reports)
 
 - Any bullet or line that uses a `label: value` pattern must format the label in bold.
 - Use this style consistently: `- **Label:** value`.
@@ -40,8 +49,42 @@ Formatting rule for all sections:
 - Choose the smallest block that fits: only wrap the offending value (typically `Content`, `AIReasoning`, `Evidence`), not the whole message group.
 - Always announce the block with a labeled bullet that ends with `:`, e.g. `- **Content (verbatim — fenced because the value contains Markdown):**`, then a blank line, then the fenced block.
 
-### Run metadata
+---
 
+## Document title (both reports)
+
+Every report file must start with an **H1** that includes the **run timestamp** — when the test run finished (or the report was written), in **24-hour local time**.
+
+**Timestamp format:** `YYYYMMDD-HHMMSS` (no separators in the date). Example: `20260730-161245` for 30 Jul 2026 at 16:12:45 local.
+
+**Must match filename:** The `YYYYMMDD-HHMMSS` prefix in the H1 must be **identical** to the timestamp prefix in the report filename.
+
+### Full report
+
+```markdown
+# 20260730-161245 — VAP-2325 — Reactive leak — resident follow-up E2E
+```
+
+- Lead with `YYYYMMDD-HHMMSS`, then ` — `, then optional Jira key, then scenario description.
+
+### Compact report
+
+```markdown
+# 20260730-161245 — Reactive leak — resident follow-up E2E
+```
+
+- Same timestamp prefix and scenario text as the full report.
+- Do **not** include a Jira issue key in the compact title (for example no `VAP-1234`, `VEA-567`, or similar).
+
+Place the H1 **before** the **Metadata** section.
+
+---
+
+## Full report structure (in this order)
+
+### Metadata
+
+- **Report type:** `Detailed` (internal full report — use `Compact` only in the shareable variant)
 - Date/time (local timezone)
 - Flow/rule used
 - Environment (e.g. `Local + mp_mock (PMRoo)`, `testing MP`, `local docker`, `mixed`, etc.)
@@ -120,7 +163,85 @@ Required bullet format:
 - **Work order:** `<work order>`
 - **Pass/Fail result:** `<pass/fail result>`
 
-For conversation output in this section:
+For conversation output in this section, follow [Summary transcript format](#summary-transcript-format).
+
+---
+
+## Compact shareable report
+
+**Audience:** product, QA, and other teams who do **not** have access to the author’s local machine, repo, Docker stack, or internal runbooks.
+
+**Purpose:** same test outcome and conversation evidence as the full report, without local-only operational detail.
+
+### Sections to omit
+
+Do **not** include these sections in the compact report:
+
+- **What was executed**
+- **Issues, risks, and next actions**
+- **In scope** / **Out of scope** (goal only — see **Goal** below)
+
+### Content to omit or sanitize
+
+Strip or rewrite anything that only makes sense on the author’s machine or in their local checkout. In the compact report, do **not** include:
+
+- Repo paths, `cursor_workspace/` paths, or links to local files
+- References to Cursor rules, slash commands, or `.mdc` / `.md` rule files
+- `localhost`, loopback URLs, host ports, or internal API base URLs
+- Docker Compose service names, container names, image tags, or local stack topology
+- Local app/process names used only for dev (for example internal worker/queue consumer labels) unless they are the **product name** other teams already use (e.g. **Marketplace**, **ResiRoo**, **PMRoo**)
+- Machine spec, OS, shell, IDE, or agent tooling
+- RabbitMQ queue/vhost names, debounce timings, `docker compose` commands, Makefile targets, or similar runbook steps
+- Credentials, tokens, or secret env values (same as full report)
+
+When evidence in the full report cites local infrastructure, rewrite the compact **Verification evidence** as **observable outcomes** only (WO state, message content, pass/fail checks against shared environments such as **MP (Testing)**).
+
+Use **team-facing environment labels** in **Metadata** and Summary (for example `MP (Testing)`, `Staging`) — not `local docker`, `mp_mock`, or compose profile names.
+
+For **Images** in Summary: include only **fetchable HTTPS URLs** that recipients can open (typically Marketplace/S3 testing URLs). Omit localhost or signed URLs that expire or require the author’s network.
+
+**Document title:** follow [Document title (both reports)](#document-title-both-reports) — compact uses the same `YYYYMMDD-HHMMSS` prefix; no Jira key in the H1.
+
+### Compact report structure (in this order)
+
+#### Metadata
+
+- **Report type:** `Compact`
+- Date/time (local timezone)
+- Scenario name
+- **Environment:** team-facing label only (no local stack detail)
+
+#### Goal
+
+- Goal of this run (single purpose statement — no scope bullets)
+
+#### Verification evidence
+
+- Observable outcomes and proof lines relevant to other teams (status codes against shared APIs, WO/message state, DB-backed facts stated as outcomes — not how you queried them locally)
+
+#### Key identifiers
+
+Same fields as the full report (only those that apply) — these are usually safe to share when they refer to Marketplace/testing entities.
+
+#### Results
+
+- Expected behavior vs observed behavior
+- Pass/fail/partial outcome per core expectation
+
+#### Final outcome
+
+- Final status: pass / fail / partial
+- One concise conclusion sentence
+
+#### Summary (required as final section)
+
+Same structure and [Summary transcript format](#summary-transcript-format) as the full report, with **team-facing Environment** labels in each case block.
+
+---
+
+## Summary transcript format
+
+Applies to the **Summary** section in **both** full and compact reports.
 
 - Display each message from older to newer.
 - Include each message date/time under label `Time` using concise format `DD Mon YYYY HH:MM:SS` (for example `19 May 2026 16:30:24`).
@@ -133,7 +254,7 @@ For conversation output in this section:
 - Do not add a wrapper label like `Message:` before grouped fields.
 - Prefer grouped lines with separators (`|` or `,`) and bold labels, for example: `- **Message ID:** 2640 | **Role:** tool | **ConversationId:** 295 | **Time:** 19 May 2026 16:30:24`.
 
-Preferred transcript style for this section:
+Preferred transcript style:
 
 - One message block at a time (resident/system/assistant as they occurred chronologically).
 - `---` between message blocks.
@@ -153,9 +274,12 @@ Preferred transcript style for this section:
 
 - List one URL per nested bullet under **Images:**; do not comma-join URLs on one line.
 
+---
+
 ## Content and security rules (mandatory)
 
 - Keep critical stored values intact (do not crop/trim `Response`, `AIReasoning`, `Evidence` when reported).
 - Do not expose tokens, passwords, or secret env values.
 - Include only non-sensitive evidence needed for verification.
 - Keep language concise and professional (B2 English).
+- The **compact** report is the default artifact to paste into Slack, Jira, or email for other teams; keep the **full** report for local PR handoff and author traceability.

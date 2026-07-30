@@ -201,7 +201,7 @@ Seed layout and mock stack: [`mp_mock/README.md`](../../../mp_mock/README.md).
 | Seed data | `cursor_workspace/e2e_seed/` |
 | Payload fixtures | `cursor_workspace/` (not repo root `ai_tests/`) |
 
-Filename: `YYYY-MM-DD-HHMMSS-<scenario-slug>-report.md`
+Filenames: `YYYYMMDD-HHMMSS-<scenario-slug>-report.md` (full) and `...-report-compact.md` (shareable). H1 title must use the same `YYYYMMDD-HHMMSS` run timestamp — see `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
 
 ---
 

@@ -55,7 +55,7 @@ This keeps **verification** (what does it do today?) separate from **remediation
    - **Cases run:** **numbered** list — **Case 1 — …** → pass / fail / skipped (same numbering as `cursor_workspace/` artifact). When a case exercises a **method** (or callable), include **arguments** and **return value** (or exception) in short form so direction of data flow is obvious.
    - **Notable behavior:** 2–4 sentences on correctness vs code intent
    - **Risks / gaps:** what was **not** exercised and why
-   - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/openai_web_search/2026-04-14-143052-manual-verification.md`)
+   - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/openai_web_search/20260730-161245-manual-verification.md`)
 
 ## Detailed artifact: `cursor_workspace/` directory
 
@@ -66,20 +66,20 @@ Do **not** write new test artifacts under root-level **`ai_tests/`**; use **`cur
 **Naming — do not overwrite prior reports**
 
 - **Never** reuse or replace an existing report file to “update” a run: each verification pass gets a **new** file.
-- **Always** include **date and time** in the filename (not date alone). That way multiple runs on the **same calendar day** keep separate files and nothing is lost.
+- **Always** include **date and time** in the filename (not date alone). Use **`YYYYMMDD-HHMMSS`** (24-hour local time; no separators in the date). That way multiple runs on the **same calendar day** keep separate files and nothing is lost.
 - If a generated name already exists (unlikely if time includes seconds), pick a new suffix (e.g. add `-2`) rather than overwriting.
 
 **Suggested path pattern:**
 
-`cursor_workspace/ai_test/<short-unit-slug>/<YYYY-MM-DD>-<HHMMSS>-manual-verification.md`
+`cursor_workspace/ai_test/<short-unit-slug>/<YYYYMMDD-HHMMSS>-manual-verification.md`
 
-Use **24-hour local time** for `<HHMMSS>` (e.g. `143052` for 14:30:52). Avoid `:` in filenames for portability.
+Example: `20260730-161245` for 30 Jul 2026 at 16:12:45 local. Avoid `:` in filenames for portability.
 
-Examples: `cursor_workspace/ai_test/openai_web_search/2026-04-14-143052-manual-verification.md`, `cursor_workspace/ai_test/weather_resolver/2026-04-14-091003-manual-verification.md`
+Examples: `cursor_workspace/ai_test/openai_web_search/20260730-161245-manual-verification.md`, `cursor_workspace/ai_test/weather_resolver/20260414-091003-manual-verification.md`
 
 **What to include in that Markdown file (more detail than chat):**
 
-- **Title** — unit import path, date, environment (container name / host).
+- **Title (H1)** — must start with the same **`YYYYMMDD-HHMMSS`** run timestamp as the filename, then unit import path and environment. Example: `# 20260730-161245 — services.roo.foo.BarService — manual verification (container roo-api)`.
 - **Cases overview (required)** — near the top of the report (after title/metadata), include **all** cases exercised in this run as a **markdown table** or a **single list**. For **each** case, state clearly:
   - **What is tested** — short description of the scenario (inputs, env, or branch).
   - **Expected result** — what correct behavior should look like (return shape, status, side effect, or “should raise …”), **before** you compare to what you observed.
