@@ -64,15 +64,16 @@ Do not fetch or write Trello data until the user selects a mode (or named it exp
 ## Card order (read modes)
 
 - Keep **Trello list order** as shown on the board. Do **not** re-sort unless the user asks.
-- **Today Nightly to Nightly** is **newer → older** (most recent work at the **top**).
+- **Today Nightly to Nightly** and **Todo** are **newer → older** (most recent work at the **top**).
 
-### Today Nightly to Nightly — position on create (Mode 4)
+### Position on create (Modes 4–5 — mandatory)
 
-When **creating** a new card on **Today Nightly to Nightly**, place it at the **top** of the list (newest first):
+When user intent leads to **creating** a new card (Mode 4 on **Today Nightly to Nightly**, Mode 5 on **Todo**), place it at the **top** of that list — **newest first**.
 
-- REST: `POST /1/cards` with `pos=top` (or equivalent MCP option if exposed).
+- REST: `POST /1/cards` with `name`, `idList`, and **`pos=top`**.
+- MCP **`add_card_to_list`** has **no `pos`** — after create, **`PUT /1/cards/{id}?pos=top`** (or create via REST with `pos=top` instead).
 - **Updates** to an existing card do **not** change position unless the user asks to move it.
-- **Todo** and other lists: default position unless a future rule says otherwise (Mode 5 Todo uses default).
+- **Mode 6** moves and date-list creation follow their own position rules — not this section.
 
 ## Data collection (read modes)
 
@@ -120,28 +121,65 @@ vap-XXXX <short Jira title> > <progress> > <progress> ...
 
 Non-Jira cards (meetings, release PR, no ticket id) are **exempt** — no forced pattern.
 
+When a Jira id appears on a **ticket-related activity** card (see [4.0a](#40a--classify-log-intent-own-task-work-vs-ticket-related-activity-mandatory)), still use the pattern above — the activity goes in the progress segments after the short title.
+
 ---
 
 ## Mode 4 — Submit or update current task (`submit_current_task`)
 
-**Goal:** log what the user is working on now on **Today Nightly to Nightly** — **create** a new card or **update** an existing one.
+**Goal:** log what the user did or is doing on **Today Nightly to Nightly** — **create** a new card or **update** an existing one.
 
-### 4.0 — Create vs update (decide before polish)
+### 4.0a — Classify log intent: own task work vs ticket-related activity (mandatory)
+
+**Before** create vs update, classify the user’s message into **one** path. Same `vap-xxxx` on the board does **not** mean one card — the path decides matching.
+
+| Path | ID | Meaning |
+|------|-----|---------|
+| **Own task work** | `task_work` | The user is implementing, fixing, or progressing **their** work on a ticket. |
+| **Ticket-related activity** | `ticket_activity` | The user did something **about** a ticket that is **not** their main implementation thread. |
+
+**`task_work` signals (examples):**
+
+- Branch, assignee, or chat context shows this is **their** ticket.
+- Wording like **working on**, **fixed**, **implemented**, **refactoring**, **found issue while working on**, **created PR**, **updated PR** (their PR), **blocked on**, **ready for review** (their change), **finished** implementation.
+
+**`ticket_activity` signals (examples):**
+
+- **Meeting** or **sync** where a ticket was discussed (e.g. *meeting with Mahtab about vap-3383*, *solution review with Sina about vap-3672*).
+- **Reviewing someone else’s PR** for a ticket (e.g. *reviewed Mahtab’s PR for vap-3383*).
+- **Collaboration**, **helping**, **onboarding**, **knowledge share**, or **discussion** about another person’s task.
+- Activity is clearly **about** the ticket but the user is **not** logging their own implementation progress.
+
+**Hard rule:** never treat `ticket_activity` as an update to a `task_work` card **only** because both mention the same `vap-xxxx`. Those are different cards.
+
+**Title shape by path:**
+
+- **`task_work` (Jira):** `vap-XXXX <short Jira title> > <implementation progress> > …`
+- **`ticket_activity` (Jira named):** `vap-XXXX <short Jira title> > <activity>` — e.g. `vap-3383 ResiRoo unexpectedly sent resident message in French > reviewed Mahtab's PR`
+- **`ticket_activity` (no ticket id):** activity-first line — e.g. `reviewed Ali's PR > chat memory capacity`
+
+### 4.0 — Create vs update (decide after 4.0a)
 
 1. **Fetch only** open cards in **Today Nightly to Nightly** (names + ids + shortUrl). Use **`GET /lists/{nightlyListId}/cards`** (or equivalent MCP on that list) — **never** `GET /boards/{boardId}/cards` or a cross-list search.
-2. **Do not** look at **Done**, **Todo**, date lists, or any other list when matching a ticket or topic. If the same ticket exists only on another list, treat it as **no match on Nightly** → **create** a new card on **Today Nightly to Nightly** (unless the user explicitly asks to update a card on a named list).
-3. **Prefer update** when the user’s message clearly continues the **same work** as a card **on Today Nightly to Nightly**, for example:
-   - Same **Jira / ticket id** (`VAP-xxxx`, `vap-xxxx`) as in an existing card title.
-   - User says **update**, **progress**, **still on**, **finished**, **blocked**, **ready for review**, etc., and context points at a list card or a card from this chat.
-   - Same topic + same ticket without a new ticket id (e.g. follow-up on a card just created).
-4. **Prefer create** when:
-   - No card on **Today Nightly to Nightly** matches the ticket or topic.
+2. **Do not** look at **Done**, **Todo**, date lists, or any other list when matching. If the only match is on another list, treat it as **no match on Nightly** → **create** (unless the user explicitly asks to update a card on a named list).
+3. **`task_work` — prefer update** when the message clearly continues the **same implementation thread** on Nightly, for example:
+   - Same **Jira id** on a card that is already a **task-work** card (not a meeting/review/collaboration card).
+   - User progress on work they already logged today or in this chat on that ticket.
+   - User says **still on**, **finished**, **blocked**, **updated PR** (their PR), etc., and context points at their task card.
+4. **`task_work` — prefer create** when:
+   - No **task-work** card for that ticket on Nightly (including when the ticket appears only on an **activity** card).
    - User explicitly says **new task**, **different ticket**, or **separate card**.
-5. **If unsure** (two plausible cards on Nightly, weak match, or no ticket id): **AskQuestion** — show **candidate card title(s)** and offer:
-   - **Update** card *…* (quote short title)
-   - **Create new card**
+5. **`ticket_activity` — prefer create** when:
+   - The message is a **new activity** (new meeting, new PR review, new collaboration), even if `vap-xxxx` already exists on another Nightly card.
+   - Another card on Nightly is a **`task_work`** card for the same ticket — do **not** append the activity there; **create** a separate activity card.
+6. **`ticket_activity` — prefer update** only when the message clearly continues the **same activity** on an existing **activity** card, for example:
+   - Same person + same activity type (e.g. second note on *collaboration with Mahtab > vap-3383*).
+   - User says **update that meeting card** or refers explicitly to the activity card from this chat.
+7. **If unsure** (path unclear, or two plausible cards): **AskQuestion** — show **candidate card title(s)** and offer:
+   - **Update** card *…*
+   - **Create new card** *(task work or activity)*
    - **Cancel**
-6. Only one card is created or updated per Mode 4 run unless the user asks for more in a follow-up.
+8. Only one card is created or updated per Mode 4 run unless the user asks for more in a follow-up.
 
 ### 4.1 — Get the user’s input
 
@@ -150,18 +188,20 @@ Non-Jira cards (meetings, release PR, no ticket id) are **exempt** — no forced
 
 ### 4.2 — Polish the card title (required before write)
 
-Apply **Jira-linked card title pattern** (above) for every `vap-xxxx` / `VAP-xxxx` card.
+Apply **Jira-linked card title pattern** (above) for every `vap-xxxx` / `VAP-xxxx` card. Respect the path from **4.0a** when choosing progress segments.
 
 **If creating:** produce a **proposed card name**:
 
 - **Fix English** — grammar, spelling, word order (B2 / B2+ level).
 - **Preserve meaning** — do not invent work; keep ticket ids, names, outcomes faithful to the user.
-- **Shape:** `vap-XXXX <short Jira title> > <first status>` then more ` > ` segments as needed.
+- **`task_work`:** `vap-XXXX <short Jira title> > <first status>` then more ` > ` segments as needed.
+- **`ticket_activity`:** lead with the **activity** in progress segments; include `vap-XXXX` + short title when the user named a ticket.
 - **One line** — card **name** only unless the user wants a **description**.
 
 **If updating:** produce **Before** → **After**:
 
 - **Normalize pattern first** if the current title is wrong (missing short Jira title or `>` right after id).
+- Confirm the target card matches the same path (**task_work** vs **ticket_activity**) before updating.
 - Then apply the progress update:
   - **Append** — add ` > ` + new polished segment at the end (most common).
   - **Replace tail** — when new status **supersedes** the last segment.
@@ -171,6 +211,7 @@ Apply **Jira-linked card title pattern** (above) for every `vap-xxxx` / `VAP-xxx
 Show the user:
 
 - **Your words:** (verbatim or close paraphrase)
+- **Path:** `task_work` or `ticket_activity`
 - **Action:** Create new **or** Update existing *(quote existing title if update)*
 - **Proposed card:** polished title — for updates, show **Before** and **After**
 
@@ -180,11 +221,14 @@ Show the user:
 
 Intent is **clear** when, for example:
 
-- **Update:** user names a ticket (`vap-3334: …`) and **exactly one** matching card is on **Today Nightly to Nightly**, and the message is a **progress note** (found a clue, PR ready, blocked, etc.).
-- **Create:** new ticket / topic with **no** matching card on the list and no ambiguity.
+- **`task_work` update:** user names their ticket and **exactly one** matching **task-work** card is on Nightly; message is implementation progress.
+- **`task_work` create:** their ticket has no task-work card on Nightly yet.
+- **`ticket_activity` create:** meeting, PR review, or collaboration note — even when the same `vap-xxxx` already has a **task_work** card on Nightly.
+- **`ticket_activity` update:** user continues the same activity card (same meeting/collaboration thread).
 
 **When not sure**, use **AskQuestion** before any write:
 
+- Path unclear (`task_work` vs `ticket_activity`).
 - Two or more plausible cards to update.
 - Unclear whether to **create** vs **update**.
 - **Large rewrite** of the title or meaning might be wrong.
@@ -201,7 +245,7 @@ Options when you do ask:
 When approved **or** intent is clear (see 4.3):
 
 1. Resolve **board** and **Today Nightly to Nightly** `listId`.
-2. **Create:** MCP `add_card_to_list` / `create-card` or REST `POST /1/cards` with `name`, `idList`, and **`pos=top`** so the card is **first** on the list (newer above older).
+2. **Create:** REST `POST /1/cards` with `name`, `idList`, **`pos=top`** — or MCP create then **`PUT /1/cards/{id}?pos=top`** (see [Position on create](#position-on-create-modes-45--mandatory)).
 3. **Update:** MCP `update_card_details` / `update-card` or REST `PUT /1/cards/{id}` with `name` (and `desc` only if approved). Do not change `pos` on update unless the user asks.
 4. Confirm: **action** (created / updated / pattern normalized), **card title**, **list**, **shortUrl**. On failure, report error; do not retry without consent.
 
@@ -225,7 +269,7 @@ Run Mode 5 when the user says **add to todo**, **put on todo**, **todo:**, or si
 - **Fix English** (B2 / B2+); preserve meaning; do not invent scope.
 - **Jira-linked tasks:** apply **Jira-linked card title pattern** — typically `vap-XXXX <short Jira title>` with optional ` > ` note if the user gave extra context (e.g. `vap-1234 Short title > follow up after release`).
 - **Non-Jira tasks:** one clear polished line (e.g. `Review Command Center PRD with Ali`).
-- **Always create** — new card on **Todo**; add at top of list if the API allows, otherwise default position.
+- **Always create** — new card on **Todo** at the **top** of the list (see [Position on create](#position-on-create-modes-45--mandatory)).
 
 ### 5.3 — Proceed vs AskQuestion
 
@@ -249,8 +293,8 @@ When asking, offer: **Create on Todo** (show proposed title) / **Edit first** / 
 ### 5.4 — Write to Trello
 
 1. Resolve **board** and **Todo** `listId`.
-2. **Create** via MCP or REST `POST /1/cards` with polished `name`, `idList`.
-3. Confirm: **action** (created), **card title**, **list** (Todo), **shortUrl**.
+2. **Create** via REST `POST /1/cards` with polished `name`, `idList`, **`pos=top`** — or MCP create then **`PUT /1/cards/{id}?pos=top`** if MCP has no `pos`.
+3. Confirm: **action** (created), **card title**, **list** (Todo), **shortUrl**, **position** (top).
 
 ---
 
@@ -426,6 +470,7 @@ Deliver **table → recall keywords → standup summary**.
 
 After successful write:
 
+- **Path:** `task_work` or `ticket_activity`
 - **Action:** created **or** updated
 - **Board** / **List:** Today Nightly to Nightly
 - **Card:** exact title as stored
@@ -469,6 +514,7 @@ If cancelled or waiting on AskQuestion, state that clearly.
 - **Empty Today Nightly to Nightly (mode 1):** say clearly; keywords and standup state “nothing to report.”
 - **Ambiguous board or list:** ask once.
 - **Mode 4 ambiguous card:** AskQuestion — update vs create new; do not guess when two cards on **Today Nightly to Nightly** match equally.
+- **Mode 4 same ticket, different path:** do **not** append a **ticket_activity** note to a **task_work** card (or vice versa) — **create** a separate card unless the user clearly continues the same activity card.
 - **Mode 4 ticket only on another list:** do **not** update that card; **create** on **Today Nightly to Nightly** (or ask once if the user meant a specific list).
 - **Mode 4 / 5 Jira title unknown:** ask once for short title or fetch Jira; do not write `vap-XXXX > …` without the summary segment.
 - **Mode 5 vague task:** AskQuestion before create.
@@ -488,3 +534,12 @@ If cancelled or waiting on AskQuestion, state that clearly.
 - `ins-trello current cards` → Mode 2.
 - `ins-trello todo` → Mode 3 *(list Todo — read only)*.
 - **`done`** / `ins-trello done` → Mode 6.
+
+**Mode 4 path examples:**
+
+| User message | Path | Typical action |
+|--------------|------|----------------|
+| `vap-2492 > updated PR based on Ali comments` | `task_work` | Update **task_work** card for vap-2492, or create if none on Nightly |
+| `reviewed Mahtab's PR for vap-3383` | `ticket_activity` | **Create** activity card — do not update a vap-3383 **task_work** card if one exists |
+| `meeting with Sina about vap-3672` | `ticket_activity` | **Create** — separate from any future **task_work** card on vap-3672 |
+| `still working on vap-2681` | `task_work` | Update existing vap-2681 **task_work** card on Nightly |

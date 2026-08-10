@@ -11,7 +11,7 @@ Use this rule when an E2E or manual-E2E run needs a final report artifact.
 
 This is a shared report contract for:
 
-- Unified ResiRoo and PMRoo E2E flows — entry `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`; runbooks `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` · `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`
+- Unified ResiRoo and PMRoo E2E flows — entry `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`; runbooks `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` · `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`
 
 Invoking rules can add extra required fields for their scenario.
 
@@ -24,8 +24,9 @@ Invoking rules can add extra required fields for their scenario.
   2. **Compact report** — shareable with other teams; sanitized per [Compact shareable report](#compact-shareable-report) below.
 - Save both under **`cursor_workspace/`** (invoking rule can require a specific subdirectory, e.g. `cursor_workspace/ai_test/e2e/`).
 - Do not overwrite previous reports.
-- Filename must include **date + time** as **`YYYYMMDD-HHMMSS`** (24-hour **local** time when the run finished; no separators in the date) plus a short scenario slug.
-- Compact file uses the **same basename** as the full report with **`-compact`** immediately before `.md` (for example `20260730-161245-leak-check-report-compact.md` when the full file is `20260730-161245-leak-check-report.md`).
+- Filename must include **Jira key**, **date + time** as **`YYYYMMDD-HHMM`** (24-hour **local** time when the run finished; minute precision; no separators in the date), and a short scenario slug.
+- **Filename pattern:** `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (use `NO-TICKET` when no Jira key).
+- Compact file uses the **same basename** as the full report with **`-compact`** immediately before `.md` (for example `E2E-Report-VAP-2325-20260730-1612-leak-check-report-compact.md` when the full file is `E2E-Report-VAP-2325-20260730-1612-leak-check-report.md`).
 - Write the **full report first**, then produce the **compact report** from it (same facts, sanitized presentation).
 - **Report type** in **Metadata** must be exactly **`Detailed`** (full file) or **`Compact`** (shareable file) — no other values.
 - If a value is not verified, write **`(not verified)`** explicitly in both files.
@@ -53,28 +54,23 @@ Invoking rules can add extra required fields for their scenario.
 
 ## Document title (both reports)
 
-Every report file must start with an **H1** that includes the **run timestamp** — when the test run finished (or the report was written), in **24-hour local time**.
-
-**Timestamp format:** `YYYYMMDD-HHMMSS` (no separators in the date). Example: `20260730-161245` for 30 Jul 2026 at 16:12:45 local.
-
-**Must match filename:** The `YYYYMMDD-HHMMSS` prefix in the H1 must be **identical** to the timestamp prefix in the report filename.
-
-### Full report
+**Full** and **compact** use the **same H1 pattern**:
 
 ```markdown
-# 20260730-161245 — VAP-2325 — Reactive leak — resident follow-up E2E
+# E2E Report - VAP-2325 - 20260730-1612 - Reactive leak — resident follow-up E2E
 ```
 
-- Lead with `YYYYMMDD-HHMMSS`, then ` — `, then optional Jira key, then scenario description.
+**Pattern:** `E2E Report - <jira-ticket-id> - <YYYYMMDD-HHMM> - <scenario>`
 
-### Compact report
+| Part | Rule |
+|------|------|
+| **Prefix** | Literal `E2E Report` |
+| **Jira ticket id** | e.g. `VAP-2325`; use `NO-TICKET` when none |
+| **Timestamp** | Run finished (or report written), **24-hour local**, format **`YYYYMMDD-HHMM`** (e.g. `20260730-1612`) |
+| **Scenario** | Short scenario description (same text in full and compact) |
+| **Separators** | ` - ` (space-hyphen-space) between parts |
 
-```markdown
-# 20260730-161245 — Reactive leak — resident follow-up E2E
-```
-
-- Same timestamp prefix and scenario text as the full report.
-- Do **not** include a Jira issue key in the compact title (for example no `VAP-1234`, `VEA-567`, or similar).
+**Must match filename:** The `<jira-ticket-id>` and `<YYYYMMDD-HHMM>` in the H1 must match the filename (see [Report artifact policy](#report-artifact-policy)).
 
 Place the H1 **before** the **Metadata** section.
 
@@ -200,7 +196,7 @@ Use **team-facing environment labels** in **Metadata** and Summary (for example 
 
 For **Images** in Summary: include only **fetchable HTTPS URLs** that recipients can open (typically Marketplace/S3 testing URLs). Omit localhost or signed URLs that expire or require the author’s network.
 
-**Document title:** follow [Document title (both reports)](#document-title-both-reports) — compact uses the same `YYYYMMDD-HHMMSS` prefix; no Jira key in the H1.
+**Document title:** follow [Document title (both reports)](#document-title-both-reports) — full and compact share the same H1 pattern (including Jira key and `YYYYMMDD-HHMM`).
 
 ### Compact report structure (in this order)
 
@@ -264,7 +260,7 @@ Preferred transcript style:
   - `- **IsEmergency:** ... | **IsFrustrated:** ... | **IsPhoneCallRequested:** ...`
 - Do not add a parent bullet such as `Details:` for these two lines.
 - When a transcript message includes attached or analyzed images (for example RabbitMQ `ImageUrls`, Marketplace uploads, or stored `messages.images`), add an **Images** field **after** **Content** (user messages) or after the other assistant fields for that block. Omit **Images** when the message has no images.
-- **Images** format (use fetchable HTTPS URLs when available; resolve S3 `DocType` + `FileName` to public URL per `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc` if needed):
+- **Images** format (use fetchable HTTPS URLs when available; resolve S3 `DocType` + `FileName` to public URL per `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` if needed):
 
 ```markdown
 - **Images:**

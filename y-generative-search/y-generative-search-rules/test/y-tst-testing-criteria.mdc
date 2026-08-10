@@ -7,7 +7,7 @@ alwaysApply: false
 
 Use this rule when a work item needs a **Testing Criteria** document that Tech and QA can use to judge pass/fail **without** prescribing specific test cases.
 
-Product owners define **what must be true**; QA defines **how to test it** (see `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`).
+Product owners define **what must be true**; QA defines **how to test it** (see `.cursor/rules/y-generative-search-rules/test/y-tst-test-cases.mdc`).
 
 ## When to use
 
@@ -15,7 +15,7 @@ Product owners define **what must be true**; QA defines **how to test it** (see 
 - Domain-expert or PO review follow-ups that need explicit acceptance boundaries
 - Handoff from implementation to QA before release sign-off
 
-Do **not** use this rule for E2E run reports (use `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`) or conversation formatting (use `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`).
+Do **not** use this rule for E2E run reports (use `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`) or conversation formatting (use `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`).
 
 ## Artifact location
 
@@ -26,8 +26,12 @@ Do **not** use this rule for E2E run reports (use `.cursor/y-generative-search/y
 ## Document title
 
 ```markdown
-# <JIRA-KEY> — Testing Criteria
+# VAP-2291 - Testing Criteria - 20260730-1612
 ```
+
+**Pattern:** `<JIRA-KEY> - Testing Criteria - <YYYYMMDD-HHMM>`
+
+Use the **local** date and time when the document is **written or last substantively updated** (24-hour time, minute precision).
 
 ## Header block (required, immediately after H1)
 
@@ -102,13 +106,13 @@ Adjust or omit the semantic-equivalence line when the work item is not conversat
 
 - **B2 English:** clear, professional, short sentences.
 - **Audience:** Tech and QA; avoid implementation file paths and code-level detail in the criteria doc.
-- **No test cases:** criteria only; derive scenarios in `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`.
+- **No test cases:** criteria only; derive scenarios in `.cursor/rules/y-generative-search-rules/test/y-tst-test-cases.mdc`.
 - **Title Case:** all `##` and `###` headings (for example `## Acceptance Criteria`, `### 2. Overflow Photo Collection`).
 - Use horizontal rules (`---`) between major blocks sparingly.
 
 ## Cross-references
 
-- Test cases document: `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`
-- Single test case fields: `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`
-- E2E evidence and run artifacts: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
-- Transcript formatting from DB exports: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`
+- Test cases document: `.cursor/rules/y-generative-search-rules/test/y-tst-test-cases.mdc`
+- Single test case fields: `.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`
+- E2E evidence and run artifacts: `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+- Transcript formatting from DB exports: `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`

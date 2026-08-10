@@ -7,9 +7,9 @@ alwaysApply: false
 
 Use this rule for **all** ResiRoo end-to-end manual test runs. It replaces the archived runbooks in **`cursor_back/rules/`** (`mp-e2e-testing.mdc`, `rr-e2e-test.mdc`).
 
-**Entry point:** When starting from **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **Resiroo** first, then follow this rule. When Resiroo is already clear, invoke this rule **directly** (skip Q0).
+**Entry point:** When starting from **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **Resiroo** first, then follow this rule. When Resiroo is already clear, invoke this rule **directly** (skip Q0).
 
-Final report format: `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+Final report format: `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
 
 ---
 
@@ -26,7 +26,7 @@ Final report format: `.cursor/y-generative-search/y-generative-search-rules/insi
 | Q5 | `e2e_client_id` | Fetch only | Client id for fetch | `Use CLIENT_ID from .env.e2e.local` · `Enter specific client id` |
 | Q6 | `e2e_image_count` | Test case uses or may use resident photos | How many test images to generate? | `0 (no images)` · `1` · `2` · `3` · `Use existing images only (no generation)` |
 
-**Image generation (Q6 and sub-rules):** Do **not** call **GenerateImage** until Q6 is answered (when applicable). **`0`** is valid. Generated images must be **realistic, relevant** to the work order / test case, and **normal quality** — no over-engineered generation pipelines. Upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`**; scenario text via **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc**.
+**Image generation (Q6 and sub-rules):** Do **not** call **GenerateImage** until Q6 is answered (when applicable). **`0`** is valid. Generated images must be **realistic, relevant** to the work order / test case, and **normal quality** — no over-engineered generation pipelines. Upload via **`.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc`**; scenario text via **.cursor/rules/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc**.
 
 **Branching after Q1–Q2:**
 
@@ -100,7 +100,7 @@ Also keep **`VENDOROO_ADMIN_AUTH_BEARER`** non-empty (mock ignores validation).
 
 | Situation | Action |
 |-----------|--------|
-| **Default** | **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` |
+| **Default** | **.cursor/rules/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc` |
 | **Mock mode** | Seed `cursor_workspace/e2e_seed/`; zero real MP calls during the run |
 | **User-supplied WO** | Only when user provides real `workOrderId`, `ResidentUserId`, and verified `clientId` |
 
@@ -116,7 +116,7 @@ Also keep **`VENDOROO_ADMIN_AUTH_BEARER`** non-empty (mock ignores validation).
 
 ### Steps
 
-1. Build payload per **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc**
+1. Build payload per **.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc**
 2. Optionally seed **`pm_company_instructions`** (from `e2e_seed/instructions/{client_id}.md` in Mock mode)
 3. Publish to **`RABBITMQ_CONSUMER_QUEUE`** via [`scripts/publish_rabbitmq.py`](../../../scripts/publish_rabbitmq.py) or Management API
 4. Wait **debounce + LLM** (~1–6 min)
@@ -169,9 +169,9 @@ See archived notes in [`cursor_back/rules/resiroo/rr-e2e-test.mdc`](../../../cur
 Full orchestration (resident ingress = **SMTP email**, not RabbitMQ):
 
 1. Load `.env.e2e.local` (repo root) (never print secrets)
-2. Create or reuse WO — **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`
+2. Create or reuse WO — **.cursor/rules/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** or `.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`
 3. **ForceResiroo** — `POST /api/WorkOrder/ForceResiroo/{jobToken}` → verify success before first resident email
-4. **SMTP** — `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`: approval before **each** send; **`BulkMessageAssign` once** for first inbox message only
+4. **SMTP** — `.cursor/rules/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`: approval before **each** send; **`BulkMessageAssign` once** for first inbox message only
 5. Verify WO timeline — `GetChatMessagesByJobTokenAsync`
 
 Required constraints: see archived [`cursor_back/rules/marketplace/mp-e2e-testing.mdc`](../../../cursor_back/rules/marketplace/mp-e2e-testing.mdc).
@@ -201,7 +201,7 @@ Seed layout and mock stack: [`mp_mock/README.md`](../../../mp_mock/README.md).
 | Seed data | `cursor_workspace/e2e_seed/` |
 | Payload fixtures | `cursor_workspace/` (not repo root `ai_tests/`) |
 
-Filenames: `YYYYMMDD-HHMMSS-<scenario-slug>-report.md` (full) and `...-report-compact.md` (shareable). H1 title must use the same `YYYYMMDD-HHMMSS` run timestamp — see `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) and `...-report-compact.md` (shareable). H1: `E2E Report - <JIRA> - <YYYYMMDD-HHMM> - <scenario>` — see `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
 
 ---
 
@@ -209,31 +209,31 @@ Filenames: `YYYYMMDD-HHMMSS-<scenario-slug>-report.md` (full) and `...-report-co
 
 | Rule | When |
 |------|------|
-| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` | Entry point — Q0 Resiroo vs PMRoo when agent type not yet chosen |
-| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc** | RabbitMQ payload |
-| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** | Live WO via UI |
-| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc` | Live WO via API |
-| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc` | MP Testing SMTP |
-| **.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc** | Scenario text |
-| `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc` | Image URLs |
-| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
-| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
-| `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
-| `.cursor/y-rules/git/y-y-git-create-pr.mdc` | Open Task PR when none exists yet |
+| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` | Entry point — Q0 Resiroo vs PMRoo when agent type not yet chosen |
+| **.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc** | RabbitMQ payload |
+| **.cursor/rules/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc** | Live WO via UI |
+| `.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc` | Live WO via API |
+| `.cursor/rules/y-generative-search-rules/marketplace/y-mp-email-routing.mdc` | MP Testing SMTP |
+| **.cursor/rules/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc** | Scenario text |
+| `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` | Image URLs |
+| `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
+| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
+| `.cursor/rules/y-rules/git/y-git-create-pr.mdc` | Open Task PR when none exists yet |
 | `.cursor/rules/qa-jira-sync.mdc` | Post E2E verdict comment to Jira (optional) |
 
 ---
 
 ## Post-E2E handoff (optional — after final report)
 
-Run **only after** the E2E report is written under **`cursor_workspace/ai_test/e2e/`** per `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`. Do **not** skip the report to jump straight to Slack or Jira.
+Run **only after** the E2E report is written under **`cursor_workspace/ai_test/e2e/`** per `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`. Do **not** skip the report to jump straight to Slack or Jira.
 
 ### When this applies
 
 - E2E was run for a **Jira task** that has (or will have) a **Task PR** on GitHub.
 - The user is finishing the test pass and may want reviewers notified or the ticket moved to **In Review**.
 
-If there is **no PR yet**, mention `.cursor/y-rules/git/y-y-git-create-pr.mdc` (Task PR → **`testing`**) before Slack — Slack requires an open PR URL.
+If there is **no PR yet**, mention `.cursor/rules/y-rules/git/y-git-create-pr.mdc` (Task PR → **`testing`**) before Slack — Slack requires an open PR URL.
 
 ---
 
@@ -243,7 +243,7 @@ Before any Slack work, use **`AskQuestion`**:
 
 | Option | Meaning |
 |--------|---------|
-| **Send Slack** | Follow `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` end-to-end for this PR |
+| **Send Slack** | Follow `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` end-to-end for this PR |
 | **Skip** | Do not send Slack in this flow (default when user declines or Slack MCP unavailable) |
 | **`other`** | User wants copy-paste-only template, a different channel, or to defer |
 
@@ -251,7 +251,7 @@ In the prompt, show the **PR number and URL** from **`gh pr view`** (current bra
 
 **When the user chooses Send Slack:**
 
-1. Read and follow **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its gates (Google Calendar prerequisite when applicable, mandatory confirmation gate, full message draft).
+1. Read and follow **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its gates (Google Calendar prerequisite when applicable, mandatory confirmation gate, full message draft).
 2. Resolve PR details with **`gh pr view <n> --json url,title,body,reviewRequests,assignees`**.
 3. **Default destination:** **`#generative-search-team`** unless the user overrides in that rule.
 4. Send with **`slack_send_message`** only after all confirmations in the Slack rule.
@@ -276,7 +276,7 @@ In the prompt, show the **PR number and URL** from **`gh pr view`** (current bra
 
 ### Step P2a — Jira required fields (before transition)
 
-Follow **Jira required fields before In Review (see `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** in **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — same checklist and re-check loop for **all** In Review transitions from E2E handoff.
+Follow **Jira required fields before In Review (see `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** in **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — same checklist and re-check loop for **all** In Review transitions from E2E handoff.
 
 **Summary — all ten fields must be filled before transition:**
 
@@ -310,8 +310,8 @@ Follow **Jira required fields before In Review (see `.cursor/y-generative-search
 - Do **not** send Slack before the E2E report exists (unless the user explicitly overrides).
 - Do **not** auto-send Slack or auto-transition Jira without **`AskQuestion`** confirmation.
 - Do **not** move Jira to **In Review** before the user's explicit **Yes** (whether asked from the Slack rule or Step P2).
-- Do **not** transition Jira without running **Step P2a** / **Jira required fields before In Review (see `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** (re-fetch after user fills gaps).
-- Do **not** include the **calendar reminder sentence** in Slack unless the user confirmed the PR review meeting is on Google Calendar (per **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**).
+- Do **not** transition Jira without running **Step P2a** / **Jira required fields before In Review (see `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** (re-fetch after user fills gaps).
+- Do **not** include the **calendar reminder sentence** in Slack unless the user confirmed the PR review meeting is on Google Calendar (per **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**).
 - Do **not** invent PR URLs or Jira keys — resolve from **`gh pr view`** and branch/report metadata.
 
 ---

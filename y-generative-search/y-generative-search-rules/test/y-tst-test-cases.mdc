@@ -9,7 +9,7 @@ Use this rule when a work item needs a **Test Cases** document: a concise, execu
 
 **Criteria vs test cases:**
 
-- **Testing Criteria** (`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-testing-criteria.mdc`) — what must be true (Pass/Fail requirements).
+- **Testing Criteria** (`.cursor/rules/y-generative-search-rules/test/y-tst-testing-criteria.mdc`) — what must be true (Pass/Fail requirements).
 - **Test Cases** (this rule) — how to exercise those requirements (steps, evidence).
 
 Do **not** duplicate acceptance criteria prose here; **reference criterion numbers** in each case **Goal** when traceability helps.
@@ -20,9 +20,9 @@ Do **not** duplicate acceptance criteria prose here; **reference criterion numbe
 - QA handoff, regression planning, or manual E2E prep for behavior changes.
 - User asks for “test cases for this task/ticket” at document level (not a single ad-hoc case).
 
-For **one standalone test case** in chat only, use **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`** directly.
+For **one standalone test case** in chat only, use **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`** directly.
 
-Do **not** use this rule for E2E run reports (`.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`).
+Do **not** use this rule for E2E run reports (`.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`).
 
 ## Artifact location
 
@@ -33,8 +33,12 @@ Do **not** use this rule for E2E run reports (`.cursor/y-generative-search/y-gen
 ## Document title
 
 ```markdown
-# <JIRA-KEY> — Test Cases
+# VAP-2291 - Test Cases - 20260730-1612
 ```
+
+**Pattern:** `<JIRA-KEY> - Test Cases - <YYYYMMDD-HHMM>`
+
+Use the **local** date and time when the document is **written or last substantively updated** (24-hour time, minute precision).
 
 ## Header block (required, immediately after H1)
 
@@ -62,13 +66,13 @@ Each test case is one `###` subsection, separated by `---` from the next.
 ### TST-<AREA>-<NNN> — <Short Title In Title Case>
 ```
 
-- **Code and title rules:** follow **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`** (`TST-<AREA>-<NNN>`, unique within the document).
+- **Code and title rules:** follow **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`** (`TST-<AREA>-<NNN>`, unique within the document).
 - **AREA examples:** `BUG`, `WO`, `CASE`, `REG` — pick one area prefix per work item when possible.
 - **Numbering:** `001`, `002`, … in execution priority order (core paths first, edge cases later).
 
 ### Fields per test case (required)
 
-Every test case **must** include all fields from **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`**, using **bold labels**:
+Every test case **must** include all fields from **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`**, using **bold labels**:
 
 ```markdown
 ### TST-<AREA>-<NNN> — <Short Title>
@@ -87,7 +91,7 @@ Every test case **must** include all fields from **`.cursor/y-generative-search/
   - <field names, ids, transcript snippets>
 ```
 
-**Per-case rules** (from `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-case.mdc`, applied here):
+**Per-case rules** (from `.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`, applied here):
 
 - Short bullets; one action per step.
 - **Expected result** must be pass/fail measurable (no vague “works correctly”).
@@ -124,7 +128,7 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 - **Scope:** test cases only; no product essays or code paths.
 - **Title Case:** test case titles in `###` headings.
 - **Resident messages:** write natural opener text in **Steps** (quoted or after “Report:”).
-- **Environment:** mention MP (Testing) or Local in preconditions when relevant; do not duplicate full E2E runbooks (see `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` at execution time).
+- **Environment:** mention MP (Testing) or Local in preconditions when relevant; do not duplicate full E2E runbooks (see `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` at execution time).
 
 ---
 
@@ -145,12 +149,12 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 |------|-----|
 | `y-tst-test-case.mdc` | Single test case field definitions and quality checks |
 | `y-tst-testing-criteria.mdc` | Parent Testing Criteria document structure |
-| `.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case |
-| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` | E2E entry point — Q0 Resiroo vs PMRoo, then delegates to path sub-rule |
-| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` | ResiRoo E2E runbook (Local / MP Testing, RabbitMQ / Chat API / SMTP) |
-| `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc` | PMRoo E2E runbook — defaults **Local + mp_mock**; remote MP/n8n opt-in |
+| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case |
+| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` | E2E entry point — Q0 Resiroo vs PMRoo, then delegates to path sub-rule |
+| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` | ResiRoo E2E runbook (Local / MP Testing, RabbitMQ / Chat API / SMTP) |
+| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc` | PMRoo E2E runbook — defaults **Local + mp_mock**; remote MP/n8n opt-in |
 | `resiroo/create-work-order-in-marketplace.mdc` | MP WO setup when preconditions require it (Resiroo) |
-| `.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc` | PMRoo Chat API payload when preconditions require it |
+| `.cursor/rules/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc` | PMRoo Chat API payload when preconditions require it |
 
 ## Example reference
 
