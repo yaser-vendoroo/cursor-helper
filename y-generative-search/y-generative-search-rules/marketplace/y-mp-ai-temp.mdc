@@ -7,7 +7,7 @@ alwaysApply: false
 
 # Marketplace: temporary files (`cursor_workspace`)
 
-Whenever you create **any** throwaway file while following **`.cursor/y-generative-search/y-generative-search-rules/marketplace/`** rules—multipart bodies, downloaded JSON, staged images before **`aws s3 cp`**, **`mktemp`** targets, **`curl -o`** dumps, one-off script outputs, or similar—write **only** under:
+Whenever you create **any** throwaway file while following **`.cursor/rules/y-generative-search-rules/marketplace/`** rules—multipart bodies, downloaded JSON, staged images before **`aws s3 cp`**, **`mktemp`** targets, **`curl -o`** dumps, one-off script outputs, or similar—write **only** under:
 
 ``cursor_workspace/``
 

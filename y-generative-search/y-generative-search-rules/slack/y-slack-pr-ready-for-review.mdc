@@ -64,7 +64,7 @@ Only **after** Step A handoff or draft create, ask whether the PR review meeting
 
 The calendar reminder sentence must **not** appear unless the user confirms the meeting exists.
 
-**When invoked from Task PR flow (`y-git-create-pr.mdc`):** Step A = Task PR step 16 (Google Calendar PR review meeting (see `.cursor/y-rules/git/y-y-git-create-pr.mdc`)). Step B + Slack gate = step 17 — only after step 16 is satisfied.
+**When invoked from Task PR flow (`y-git-create-pr.mdc`):** Step A = Task PR step 16 (Google Calendar PR review meeting (see `.cursor/rules/y-rules/git/y-git-create-pr.mdc`)). Step B + Slack gate = step 17 — only after step 16 is satisfied.
 
 ---
 
@@ -130,7 +130,7 @@ Rules:
 
 ## Jira required fields before In Review
 
-**Applies whenever** a flow moves a VAP task to **In Review** — including post-Slack confirmation, **y-git-create-pr** Task PR step 17, and **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` Step P2**.
+**Applies whenever** a flow moves a VAP task to **In Review** — including post-Slack confirmation, **y-git-create-pr** Task PR step 17, and **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` Step P2**.
 
 **Do not** call **`transitionJiraIssue`** until **all ten** required fields below are filled. If any are missing, **stop**, list them, and **wait** for the user to update Jira — then **re-fetch** and re-check. There is **no** “proceed anyway” skip for these fields.
 

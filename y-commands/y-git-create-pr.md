@@ -4,9 +4,9 @@ description: Create a Task PR (→ testing), Hotfix PR (→ production), or Rele
 
 # Git: create PR (`/y-git-create-pr`)
 
-Port of **`.cursor/y-rules/git/y-git-create-pr.mdc`**.
+Port of **`.cursor/rules/y-rules/git/y-git-create-pr.mdc`**.
 
-**Read and follow [`.cursor/y-rules/git/y-git-create-pr.mdc`](../y-rules/git/y-git-create-pr.mdc) end-to-end** for every step, gate, template, and pitfall. This command is the entry point; the rule file is the full specification.
+**Read and follow [`.cursor/rules/y-rules/git/y-git-create-pr.mdc`](../y-rules/git/y-git-create-pr.mdc) end-to-end** for every step, gate, template, and pitfall. This command is the entry point; the rule file is the full specification.
 
 ---
 
@@ -32,7 +32,7 @@ After the choice, follow **only** the matching section in **y-git-create-pr.mdc*
 |------------------------|------|
 | [y-git-branch-name.mdc](../y-rules/git/y-git-branch-name.mdc) or `/y-git-branch-name` | Task PR branch naming |
 | [y-git-track-new-files.mdc](../y-rules/git/y-git-track-new-files.mdc) or `/y-git-track-new-files` | New task files still untracked |
-| `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Task PR — optional Slack after create |
+| `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Task PR — optional Slack after create |
 | [`y-agt-gc-meet-helper.mdc`](../y-rules/agent/y-agt-gc-meet-helper.mdc) | Task PR — Calendar step before Slack |
 
 ---

@@ -4,9 +4,9 @@ description: Analyze uncommitted changes, propose grouped Conventional Commits, 
 
 # Git: commits (`/y-git-commits`)
 
-Port of **`.cursor/y-rules/git/y-git-commits.mdc`**.
+Port of **`.cursor/rules/y-rules/git/y-git-commits.mdc`**.
 
-**Read and follow [`.cursor/y-rules/git/y-git-commits.mdc`](../y-rules/git/y-git-commits.mdc) end-to-end** for every phase, gate, grouping rule, and pitfall. This command is the entry point; the rule file is the full specification.
+**Read and follow [`.cursor/rules/y-rules/git/y-git-commits.mdc`](../y-rules/git/y-git-commits.mdc) end-to-end** for every phase, gate, grouping rule, and pitfall. This command is the entry point; the rule file is the full specification.
 
 ---
 

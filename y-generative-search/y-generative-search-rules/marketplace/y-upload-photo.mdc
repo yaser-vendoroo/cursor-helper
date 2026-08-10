@@ -11,7 +11,7 @@ alwaysApply: false
 
 Use this rule whenever you need a **real image file** available at a **stable HTTPS URL** for automated or manual tests (ResiRoo **`ImageUrls`**, Roo image flows, curl, Marketplace multipart where a URL is accepted, etc.).
 
-Stage copies or generated test images under **`cursor_workspace/`** per **y-mp-ai-temp** (`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`) — **not** the repo root.
+Stage copies or generated test images under **`cursor_workspace/`** per **y-mp-ai-temp** (`.cursor/rules/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`) — **not** the repo root.
 
 ## Before generating or uploading
 
@@ -20,7 +20,7 @@ Stage copies or generated test images under **`cursor_workspace/`** per **y-mp-a
 3. **Quality bar** (when generating):
    - **Realistic and relevant** to the work order and test case.
    - **Normal quality** — one clear prompt per image; tenant-style snapshots. Do **not** over-engineer (no PIL/script fallbacks, extra retry pipelines, or ultra-detailed prompts unless a label must be readable).
-   - Details: **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc`** §4.
+   - Details: **`.cursor/rules/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc`** §4.
 
 ## Where configuration lives
 
@@ -104,7 +104,7 @@ aws s3 presign "s3://${AWS_S3_BUCKET_NAME}/${KEY}" --expires-in 3600 --region "$
 ## Use the URL in tests
 
 - **RabbitMQ / ResiRoo payloads:** JSON **`AdditionalData.ImageUrls`** expects entries the service can **HTTP GET** (see **[`my_docs/local_image_flow_testing.md`](../../../my_docs/local_image_flow_testing.md)** in this repo). Use **`https://...`** URLs, not `file://` paths.
-- **Marketplace UI / API:** Prefer **multipart** uploads where the API expects bytes (**`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, **`POST /api/Chat/Add`**, etc.). Use **S3 URLs** when the flow explicitly consumes a **URL** (e.g. some payloads or copy-paste fixtures).
+- **Marketplace UI / API:** Prefer **multipart** uploads where the API expects bytes (**`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, **`POST /api/Chat/Add`**, etc.). Use **S3 URLs** when the flow explicitly consumes a **URL** (e.g. some payloads or copy-paste fixtures).
 
 ## Troubleshooting
 
@@ -118,4 +118,4 @@ aws s3 presign "s3://${AWS_S3_BUCKET_NAME}/${KEY}" --expires-in 3600 --region "$
 ## Scope
 
 - **In scope:** one-off or scripted **S3 upload → URL → paste into test JSON / env / script**; alignment with **`file_utils`** path layout.
-- **Out of scope:** changing bucket IAM or org security policy (escalate to infra); **Marketplace-native** file upload flows (use **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** / Chat rules for multipart).
+- **Out of scope:** changing bucket IAM or org security policy (escalate to infra); **Marketplace-native** file upload flows (use **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** / Chat rules for multipart).

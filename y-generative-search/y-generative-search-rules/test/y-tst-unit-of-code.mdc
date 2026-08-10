@@ -15,7 +15,7 @@ This is **interactive verification**: read the code, choose cases, **run them** 
 ## What this is not
 
 - **Not** a substitute for automated tests when the user explicitly asks for `pytest` or CI.
-- **Not** ResiRoo E2E — use **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** (Q0 = Resiroo) or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** directly.
+- **Not** ResiRoo E2E — use **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`** (Q0 = Resiroo) or **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** directly.
 - **Not** permission to refactor unrelated code or “fix” style without a separate request.
 - **Not** an excuse to skip reading the implementation—cases must map to real branches and contracts.
 

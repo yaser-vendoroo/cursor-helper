@@ -4,6 +4,6 @@ description: Test-cases document structure for a work item (docs/JIRA/test-cases
 
 # Test: test cases document (`/y-tst-test-cases`)
 
-Read and follow **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`** end-to-end.
+Read and follow **`.cursor/rules/y-generative-search-rules/test/y-tst-test-cases.mdc`** end-to-end.
 
-Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-testing-criteria.mdc`** for acceptance boundaries.
+Pair with **`.cursor/rules/y-generative-search-rules/test/y-tst-testing-criteria.mdc`** for acceptance boundaries.

@@ -5,7 +5,7 @@ alwaysApply: false
 
 # PMRoo — verify `register_pm_requests`
 
-Use **after** a PMRoo E2E chat turn (or multi-turn flow). Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo).
+Use **after** a PMRoo E2E chat turn (or multi-turn flow). Pair with **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo).
 
 **Local default:** Layers 1–2 only. Skip Langfuse, MP timeline, and n8n unless the user explicitly opted into remote verification in pre-flight.
 
@@ -120,7 +120,7 @@ WHERE c.session_id = '<session_uuid>'
 ORDER BY m.created_at;
 ```
 
-Use for transcript section of E2E report — see **`.cursor/y-generative-search/y-generative-search-rules/insight/y-ins-conversation.mdc`**.
+Use for transcript section of E2E report — see **`.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`**.
 
 ---
 

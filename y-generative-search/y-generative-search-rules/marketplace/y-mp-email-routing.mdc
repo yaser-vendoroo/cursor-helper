@@ -7,7 +7,7 @@ alwaysApply: false
 
 Use this rule when the user wants a **natural resident conversation** through real email, then routed into a specific Marketplace work order.
 
-For full scenario orchestration (WO creation + resident ingress + final reporting), prefer **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** and use this rule as the focused email-routing substep.
+For full scenario orchestration (WO creation + resident ingress + final reporting), prefer **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** and use this rule as the focused email-routing substep.
 
 ## Scope
 

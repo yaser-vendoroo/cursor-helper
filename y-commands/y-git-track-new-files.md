@@ -4,7 +4,7 @@ description: Stage new task-related files so nothing important stays untracked b
 
 # Git: track new files (`/y-git-track-new-files`)
 
-Port of **`.cursor/y-rules/git/y-git-track-new-files.mdc`**. Use during or at the end of implementation when new files were created for the task.
+Port of **`.cursor/rules/y-rules/git/y-git-track-new-files.mdc`**. Use during or at the end of implementation when new files were created for the task.
 
 ---
 

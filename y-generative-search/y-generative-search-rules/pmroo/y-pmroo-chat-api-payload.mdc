@@ -5,7 +5,7 @@ alwaysApply: false
 
 # PMRoo manual test — Chat API payload
 
-Use when building **`POST /chat/api/chat`** for **`user_type: property_manager`**. Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo) for environment, verification, and reporting.
+Use when building **`POST /chat/api/chat`** for **`user_type: property_manager`**. Pair with **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** (or **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = PMRoo) for environment, verification, and reporting.
 
 ---
 
@@ -93,13 +93,13 @@ curl -sS "http://localhost:8099/api/WorkOrder/ById/158220"
 
 Expect JSON with `woNumber`, `jobToken`, `clientId` matching payload `meta_data`. If 404, run **`make mp-mock-seed`** and confirm `cursor_workspace/e2e_seed` is populated.
 
-**Attachments (local-only):** prefer **no files** (Q5=`0`). Real S3 upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** hits AWS — opt-in only.
+**Attachments (local-only):** prefer **no files** (Q5=`0`). Real S3 upload via **`.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc`** hits AWS — opt-in only.
 
 ---
 
 ## Opt-in remote (MP Testing)
 
-Use only when the user explicitly chose remote MP Testing + Live MP APIs in **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** pre-flight.
+Use only when the user explicitly chose remote MP Testing + Live MP APIs in **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** pre-flight.
 
 ### Configuration (`.env.e2e.local`)
 
@@ -199,7 +199,7 @@ Keep **`session_id` constant** across turns of the **same** scenario; still use 
 
 When the test includes files and user opted into remote/S3:
 
-1. Upload via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** (`pmroo/` path under `docs-dev/`)
+1. Upload via **`.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc`** (`pmroo/` path under `docs-dev/`)
 2. Attach to **user** message `meta_data.attachments`:
 
 ```json
@@ -233,7 +233,7 @@ Log **`session_id`** in report. Do **not** use Langfuse for local runs.
 
 ## Related
 
-- **`.cursor/y-generative-search/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc`** — after send
-- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** — full PMRoo runbook (entry: **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`**)
+- **`.cursor/rules/y-generative-search-rules/pmroo/y-pmroo-verify-register-pm-requests.mdc`** — after send
+- **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`** — full PMRoo runbook (entry: **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**)
 - **`services/roo/app/api/routers/chat.py`** — `prepare_params`, developer context injection
 - **`services/roo/app/engine/tools/vendoroo/pm.py`** — `register_pm_requests`

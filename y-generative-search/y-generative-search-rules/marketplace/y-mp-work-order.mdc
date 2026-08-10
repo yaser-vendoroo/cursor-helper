@@ -4,7 +4,7 @@ description: >-
   `.env.e2e.local` for JWT, API base, `CLIENT_ID`, and `locationId` from
   `LOCATION_ID` / `MARKETPLACE_LOCATION_ID` or resolved from `LOCATION` per
   y-mp-location; multipart `POST /api/WorkOrder` then `GET /api/WorkOrder/{jobToken}`.
-  For full UI + triage + Start Resiroo, use `.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc`.
+  For full UI + triage + Start Resiroo, use `.cursor/rules/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc`.
 alwaysApply: false
 ---
 
@@ -37,10 +37,10 @@ Read **only** from:
   - **`VENDOROO_BASE_API_URL`**: if unset, derive from **`MARKETPLACE_URL`** (testing UI → `https://api-testing-marketplace.vendoroo.ai`).
   - **Non-browser clients:** send a **browser-like `User-Agent`**, and set **`Origin`** + **`Referer`** to **`MARKETPLACE_URL`** (testing MP API returns **403** without `User-Agent` even with a valid JWT).
 - **Work order payload**
-  - **`CLIENT_ID`** (integer): `clientId` on the create DTO. If you only have **`CLIENT`** (name hint), resolve **`id`** via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`** (`SearchByName` / `SearchWithPagination`) before creating the WO.
+  - **`CLIENT_ID`** (integer): `clientId` on the create DTO. If you only have **`CLIENT`** (name hint), resolve **`id`** via **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-client.mdc`** (`SearchByName` / `SearchWithPagination`) before creating the WO.
   - **`locationId` (integer):** resolve in this order:
     1. **`LOCATION_ID`** or **`MARKETPLACE_LOCATION_ID`** if set in **`.env.e2e.local`**.
-    2. Else use **`LOCATION`** (label string in the same file) + **`CLIENT_ID`** and call the Marketplace Location APIs per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** — prefer **`GET …/api/Location/SearchLocations`** (`SearchText` = `LOCATION`, `ClientId` = `CLIENT_ID`, **`PageNumber=1`** if you pass pagination; **`PageNumber=0` causes 500** on testing). If search misses, use **`GET …/api/Location/GetByClientId?clientId=`** and pick the row whose **`name`** matches **`LOCATION`** (exact match preferred).
+    2. Else use **`LOCATION`** (label string in the same file) + **`CLIENT_ID`** and call the Marketplace Location APIs per **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** — prefer **`GET …/api/Location/SearchLocations`** (`SearchText` = `LOCATION`, `ClientId` = `CLIENT_ID`, **`PageNumber=1`** if you pass pagination; **`PageNumber=0` causes 500** on testing). If search misses, use **`GET …/api/Location/GetByClientId?clientId=`** and pick the row whose **`name`** matches **`LOCATION`** (exact match preferred).
     3. Optionally persist the resolved id as **`MARKETPLACE_LOCATION_ID`** in **`.env.e2e.local`** for faster reruns (do not commit secrets).
   - **`MARKETPLACE_URL`:** used for **`Origin`** / **`Referer`** and the workspace URL after create.
 
@@ -58,7 +58,7 @@ Read **only** from:
 | JSON field | Value |
 |------------|--------|
 | `clientId` | From **`CLIENT_ID`** |
-| `locationId` | From **`LOCATION_ID`** / **`MARKETPLACE_LOCATION_ID`**, or resolve **`LOCATION`** via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** |
+| `locationId` | From **`LOCATION_ID`** / **`MARKETPLACE_LOCATION_ID`**, or resolve **`LOCATION`** via **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** |
 | `description` | Short plain-text title/summary (string) |
 | `scopeOfWorkSummary` | HTML string for the issue body (e.g. `<p>…</p>`); backend appends “Created through / Created by” blocks |
 | `sendUpdateToChatMessages` | `false` (required by schema) |
@@ -66,7 +66,7 @@ Read **only** from:
 | `recurring` | `false` |
 | `startSyncout` | `false` |
 
-Optional part **`Documents`**: binary file uploads (same as Swagger); omit if none. For **HTTPS image URLs** used in RabbitMQ / Roo payloads (fetchable by the service), upload to S3 per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** instead of inventing hosts.
+Optional part **`Documents`**: binary file uploads (same as Swagger); omit if none. For **HTTPS image URLs** used in RabbitMQ / Roo payloads (fetchable by the service), upload to S3 per **`.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc`** instead of inventing hosts.
 
 **Response:** `200` with `data` containing at least **`jobToken`** (UUID), **`woNumber`**, **`clientId`**, **`locationId`**, **`clientName`**, **`scopeOfWorkSummary`**, status **Triage**, etc.
 
@@ -125,10 +125,10 @@ Include a compact summary:
 ## Scope and alternatives
 
 - **In scope:** create WO + return identifiers for later RabbitMQ / Roo / scripts.
-- **Out of scope:** creating clients, residents, or locations; use **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`**, **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-resident.mdc`**, and **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** first when needed. **Start Resiroo** / **`ForceResiroo`** / waiting for triage remain in **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc`** for UI-heavy flows.
+- **Out of scope:** creating clients, residents, or locations; use **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-client.mdc`**, **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-resident.mdc`**, and **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** first when needed. **Start Resiroo** / **`ForceResiroo`** / waiting for triage remain in **`.cursor/rules/y-generative-search-rules/resiroo/y-create-work-order-in-marketplace.mdc`** for UI-heavy flows.
 - **`POST /api/WorkOrder/Submit`** + **`PublicWorkOrderSubmissionDto`** is for **public** submission flows (`submissionMethod`, `clientToken`, etc.)—not the workspace **Staff** create validated here.
-- **Natural resident email follow-up** (SMTP send, inbox assignment to WO) is handled by **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`** to avoid duplicating routing steps in this rule.
-- For full ResiRoo E2E scenarios (WO + resident message + reporting), use **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** as the orchestration rule.
+- **Natural resident email follow-up** (SMTP send, inbox assignment to WO) is handled by **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`** to avoid duplicating routing steps in this rule.
+- For full ResiRoo E2E scenarios (WO + resident message + reporting), use **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** as the orchestration rule.
 - For newly created WOs that will be used in resident/Resiroo conversation, start Resiroo before SMTP conversation steps (preferred API: **`POST /api/WorkOrder/ForceResiroo/{jobToken}`**; UI **Start Resiroo Manually** is fallback).
 
 ## If `POST /api/WorkOrder` fails

@@ -201,7 +201,7 @@ Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select,
 ### Path A — Generate title and description only
 
 6. **Handoff** — user copies styled description and title into Calendar; adds guests, time, and Meet **manually**.
-7. Do **not** claim the meeting exists until the user confirms (Slack calendar line in `.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`).
+7. Do **not** claim the meeting exists until the user confirms (Slack calendar line in `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`).
 
 ### Path B — Create draft event in Google Calendar
 
@@ -232,4 +232,4 @@ Present a table; **`AskQuestion`** for scope when 0 or 2+ matches (multi-select,
 ## Related rules
 
 - [`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc) — Task PR step 16: run this helper; step 0 asks generate vs create draft.
-- **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — Slack calendar line only after the meeting exists on Calendar.
+- **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — Slack calendar line only after the meeting exists on Calendar.

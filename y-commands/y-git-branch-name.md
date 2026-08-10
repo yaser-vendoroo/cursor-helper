@@ -4,7 +4,7 @@ description: Create or confirm a task branch name (type/JIRA-key/desc) before ch
 
 # Git: branch name (`/y-git-branch-name`)
 
-Port of **`.cursor/y-rules/git/y-git-branch-name.mdc`**. Use when the user needs a **new branch**, wants to **confirm a branch name**, or before `git checkout -b`.
+Port of **`.cursor/rules/y-rules/git/y-git-branch-name.mdc`**. Use when the user needs a **new branch**, wants to **confirm a branch name**, or before `git checkout -b`.
 
 **Do not** run `git checkout -b` or create a branch until the user confirms the name via **`AskQuestion`**.
 

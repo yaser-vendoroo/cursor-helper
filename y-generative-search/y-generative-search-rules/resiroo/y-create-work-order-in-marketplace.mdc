@@ -31,7 +31,7 @@ When the user asks to **create a work order** (or similar: “new WO in MP”, �
 
 ## Agent responsibility (when this rule applies)
 
-- **Create the work order in Marketplace through its web app** — not via a substitute script or invented API **unless** the user explicitly chooses another method **or** **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** is in scope (that rule documents the verified **`POST …/api/WorkOrder`** multipart API path for fast testing).
+- **Create the work order in Marketplace through its web app** — not via a substitute script or invented API **unless** the user explicitly chooses another method **or** **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** is in scope (that rule documents the verified **`POST …/api/WorkOrder`** multipart API path for fast testing).
 - **Do the full UI path:** load **`MARKETPLACE_URL`** and credentials from **`.env.e2e.local`**, **open MP**, **log in**, then **create a new work order** whose title, **issue description**, priority/labels, category, and resident/location match the **scenario the user gave** (e.g. weather-related, emergency, plumbing). The **issue description** field on the form is **required** — **do not** submit until it is filled with a clear maintenance/issue narrative (see step 8 below).
 - Use the **browser automation tools** available in Cursor when you can (navigate, snapshot, fill forms). If login is blocked (CAPTCHA, SSO, unknown selector, missing permission to `source` the env file), **stop**, say what failed, and ask the user to complete that step or provide a session.
 - **Do not** claim the job is done after submit alone when the user asked to **create a work order** in the default sense — see **What “create a work order” means** above. **Do not** claim the WO is fully ready for ResiRoo testing until **Start Resiroo Manually** has been **verified** per **Verify Start Resiroo Manually** (unless the user opted out of Resiroo).
@@ -74,14 +74,14 @@ Use a **small table or bullet list** in the reply (markdown is fine). **Do not**
 
 ## How this fits other rules
 
-- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** — **API-only** WO create (**`POST …/api/WorkOrder`** multipart + GETs); no MP UI, no triage wait, no **Start Resiroo**. Use when speed matters and Resiroo setup is not required.
-- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** — unified ResiRoo E2E orchestration (Local / MP Testing, RabbitMQ / Chat API / SMTP, Live APIs / Mock), including approval-before-send and one-time first-message inbox assignment for MP Testing paths.
-- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`** — real SMTP resident email flow and **Client Inbox -> Move To Work Order** assignment (`BulkMessageAssign`) when conversation must stay natural through email.
-- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** — resolve **`LOCATION`** → **`locationId`** (**`SearchLocations`** / **`GetByClientId`**) and Location CRUD for MP API scripts.
-- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`** — resolve **`CLIENT`** → **`CLIENT_ID`** (**`SearchByName`** / **`SearchWithPagination`**) and Client CRUD for MP API scripts.
-- **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-upload-photo.mdc`** — put test images on **S3** (env from **`.env.e2e.local`**) and build **HTTPS URLs** for **`ImageUrls`** / fetchable fixtures.
-- **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** needs a valid **`ObjectId`** (WO id) and related context; **`GET …/api/WorkOrder/ById/{id}`** must return a non-empty **`clientId`** (or mock seed when in Mock mode). Creating a WO in MP (testing) is the usual way to obtain that for Live API runs.
-- After you have ids, build payloads with **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** and run the stack steps in **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`**.
+- **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** — **API-only** WO create (**`POST …/api/WorkOrder`** multipart + GETs); no MP UI, no triage wait, no **Start Resiroo**. Use when speed matters and Resiroo setup is not required.
+- **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** — unified ResiRoo E2E orchestration (Local / MP Testing, RabbitMQ / Chat API / SMTP, Live APIs / Mock), including approval-before-send and one-time first-message inbox assignment for MP Testing paths.
+- **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`** — real SMTP resident email flow and **Client Inbox -> Move To Work Order** assignment (`BulkMessageAssign`) when conversation must stay natural through email.
+- **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** — resolve **`LOCATION`** → **`locationId`** (**`SearchLocations`** / **`GetByClientId`**) and Location CRUD for MP API scripts.
+- **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-client.mdc`** — resolve **`CLIENT`** → **`CLIENT_ID`** (**`SearchByName`** / **`SearchWithPagination`**) and Client CRUD for MP API scripts.
+- **`.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc`** — put test images on **S3** (env from **`.env.e2e.local`**) and build **HTTPS URLs** for **`ImageUrls`** / fetchable fixtures.
+- **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** needs a valid **`ObjectId`** (WO id) and related context; **`GET …/api/WorkOrder/ById/{id}`** must return a non-empty **`clientId`** (or mock seed when in Mock mode). Creating a WO in MP (testing) is the usual way to obtain that for Live API runs.
+- After you have ids, build payloads with **`.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** and run the stack steps in **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`**.
 
 ## Configuration: `.env.e2e.local` (required)
 
@@ -256,5 +256,5 @@ Confirm **`clientId`** is **non-empty**, **`aiResidentComData.resident.userId`**
 
 ## Next steps
 
-1. Fill RabbitMQ JSON using **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** with the new **`ObjectId`** and **`ResidentUserId`**.
-2. Execute **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (ingress, queue or chat API, debounce if RabbitMQ, Postgres verification, report).
+1. Fill RabbitMQ JSON using **`.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** with the new **`ObjectId`** and **`ResidentUserId`**.
+2. Execute **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (ingress, queue or chat API, debounce if RabbitMQ, Postgres verification, report).

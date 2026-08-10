@@ -107,14 +107,14 @@ GET {api}/api/UserContactInformation/GetOrCreateResidentUser?phoneNumber=%2B1555
 
 Use resulting `residentUserId` as:
 
-- `AdditionalData.ResidentUserId` in `.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`
-- resident identity context in `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`
-- resident-related E2E steps in `.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`
+- `AdditionalData.ResidentUserId` in `.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`
+- resident identity context in `.cursor/rules/y-generative-search-rules/marketplace/y-mp-email-routing.mdc`
+- resident-related E2E steps in `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`
 
 For client and location ids used alongside residents:
 
-- `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`
-- `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`
+- `.cursor/rules/y-generative-search-rules/marketplace/y-mp-client.mdc`
+- `.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`
 
 ---
 

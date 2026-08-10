@@ -8,7 +8,7 @@ alwaysApply: false
 
 # Marketplace: Location API (`y-mp-location`)
 
-Use this rule for **Location** operations on **Marketplace testing** via HTTP—especially **`LOCATION` → `locationId`** for **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** and scripts. Resolve **`CLIENT` → `CLIENT_ID`** first when needed via **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-client.mdc`**.
+Use this rule for **Location** operations on **Marketplace testing** via HTTP—especially **`LOCATION` → `locationId`** for **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** and scripts. Resolve **`CLIENT` → `CLIENT_ID`** first when needed via **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-client.mdc`**.
 
 Any saved responses, debug JSON, or scratch files: **`cursor_workspace/`** per **y-mp-ai-temp**.
 
@@ -102,7 +102,7 @@ Use Swagger when you need:
 
 ## Linking to work orders
 
-After resolving **`locationId`** from **`LOCATION`**, pass it to **`POST /api/WorkOrder`** (multipart `WorkOrder` JSON) per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**. Optionally store **`MARKETPLACE_LOCATION_ID=<id>`** in **`.env.e2e.local`** to skip lookup on repeat runs (do not commit secrets).
+After resolving **`locationId`** from **`LOCATION`**, pass it to **`POST /api/WorkOrder`** (multipart `WorkOrder` JSON) per **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**. Optionally store **`MARKETPLACE_LOCATION_ID=<id>`** in **`.env.e2e.local`** to skip lookup on repeat runs (do not commit secrets).
 
 ---
 

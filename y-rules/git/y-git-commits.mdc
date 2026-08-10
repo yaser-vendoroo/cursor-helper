@@ -81,7 +81,7 @@ Show a table for each proposed commit:
 |---|------|-----------|-----------------|---------------|
 | 1 | `feat` | `VAP-1234` | `services/roo/...` | `feat(VAP-1234): add ceiling triage routing` |
 
-For each commit, also show a **draft full message** (subject + 1–2 past-tense bullets + `Refs` footer) following [`.cursor/y-commands/y-git-commit-message.md`](../../y-commands/y-git-commit-message.md) conventions — **reference that file** for subject, body, and footer rules; do not duplicate the entire spec here.
+For each commit, also show a **draft full message** (subject + 1–2 past-tense bullets + `Refs` footer) following [`.cursor/commands/y-commands/y-git-commit-message.md`](../../y-commands/y-git-commit-message.md) conventions — **reference that file** for subject, body, and footer rules; do not duplicate the entire spec here.
 
 Then **`AskQuestion`** — commit plan gate (see [AskQuestion gates](#askquestion-gates-mandatory)). If the user picks **Edit plan**, apply changes and **`AskQuestion`** again for re-confirm.
 
@@ -144,7 +144,7 @@ After all commits:
 | Option | Action |
 |--------|--------|
 | **Push to origin** | `git push -u origin HEAD` (only after confirmation; no force-push unless user explicitly asks) |
-| **Create PR** | Delegate to [`.cursor/y-commands/y-git-create-pr.md`](../../y-commands/y-git-create-pr.md) |
+| **Create PR** | Delegate to [`.cursor/commands/y-commands/y-git-create-pr.md`](../../y-commands/y-git-create-pr.md) |
 | **Done** | Stop |
 | **`other`** | User specifies next step in chat |
 

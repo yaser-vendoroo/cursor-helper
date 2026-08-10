@@ -5,7 +5,7 @@ alwaysApply: false
 
 # Maintenance work orders (resident content + full template)
 
-Use this when you need **sample work orders**, **test fixtures**, **marketplace-style WO text**, or **realistic resident submissions** for maintenance triage (e.g. Resiroo). Pair with **`.cursor/y-generative-search/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** when the output must map to RabbitMQ / **`AdditionalData`**.
+Use this when you need **sample work orders**, **test fixtures**, **marketplace-style WO text**, or **realistic resident submissions** for maintenance triage (e.g. Resiroo). Pair with **`.cursor/rules/y-generative-search-rules/resiroo/y-resiroo-manual-work-order-payload.mdc`** when the output must map to RabbitMQ / **`AdditionalData`**.
 
 ## Image generation (AskQuestion first)
 
@@ -17,7 +17,7 @@ Before **GenerateImage** (or any image tool):
 2. Options must include **`0 (no images)`** and small counts (**`1`**, **`2`**, **`3`**). Add **`Use existing images only (no generation)`** when assets may already exist.
 3. **Never substitute a guess** — wait for the answer.
 
-**Order of work:** (1) Produce the work order text (section 3, including **Image Descriptions** when photos are plausible). (2) **Only if the user chose a count > 0**, generate that many images in the **same turn**, matching **Image Descriptions** and the scenario. (3) Save **filenames or paths** under **`cursor_workspace/`** per **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`**.
+**Order of work:** (1) Produce the work order text (section 3, including **Image Descriptions** when photos are plausible). (2) **Only if the user chose a count > 0**, generate that many images in the **same turn**, matching **Image Descriptions** and the scenario. (3) Save **filenames or paths** under **`cursor_workspace/`** per **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-ai-temp.mdc`**.
 
 **Flow:** Apply **Resident reporting (checklist)** so `Description` and tone feel real; then output the **full structure** below unless the user asks for a minimal variant.
 

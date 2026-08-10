@@ -3,13 +3,13 @@ description: >-
   Marketplace (testing) Client API: search by name (`SearchByName`,
   `SearchWithPagination`), read by id, and reusable client creation/update via
   `/api/Client` using approval-gated multipart form submissions. Same JWT +
-  browser-like headers as `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`.
+  browser-like headers as `.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`.
 alwaysApply: false
 ---
 
 # Marketplace: Client API (`y-mp-client`)
 
-Use this rule for **Client** (tenant / PM company) operations on **Marketplace testing** via HTTP - especially resolving **`CLIENT`** (display name or slug) -> **`CLIENT_ID`** for **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** and **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, and creating new clients through a reusable ask-then-approve flow.
+Use this rule for **Client** (tenant / PM company) operations on **Marketplace testing** via HTTP - especially resolving **`CLIENT`** (display name or slug) -> **`CLIENT_ID`** for **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** and **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`**, and creating new clients through a reusable ask-then-approve flow.
 
 Any saved responses, debug JSON, or scratch files: **`cursor_workspace/`** per **y-mp-ai-temp**.
 
@@ -89,7 +89,7 @@ Use this when you need **structured filters** beyond a single **`Name`** query p
 
 **`GET {api}/api/Client/GetClientDetail/{id}`** — richer **`ClientDetailDto`** (package, flags, PM/Roo settings pointers, etc.). Prefer when scripts need onboarding / feature flags.
 
-**`GET {api}/api/Client/GetClientLocationsAssignmentsDetail/{id}`** — locations and assignment context for that client (pairs with **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`**).
+**`GET {api}/api/Client/GetClientLocationsAssignmentsDetail/{id}`** — locations and assignment context for that client (pairs with **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`**).
 
 ---
 
@@ -126,7 +126,7 @@ When the user asks to create a new client, always follow this sequence so runs a
 6. **Verify and report**
    - Confirm response success and extract new **`id`** from response `data`.
    - Verify with **`GET /api/Client/{id}`** (or `SearchByName`) and report the created client summary to the user.
-   - Ask whether to persist **`CLIENT_ID=<new id>`** to `.env.e2e.local` for later `.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc` / y-mp-work-order steps.
+   - Ask whether to persist **`CLIENT_ID=<new id>`** to `.env.e2e.local` for later `.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc` / y-mp-work-order steps.
 
 ---
 
@@ -178,7 +178,7 @@ Use Swagger when you need onboarding, Rooceptionist, guidelines, child clients, 
 
 1. Resolve **`CLIENT`** → **`CLIENT_ID`** using **`SearchByName`** / **`SearchWithPagination`** above.  
 2. Optionally persist **`CLIENT_ID`** in **`.env.e2e.local`** (do not commit).  
-3. Use **`CLIENT_ID`** in **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-location.mdc`** (`SearchLocations`, `GetByClientId`) and **`.cursor/y-generative-search/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** (`WorkOrderCreateDto.clientId`).
+3. Use **`CLIENT_ID`** in **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-location.mdc`** (`SearchLocations`, `GetByClientId`) and **`.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc`** (`WorkOrderCreateDto.clientId`).
 
 ---
 

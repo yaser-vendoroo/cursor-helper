@@ -8,7 +8,7 @@ alwaysApply: false
 
 Use when opening a pull request in this repository. **Task PR**, **Hotfix PR**, and **Release PR** share the same template and most confirmation gates, but differ in **target branch**, **source branch naming**, and **title format**.
 
-**Task PR** may end with **Google Calendar PR review meeting** (step 16, before Slack) and an optional **Slack ready-for-review** notification (step 17) — see [Task PR — Google Calendar PR review meeting](#task-pr--google-calendar-pr-review-meeting-before-slack), [Task PR — Slack ready for review](#task-pr--slack-ready-for-review-optional-last-step), and **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**. The user creates the Calendar event manually; the agent waits for confirmation before Slack.
+**Task PR** may end with **Google Calendar PR review meeting** (step 16, before Slack) and an optional **Slack ready-for-review** notification (step 17) — see [Task PR — Google Calendar PR review meeting](#task-pr--google-calendar-pr-review-meeting-before-slack), [Task PR — Slack ready for review](#task-pr--slack-ready-for-review-optional-last-step), and **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**. The user creates the Calendar event manually; the agent waits for confirmation before Slack.
 
 **Ad-hoc urgent production deploys** (outside scheduled release) use the **Hotfix PR** path below (`prod-<JIRA-KEY>` → `production`). **Scheduled weekly releases** use the **Release PR** path (`release-<version>` → `production`).
 
@@ -39,7 +39,7 @@ Before any fetch, branch work, or `gh pr create`, use **`AskQuestion`**:
 | **Typical scope** | One Jira task (usual) or a small related set on one branch | Small hand-picked set already on the integration branch (typically `testing`) | Multiple **Ready for Release** tickets for a scheduled release |
 | **PR title** | `fix(VAP-2291): short description` (Conventional Commits + Jira scope) | `fix(VAP-0000): VAP-2377 VAP-2717` (multi-ticket production format) | `feat(VAP-0000): VAP-1267 VAP-1345 [+ deps]` |
 | **Confirmation gates** | Steps 1–11 ([Task table](#task-pr--confirmation-order)); Calendar (10) before Slack (11) | Steps 1–8 + final approval ([Hotfix table](#hotfix-pr--confirmation-order)) | Steps 1–9 + final approval ([Release table](#release-pr--confirmation-order)) |
-| **Branch naming rule** | [`.cursor/y-rules/git/y-git-branch-name.mdc`](y-git-branch-name.mdc) | [Hotfix branch name](#hotfix-pr--branch-name) below | [Release branch name](#release-branch-name) below |
+| **Branch naming rule** | [`.cursor/rules/y-rules/git/y-git-branch-name.mdc`](y-git-branch-name.mdc) | [Hotfix branch name](#hotfix-pr--branch-name) below | [Release branch name](#release-branch-name) below |
 
 ---
 
@@ -83,7 +83,7 @@ Use for **feature**, **bugfix**, **chore**, or similar work that merges into **`
 
 - **Always fetch latest `testing` first** — run `git fetch origin testing` before commit lookup or diff review. Use **`origin/testing`** as the comparison base.
 - **Merge destination: `testing`.** Default `gh pr create --base testing`.
-- **Source branch** follows **`.cursor/y-rules/git/y-git-branch-name.mdc`**: `<type>/<jira-issue-key>-<short-description>` (`feature/`, `bugfix/`, `hotfix/`, `chore/`).
+- **Source branch** follows **`.cursor/rules/y-rules/git/y-git-branch-name.mdc`**: `<type>/<jira-issue-key>-<short-description>` (`feature/`, `bugfix/`, `hotfix/`, `chore/`).
 - **PR scope = pushed commits only** on the current branch vs **`origin/testing`** (`git log origin/testing..HEAD`, `git diff origin/testing...HEAD`). Uncommitted or staged local changes are **not** in the PR until the user commits and you re-run scope review.
 - **Do not** use `release-*` or `prod-*` branch patterns for Task PRs.
 - **Do not** cherry-pick or reset onto `production` for Task PRs.
@@ -383,7 +383,7 @@ After step 15 (PR on GitHub) **and** step **16a** (y-agt-gc-meet-helper handoff 
 
 ### Task PR — Slack ready for review (optional last step)
 
-After the Task PR is **created or updated** on GitHub (step 15) **and** the calendar step (step 16) is satisfied, offer to notify the team on Slack using **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**.
+After the Task PR is **created or updated** on GitHub (step 15) **and** the calendar step (step 16) is satisfied, offer to notify the team on Slack using **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**.
 
 **Mandatory confirmation — send Slack?**
 
@@ -400,12 +400,12 @@ In the question prompt, show the **PR number and URL** from **`gh pr view`** (e.
 **When the user chooses Send Slack:**
 
 1. **Confirm step 16 is complete** — meeting on calendar (calendar line included) **or** user explicitly chose to omit the calendar line.
-2. Read and follow **`.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its confirmation gates.
+2. Read and follow **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its confirmation gates.
 3. Resolve PR details with **`gh pr view <n> --json url,title,body,reviewRequests,assignees`**.
 4. Build the message from the **final** PR (title, Description, confirmed Jira key, GitHub review requests).
 5. Run the Slack rule’s **mandatory confirmation gate** (summary, mentions, destination, PR link/number, and calendar-line inclusion when applicable).
 6. Send with **`slack_send_message`** only after all confirmations — **default destination:** **`#generative-search-team`** unless the user overrides in that rule.
-7. After a successful send, run the Slack rule’s **post-send Jira confirmation** (move task to In Review — **Yes** / **No**). On **Yes**, run **[Jira required fields before In Review](.cursor/y-generative-search/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc#jira-required-fields-before-in-review)** before **`transitionJiraIssue`**. Do **not** transition Jira without that checklist passing.
+7. After a successful send, run the Slack rule’s **post-send Jira confirmation** (move task to In Review — **Yes** / **No**). On **Yes**, run **[Jira required fields before In Review](.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc#jira-required-fields-before-in-review)** before **`transitionJiraIssue`**. Do **not** transition Jira without that checklist passing.
 
 **When the user chooses Skip:** stop the Task PR flow; do not send Slack or move Jira.
 

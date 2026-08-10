@@ -5,14 +5,14 @@ alwaysApply: false
 
 # Resiroo manual test — real work order payload
 
-Use this when you build a **real-case** inbound message for **`ChatMessageHandler`** / RabbitMQ. Pair with **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (or **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = Resiroo) for stack, queue, wait times, ingress choice, and reporting.
+Use this when you build a **real-case** inbound message for **`ChatMessageHandler`** / RabbitMQ. Pair with **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** (or **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`** → Q0 = Resiroo) for stack, queue, wait times, ingress choice, and reporting.
 
 ## 1. Pick a real work order
 
 - **`ObjectId`** must be a **real** Vendoroo work order **numeric id** (string in JSON is fine, e.g. `"14580"`).
 - **`GET …/api/WorkOrder/ById/{id}`** must return **`clientId`** (non-empty). Empty **`client_id`** → weak or missing Resiroo client/location context.
 - Prefer a WO with **no** existing **`conversations`** where **`source = 'RabbitMQ'`** and **`user_id = ObjectId`**, so prior threads do not skew **`Title`** / triage.
-- **Weather-dependent HVAC tests (no heat / no AC vs outside temp):** the work order’s **service address** must be the one the function-first weather resolver uses in `services/roo/app/utils/web_insight/weather/resolve.py`. If automated outdoor °F is required for the test, confirm the weather provider chain and env in the **running** stack (see **`.cursor/y-generative-search/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` → Outdoor automated temperature**). Do **not** edit **`.env`** unless the user explicitly allows it.
+- **Weather-dependent HVAC tests (no heat / no AC vs outside temp):** the work order’s **service address** must be the one the function-first weather resolver uses in `services/roo/app/utils/web_insight/weather/resolve.py`. If automated outdoor °F is required for the test, confirm the weather provider chain and env in the **running** stack (see **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` → Outdoor automated temperature**). Do **not** edit **`.env`** unless the user explicitly allows it.
 
 ## 2. Outer JSON (required)
 
