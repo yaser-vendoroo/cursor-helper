@@ -4,16 +4,38 @@ My day-to-day **Cursor rules and slash commands**, centralized in one repo so Ve
 
 ## Install in your project
 
-Copy or symlink files from this repo into your project's `.cursor/` directory.
+Symlink (recommended) or copy from this repo into your project's `.cursor/` directory. **Keep the `y-*` folder names** so paths in rules and commands resolve correctly.
 
 **Do not replace** your existing `.cursor/rules/` or `.cursor/commands/` folders. Most projects already have their own rules and commands — add these alongside them.
 
-| From this repo | Into your project |
-|----------------|-------------------|
-| `y-rules/` | `.cursor/rules/` (alongside yours) |
-| `y-commands/` | `.cursor/commands/` (alongside yours) |
-| `y-generative-search/y-generative-search-rules/` | `.cursor/rules/` (only if you work on generative-search) |
-| `y-generative-search/y-generative-search-commands/` | `.cursor/commands/` (only if you work on generative-search) |
+| From this repo | Symlink or folder in your project |
+|----------------|-----------------------------------|
+| `y-rules/` | `.cursor/rules/y-rules` |
+| `y-commands/` | `.cursor/commands/y-commands` |
+| `y-generative-search/y-generative-search-rules/` | `.cursor/rules/y-generative-search-rules` (generative-search only) |
+| `y-generative-search/y-generative-search-commands/` | `.cursor/commands/y-generative-search-commands` (generative-search only) |
+
+Example (set `CURSOR_HELPER` to your clone path):
+
+```bash
+CURSOR_HELPER=~/dev/vendoroo/side-projects/cursor-helper
+cd your-project
+ln -s "$CURSOR_HELPER/y-rules" .cursor/rules/y-rules
+ln -s "$CURSOR_HELPER/y-commands" .cursor/commands/y-commands
+# generative-search only:
+ln -s "$CURSOR_HELPER/y-generative-search/y-generative-search-rules" .cursor/rules/y-generative-search-rules
+ln -s "$CURSOR_HELPER/y-generative-search/y-generative-search-commands" .cursor/commands/y-generative-search-commands
+```
+
+### Path conventions in rules
+
+Cross-references in `y-*` files use the **installed** layout:
+
+- Shared rules: `.cursor/rules/y-rules/...` or shorthand `y-rules/...`
+- Generative-search rules: `.cursor/rules/y-generative-search-rules/...` or `y-generative-search-rules/...`
+- Commands: `.cursor/commands/y-commands/...`
+
+Do **not** use `.cursor/y-rules/`, `.cursor/y-commands/`, or `.cursor/y-generative-search/...` — those paths do not exist in consumer projects.
 
 Reload Cursor after adding files. Some workflows expect `git`, `gh`, and MCP tools (Jira, Slack, Google Calendar).
 
@@ -33,7 +55,7 @@ Each command (`.md`) is a slash-command entry point. Each rule (`.mdc`) holds th
 
 ## `y-commands/`
 
-Common slash commands — useful in most projects. Install into `.cursor/commands/`.
+Common slash commands — useful in most projects. Install as `.cursor/commands/y-commands`.
 
 | Command | Description |
 |---------|-------------|
@@ -43,27 +65,35 @@ Common slash commands — useful in most projects. Install into `.cursor/command
 | `/y-agt-code-review` | Senior code review of unpushed commits — read-only; markdown report when needed |
 | `/y-git-branch-name` | Create or confirm a task branch name before checkout |
 | `/y-git-track-new-files` | Stage new task-related files so nothing important stays untracked |
-| `/y-agt-plan` | Pre-plan workflow (Jira context, approach, E2E scope) then CreatePlan |
+| `/y-agt-plan` | Pre-plan workflow, then Cursor vs Rules plan approach, optional diagrams, CreatePlan |
+| `/y-dev-code-docs` | Gated docstring/comment pass on a chosen scope (fill gaps, revise, clean) |
 
 ---
 
 ## `y-rules/`
 
-Common rules — same scope as `y-commands/`. Install into `.cursor/rules/`.
+Common rules — same scope as `y-commands/`. Install as `.cursor/rules/y-rules`.
 
 ### Agent (`y-agt-*`)
 
 | Rule | Description |
 |------|-------------|
-| `y-agt-plan-phase` | Pre-plan workflow before CreatePlan — ticket, approach, E2E scope, guardrails |
-| `y-agt-plan-guidelines` | Structure, versioning, and style for plan documents |
-| `y-agt-workspace` | Default output paths — `cursor_workspace/` vs `.cursor/plans/` |
+| `y-agt-plan-phase` | Pre-plan before CreatePlan — ticket, approach, E2E scope, guardrails, Ruff and code-docs todos, plan style, diagrams |
+| `y-agt-plan-guidelines` | Plan versioning, Goals, Out of scope; Cursor path (flexible) or Rules path (full structure) |
+| `y-agt-workspace` | Default output paths — `cursor_workspace/` defaults; plans use Cursor Plan mode (not `cursor_workspace/`) |
 | `y-agt-code-review` | Unpushed-commit review workflow, AskQuestion gates, optional markdown report |
 | `y-agt-gc-meet-helper` | Google Calendar PR review — generate handoff or create draft event |
 | `y-agt-communication-b2-english` | B2 English replies — clear, complete, professional |
 | `y-agt-debug-comments` | Preserve user debug comments unless asked to remove them |
 | `y-agt-diffs` | Task-related unified diffs for handoff docs (Confluence, Jira, etc.) |
 | `y-agt-task-context` | Acceptance criteria, stakeholder summaries, document titles |
+
+### Dev (`y-dev-*`)
+
+| Rule | Description |
+|------|-------------|
+| `y-dev-rfc` | Technical RFC workflow |
+| `y-dev-code-docs` | Python docstrings and comments — standards plus gated `/y-dev-code-docs` workflow |
 
 ### Other
 
@@ -96,7 +126,7 @@ Common rules — same scope as `y-commands/`. Install into `.cursor/rules/`.
 
 ## `y-generative-search/y-generative-search-commands/`
 
-Slash commands for the **generative-search** codebase. Install into `.cursor/commands/`.
+Slash commands for the **generative-search** codebase. Install as `.cursor/commands/y-generative-search-commands`.
 
 | Command | Description |
 |---------|-------------|
@@ -128,7 +158,7 @@ Slash commands for the **generative-search** codebase. Install into `.cursor/com
 
 ## `y-generative-search/y-generative-search-rules/`
 
-Rules for the **generative-search** codebase. Install into `.cursor/rules/`.
+Rules for the **generative-search** codebase. Install as `.cursor/rules/y-generative-search-rules`.
 
 | Rule | Description |
 |------|-------------|
