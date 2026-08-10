@@ -2,6 +2,8 @@
 
 My day-to-day **Cursor rules and slash commands**, centralized in one repo so Vendoroo teammates can use them too. I keep them up to date as workflows evolve — you may find them useful for your work.
 
+**Version:** 1.2.0 — see [CHANGELOG.md](CHANGELOG.md).
+
 ## Install in your project
 
 Symlink (recommended) or copy from this repo into your project's `.cursor/` directory. **Keep the `y-*` folder names** so paths in rules and commands resolve correctly.

@@ -1,0 +1,98 @@
+---
+description: >-
+  cursor-helper repo only — SemVer releases, CHANGELOG.md maintenance, VERSION
+  bump, and git tags. Invoke via @cursor-helper-release.
+alwaysApply: false
+---
+
+# cursor-helper: release and changelog (`cursor-helper-release`)
+
+Use when cutting a **cursor-helper** release or updating **`[Unreleased]`** in [`CHANGELOG.md`](../../CHANGELOG.md). This rule applies **only to this repository** — not to consumer projects that symlink `y-rules/`.
+
+**Single source of truth:** [`VERSION`](../../VERSION) (one line, e.g. `1.2.0`).
+
+---
+
+## SemVer policy
+
+| Bump | When |
+|------|------|
+| **MAJOR** | Removed or renamed commands/rules consumers invoke; symlink install layout change; behavior that breaks existing workflows |
+| **MINOR** | New command or rule; new workflow capability; non-breaking enhancements |
+| **PATCH** | Wording/clarification only; typo fixes; internal cross-references with no user-visible behavior change |
+
+---
+
+## Changelog writing
+
+Follow [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Sections: `Added`, `Changed`, `Fixed`, `Removed`, `Deprecated` — include only non-empty sections.
+
+**Audience:** teammates who symlink this repo. Write **what they gain or must do** — not commit SHAs, file paths, or implementation detail.
+
+| Conventional Commit | Changelog section |
+|---------------------|-------------------|
+| `feat` | Added (or Changed if behavior shifts) |
+| `fix` | Fixed |
+| `feat!` / `BREAKING CHANGE` | Changed and/or Removed + **MAJOR** bump |
+| `docs` (user-visible README/catalog) | Changed |
+| `chore` / internal refactors | Usually omit unless users must act |
+
+During normal work, add short bullets under **`## [Unreleased]`** when shipping notable user-visible changes. Not every typo needs a bullet.
+
+---
+
+## When to release
+
+Cut a version when meaningful changes have landed on `main` — not after every commit. Before release, confirm **`[Unreleased]`** lists everything user-visible since the last tag (`git tag -l 'v*'`).
+
+---
+
+## AskQuestion gates (mandatory)
+
+| Step | When | Options (minimum) |
+|------|------|-------------------|
+| **Version bump** | Before editing `VERSION` | Approve proposed MAJOR/MINOR/PATCH / Edit bump / Cancel |
+| **Changelog review** | After drafting the new version section | Approve / Edit changelog / Cancel |
+| **Commit** | Before `git commit` | Commit now / Edit / Cancel |
+| **Tag** | Before `git tag` | Create tag / Skip tag / Cancel |
+| **Push** | Before `git push` or tag push | Push branch and tags / Push branch only / Done — no push |
+
+**Hard rule:** Do **not** commit, tag, or push until the matching gate is answered.
+
+---
+
+## Release steps
+
+1. Read [`VERSION`](../../VERSION) and [`CHANGELOG.md`](../../CHANGELOG.md); gather bullets from `[Unreleased]` and recent `git log` if needed.
+2. **`AskQuestion`** — confirm version bump (MAJOR / MINOR / PATCH).
+3. Move `[Unreleased]` content to `## [X.Y.Z] - YYYY-MM-DD` (today's date).
+4. Leave an empty `## [Unreleased]` section at the top.
+5. Update [`VERSION`](../../VERSION) to match.
+6. **`AskQuestion`** — changelog review.
+7. Stage `CHANGELOG.md` and `VERSION` (and README version line if it changed).
+8. Commit: `chore(release): vX.Y.Z`
+9. **`AskQuestion`** — tag gate. If approved: `git tag -a vX.Y.Z -m "vX.Y.Z"`
+10. **`AskQuestion`** — push gate.
+
+---
+
+## Git history safety
+
+- **Do not** rebase, amend past commits, or rewrite history as part of a release.
+- Retroactive tags on old SHAs are annotations only — they do not change commit hashes or dates.
+- Tag `vX.Y.Z` points at the **release commit** that bumps `VERSION` and finalizes the changelog section.
+
+---
+
+## Retroactive tags (reference)
+
+Historical releases (already documented in CHANGELOG):
+
+| Tag | Commit |
+|-----|--------|
+| `v0.1.0` | `5d65e8c` |
+| `v1.0.0` | `588a809` |
+| `v1.1.0` | `15adee7` |
+| `v1.2.0` | release commit for `chore(release): v1.2.0` |
+
+New releases append rows; do not move old tags without explicit user request.
