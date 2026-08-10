@@ -37,3 +37,4 @@ Read and follow **`y-rules/agent/y-agt-code-review.mdc`** — do not duplicate i
 
 - Use **`AskQuestion`** at the uncommitted-changes gate defined in **`y-agt-code-review.mdc`**.
 - **Do not** fix code, commit, or push as part of this command.
+- Markdown reports: **`YYYYMMDD-HHMM`** in filename and H1 per **`y-agt-code-review.mdc`** — do not duplicate the template here.

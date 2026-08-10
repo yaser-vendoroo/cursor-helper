@@ -28,9 +28,9 @@ Use a path **inside the repository** (e.g. `docs/`, `README.md`) **only when**:
 
 When unsure, **`AskQuestion`**: `cursor_workspace/...` (recommended) vs repo path.
 
-## Exception — Cursor plans
+## Exception — plans
 
-**Plans** belong in **`.cursor/plans/`** (Cursor-native location), not `cursor_workspace/`. See **`y-agt-plan-guidelines`**.
+Use Cursor **Plan mode** or **`CreatePlan`**. **Do not** write plan files under **`cursor_workspace/`**. See **`y-agt-plan-guidelines`**.
 
 ---
 
@@ -38,9 +38,8 @@ When unsure, **`AskQuestion`**: `cursor_workspace/...` (recommended) vs repo pat
 
 | Type | Path |
 |------|------|
-| Plan | `.cursor/plans/<slug>.plan.md` |
 | RFC / technical proposal | `cursor_workspace/rfc/<slug>.md` |
-| Code review report | `cursor_workspace/code-review/<slug>.md` |
+| Code review report | `cursor_workspace/code-review/code-review-<jira-key>-<YYYYMMDD-HHMM>-<branch-slug>.md` (lowercase filename; see **`y-agt-code-review`**) |
 | Test / E2E artifacts | `cursor_workspace/ai_test/` (per invoking rule) |
 
 Markdown-only handoff in chat needs no file.

@@ -82,17 +82,33 @@ Reply in chat with verdict, one-line summary, and any **residual risks** only. *
 
 ## Output — markdown report
 
-When there is **blocking** feedback, **follow-ups**, or **residual risks**, write a **concise markdown file** per [`y-agt-workspace.mdc`](y-agt-workspace.mdc):
+When there is **blocking** feedback, **follow-ups**, or **residual risks**, write a **concise markdown file** per **`y-agt-workspace`** and the policy below.
 
-| Location | When |
-|----------|------|
-| `cursor_workspace/code-review/<jira-key-or-branch-slug>.md` | **Default** |
-| `docs/<JIRA-KEY>/code-review.md` | User explicitly wants a committed repo doc |
+### Report artifact policy
+
+- Save under **`cursor_workspace/code-review/`** only — **not** under `docs/` or other repo paths.
+- **`mkdir -p`** before write; **do not overwrite** previous reports.
+- **Filename:** all **lowercase** — `code-review-<jira-key>-<YYYYMMDD-HHMM>-<branch-slug>.md`
+  - **jira-key:** lowercase issue key (e.g. `vap-3547`); use **`no-ticket`** when none inferred from branch/commits.
+  - **YYYYMMDD-HHMM:** 24-hour **local** time when the report is written (minute precision; e.g. `20260805-1256`).
+  - **branch-slug:** lowercase kebab-case from the current branch.
+- **Example filename:** `code-review-vap-3547-20260805-1256-feature-vap-3547-explain-insight.md`
+
+### Document title (H1)
+
+**Pattern:** `Code Review - <JIRA> - <YYYYMMDD-HHMM> - <branch-slug>`
+
+```markdown
+# Code Review - VAP-3547 - 20260805-1256 - feature-vap-3547-explain-insight
+```
+
+- H1 may use normal Jira casing (`VAP-3547`); **filename stays lowercase**.
+- **`<YYYYMMDD-HHMM>`** and **branch slug** in the H1 must match the filename.
 
 Keep the doc **short** (roughly one screen):
 
 ```markdown
-# <KEY> — Code review (unpushed commits)
+# Code Review - VAP-3547 - 20260805-1256 - feature-vap-3547-explain-insight
 
 **Branch:** …
 **Base:** …

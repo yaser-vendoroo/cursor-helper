@@ -1,17 +1,90 @@
 ---
 description: >-
-  (y-agt-plan-guidelines) Required structure, versioning, and style for plan
-  documents created via CreatePlan or as standalone Markdown.
+  (y-agt-plan-guidelines) Plan versioning, Goals, Out of scope; Cursor path
+  (flexible structure) or Rules path (full section catalog). CreatePlan / Plan mode.
 alwaysApply: true
 ---
 
 # Plan document guidelines (`y-agt-plan-guidelines`)
 
-This rule is **always applied**. Whenever you create a new plan (via the `CreatePlan` tool or as a standalone `.plan.md` / `.md` file), follow the structure, versioning, and style below. Existing plans in this repo follow this shape; reviewers expect it.
+This rule is **always applied**. Whenever you create a new plan (via the `CreatePlan` tool or as a standalone `.plan.md` / `.md` file), follow the rules below.
 
-**Pre-plan workflow:** Complete [`y-agt-plan-phase.mdc`](y-agt-plan-phase.mdc) before `CreatePlan` (ticket context, solution approach, E2E scope, guardrails).
+**Pre-plan workflow:** Complete [`y-agt-plan-phase.mdc`](y-agt-plan-phase.mdc) before `CreatePlan` (ticket context, solution approach, E2E scope, guardrails, **Ruff todos** when Python, **code-docs todos** when Python API changes, **plan document approach**, optional diagrams).
 
-**File location:** **`.cursor/plans/<slug>.plan.md`** — Cursor's native plan directory. Use **`CreatePlan`** when available; otherwise write there directly. Repo paths (e.g. `docs/`) only when the user explicitly wants a committed plan doc.
+**Storage:** Use **`CreatePlan`** or Plan mode and let Cursor manage plan files. **Do not** store plans under **`cursor_workspace/`**. Use a repo path (e.g. `docs/`) only when the user explicitly wants a committed plan doc.
+
+If the user did not run plan-phase, **`AskQuestion`** for **Cursor approach** vs **Rules approach** (same options as plan-phase step 12) before `CreatePlan`. For **Python** work, default **Yes** on Ruff plan todos (step 8) and code-docs plan todos (step 9) unless the user opts out.
+
+---
+
+## Common to all plans (both approaches)
+
+Every plan — **Cursor approach** or **Rules approach** — must include:
+
+1. **Versioning** — see [Versioning](#versioning) below (H1 title stamp; bump on every edit).
+2. **`## Goals`** — outcomes only; bullet list, no implementation details.
+3. **`## Out of scope for this milestone`** — explicit non-goals (include deferred E2E when plan-phase chose **E2E later** or **Not needed**).
+4. **YAML frontmatter** — see [YAML frontmatter](#yaml-frontmatter).
+5. **Phase context** — reflect plan-phase answers (ticket, solution approach, guardrails, testing scope, **Ruff todos** when step 8 = Yes, **code-docs todos** when step 9 = Yes) somewhere in the plan body. **Rules approach** uses **`## Constraints`** for the structured bullets; **Cursor approach** places the same facts where they fit best.
+
+**Plan todos — Ruff (when plan-phase step 8 = Yes):** include at least one YAML `todos` entry, e.g. `Run ruff format and ruff check on changed Python files; fix findings before PR`. Add a matching late sub-task in **Rules approach** (`### P…` before PR/handoff).
+
+**Plan todos — Code docs (when plan-phase step 9 = Yes):** include at least one YAML `todos` entry, e.g. `Document new/changed public Python API per y-dev-code-docs while implementing`. Add a matching sub-task **alongside the code changes** that introduce the API — not deferred to after PR. Follow [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) (**Incomplete docstrings** applies to new symbols).
+
+**Style:** B2 English; cite file paths as Markdown links; bullet lists for goals and out-of-scope.
+
+---
+
+## Cursor approach (content and structure)
+
+Use when the user chose **Cursor approach** in plan-phase (or equivalent).
+
+- **Structure:** Cursor decides sections, order, and depth from ticket context, repo, and phase answers. **Do not** force the full rules section catalog.
+- **Required sections:** only **Goals**, **Out of scope**, and versioning on the H1 — plus frontmatter.
+- **Optional:** Mermaid diagrams when plan-phase step 13 chose **Yes** or **Let Cursor decide** and a diagram clearly helps; follow [Mermaid rules](#mermaid-rules-optional-usage).
+- **Sub-tasks:** use numbered steps or todos when helpful — not required to use `### P0` / `### P1` unless the user asks.
+- **E2E in this plan:** link to **y-tst-*** / **y-ins-*** rules when relevant — do not paste runbooks.
+- **Open questions:** include when plan-phase left gaps (missing ticket, deferred decisions).
+
+---
+
+## Rules approach (full structure)
+
+Use when the user chose **Rules approach** in plan-phase (or equivalent).
+
+### Plan sections (default order)
+
+1. `# <Plan title> (<JIRA-KEY>) <version-stamp>` — H1 title with the Jira key and version.
+2. `## Acronyms and terms` — define every project-specific term used below.
+3. `## Goals` — outcomes only; bullet list, no implementation details.
+4. `## Product perspective` — explain the plan from the product point of view for product stakeholders in plain language:
+   - Start with `### Summary` as one concise paragraph.
+   - Describe the proposed solution(s), intended goals, and key approach details from a product point of view, without code-level depth.
+   - Explain clearly how this approach solves the problem(s) and what product outcome it drives.
+   - Use a small Mermaid diagram when it improves clarity more than text.
+5. `## Constraints` — strict-parity, scope, and references to other project rules; bullet list. **From `y-agt-plan-phase`**, always include when known:
+   - **Solution approach:** Minimal and efficient | Thorough / production-grade | Quick fix
+   - **Regression guardrails:** no side effects, no regressions, no unrelated flow breaks, no over-engineering
+   - **Testing scope:** No E2E in this plan | E2E later | Not needed | E2E in this plan (with links to relevant **y-tst-*** / **y-ins-*** rules when in-plan)
+   - **Ruff (when plan-phase step 8 = Yes):** run `ruff format` and `ruff check` on touched Python before PR
+   - **Code docs (when plan-phase step 9 = Yes):** document new/changed public Python API per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) **while implementing** — same PR as the code
+6. `## Sources we port from` — origin code paths and external dependencies.
+7. `## Targets in <service>` — entry points and consumers in the target codebase.
+8. `## Data flow` — optional; include when a flowchart adds clarity.
+9. `### Per-turn sequence` — optional; include when runtime ordering matters.
+10. `### Request and response schemas` — optional; include when schema modeling helps decisions.
+11. `## Testing` — optional; include **only** when `y-agt-plan-phase` chose **E2E in this plan**. Sub-tasks **link** to installed test rules (e.g. `y-tst-testing-criteria` → `y-tst-test-cases` → `y-tst-e2e` → `y-ins-e2e-report`) — do not copy runbook steps.
+12. `## Sub-tasks (run in order)` — `### P0`, `### P0.4`, `### P1`, ... Each sub-task lists scope and Markdown links to file paths.
+13. `## Open questions` — numbered list of unresolved decisions and follow-ups (including deferred E2E, missing ticket, ticket ambiguities).
+14. `## Out of scope for this milestone` — bullet list of explicit non-goals.
+
+Sections 1–7, 12–14 are the baseline structure for most implementation plans.
+Section 11 (`## Testing`) only when E2E is in this plan.
+Sections 8–10 are not mandatory: include them only when they are useful for this task.
+Use judgment based on task context and complexity; skip sections that do not improve clarity.
+When optional sections are included, keep their relative order (place **`## Testing`** after technical optional sections 8–10 and before **`## Sub-tasks`**).
+
+**Diagrams:** when plan-phase step 13 chose **Yes** or **Let Cursor decide**, add Mermaid in **Product perspective** or **Data flow** when it improves clarity.
 
 ---
 
@@ -35,38 +108,6 @@ Always refresh `<yyyymmdd>-<hhMM>` to the save moment. The freshest version must
 ### First stamping
 
 When stamping a previously unstamped plan, set the version to `1.0` and the date and time to the current moment.
-
----
-
-## Plan sections (default order)
-
-1. `# <Plan title> (<JIRA-KEY>) <version-stamp>` — H1 title with the Jira key and version.
-2. `## Acronyms and terms` — define every project-specific term used below.
-3. `## Goals` — outcomes only; bullet list, no implementation details.
-4. `## Product perspective` — explain the plan from the product point of view for product stakeholders in plain language:
-   - Start with `### Summary` as one concise paragraph.
-   - Describe the proposed solution(s), intended goals, and key approach details from a product point of view, without code-level depth.
-   - Explain clearly how this approach solves the problem(s) and what product outcome it drives.
-   - Use a small Mermaid diagram when it improves clarity more than text.
-5. `## Constraints` — strict-parity, scope, and references to other project rules; bullet list. **From `y-agt-plan-phase`**, always include when known:
-   - **Solution approach:** Minimal and efficient | Thorough / production-grade | Quick fix
-   - **Regression guardrails:** no side effects, no regressions, no unrelated flow breaks, no over-engineering
-   - **Testing scope:** No E2E in this plan | E2E later | Not needed | E2E in this plan (with links to relevant **y-tst-*** / **y-ins-*** rules when in-plan)
-6. `## Sources we port from` — origin code paths and external dependencies.
-7. `## Targets in <service>` — entry points and consumers in the target codebase.
-8. `## Data flow` — optional; include when a flowchart adds clarity.
-9. `### Per-turn sequence` — optional; include when runtime ordering matters.
-10. `### Request and response schemas` — optional; include when schema modeling helps decisions.
-11. `## Testing` — optional; include **only** when `y-agt-plan-phase` chose **E2E in this plan**. Sub-tasks **link** to installed test rules (e.g. `y-tst-testing-criteria` → `y-tst-test-cases` → `y-tst-e2e` → `y-ins-e2e-report`) — do not copy runbook steps.
-12. `## Sub-tasks (run in order)` — `### P0`, `### P0.4`, `### P1`, ... Each sub-task lists scope and Markdown links to file paths.
-13. `## Open questions` — numbered list of unresolved decisions and follow-ups (including deferred E2E, missing ticket, ticket ambiguities).
-14. `## Out of scope for this milestone` — bullet list of explicit non-goals.
-
-Sections 1–7, 12–14 are the baseline structure for most implementation plans.
-Section 11 (`## Testing`) only when E2E is in this plan.
-Sections 8–10 are not mandatory: include them only when they are useful for this task.
-Use judgment based on task context and complexity; skip sections that do not improve clarity.
-When optional sections are included, keep their relative order (place **`## Testing`** after technical optional sections 8–10 and before **`## Sub-tasks`**).
 
 ---
 
@@ -100,13 +141,14 @@ isProject: false
 
 ## Style
 
-- B2 English. Short sentences. No idioms or marketing words.
-- Cite file paths as Markdown links: **`[apps/foo/bar.py](apps/foo/bar.py)`**.
-- Code blocks for ORM models and Pydantic schemas. Bullet lists, not paragraphs, for goals / constraints / scope.
-- Use horizontal separators (`---`) in a smart and rational way to improve readability.
-- Place separators between major plan blocks when they make scanning easier (for example: after intro context, before dense technical sections, and before closing sections).
-- Do not overuse separators (avoid adding one after every heading and avoid consecutive separators).
+**Rules approach** — additionally:
+
 - In `## Product perspective`, write for Product Owners: non-technical but product-expert audience.
 - Keep `### Summary` to one short paragraph, then use concise bullets for approach and impact.
-- Focus on what changes for users/business and why this plan is the right approach; avoid low-level implementation detail.
-- Keep plans focused on the milestone or change at hand; defer follow-ups to **`## Open questions`**.
+- Use horizontal separators (`---`) between major plan blocks when they aid scanning — do not overuse.
+
+**Both approaches:**
+
+- Code blocks for ORM models and Pydantic schemas when modeling schemas.
+- Focus on what changes for users/business and why; defer follow-ups to open questions or **Out of scope**.
+- Keep plans focused on the milestone at hand.

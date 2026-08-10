@@ -1,0 +1,178 @@
+---
+description: >-
+  Python docstrings (Google) and production comments — standards plus gated
+  workflow when the user asks to document code (/y-dev-code-docs).
+globs: "**/*.py"
+alwaysApply: true
+---
+
+# Code documentation (`y-dev-code-docs`)
+
+Apply when writing or editing Python.
+
+## When to document
+
+- **Public** modules, classes, and functions: docstring when the contract is not clear from the name and type hints alone.
+- **Non-obvious** behavior, invariants, or workarounds: docstring or inline comment.
+- **Skip** when the code is self-explanatory (trivial helpers, obvious one-liners).
+
+## Docstrings — Google style
+
+- One-line **imperative** summary; blank line before optional sections.
+- Use `Args`, `Returns`, and `Raises` only when they add meaning beyond type hints (constraints, units, side effects).
+- A docstring can be **incomplete** while still having a one-line summary — see **Incomplete docstrings** below.
+- **Plain prose** in summary and `Args` / `Returns` descriptions. Do not use reST or Sphinx markup in docstrings (double-backtick literals, `:class:`, roles, etc.). Names are already in the signature and `Args` — do not wrap them again as inline code in prose.
+- Present tense; B2 English.
+
+```python
+def fetch_record(record_id: str, *, force: bool = False) -> Record:
+    """Load a record by id.
+
+    Args:
+        record_id: Stable identifier for the record.
+        force: Bypass cache when True.
+
+    Returns:
+        The loaded record.
+
+    Raises:
+        NotFoundError: No record exists for this id.
+    """
+```
+
+## Incomplete docstrings
+
+A symbol needs a **complete** docstring when any of the following apply:
+
+- No docstring, or empty / placeholder (`"""..."""`, `"""TODO"""`).
+- Summary fails standards (not imperative, vague, or uses reST / Sphinx markup).
+- **`Args`** is missing but one or more parameters need meaning beyond type hints.
+- **`Returns`** is missing but the return value needs meaning beyond the type (e.g. `None` means not found, sentinels, error vs success).
+- **`Raises`** is missing but callers must handle documented exceptions.
+
+Do **not** add empty sections or repeat type hints on trivial symbols (e.g. `def get_id(self) -> str` with an obvious one-line summary).
+
+## Schema and config models
+
+- Class docstring: one line on what the model represents.
+- Field meaning: `Field(description=...)` or the project's equivalent — not duplicated in the class docstring.
+
+## Inline comments
+
+- Explain **why**, invariants, and workarounds — not what the next line does.
+- Tracked follow-ups: `TODO(<ISSUE-KEY>):` when there is a ticket.
+- No secrets, PII, or commented-out dead code.
+
+## Debug notes
+
+Follow **`y-agt-debug-comments`**: preserve investigation comments and temporary instrumentation unless the user asks to remove them.
+
+## Design documentation
+
+Cross-cutting design belongs in an RFC or external doc (`y-dev-rfc`), not long comment blocks in source files.
+
+---
+
+## When the user asks to document code
+
+**On-demand only.** Run this workflow when the user invokes **`/y-dev-code-docs`**, **`@y-dev-code-docs`**, or clearly asks to document code (add docstrings, improve comments, fill documentation gaps). Do **not** run the gates below on casual Python edits — apply only the **standards** sections above.
+
+**Do not** auto-commit. Hand off to **`/y-git-commits`** if the user wants commits.
+
+### AskQuestion gates (mandatory)
+
+Every decision must use **`AskQuestion`** — not chat-only prompts. Do **not** edit files until Steps 0–2 are answered (plus large-scope confirmation and removal second gate when triggered).
+
+| Step | When | Select |
+|------|------|--------|
+| **0 — Scope** | Start of workflow | Single-select |
+| **Large scope** | After Step 0 when triggers match | Single-select (pre-select **Narrow scope**) |
+| **1 — Intent** | After scope confirmed | Multi-select (pre-select **Fill gaps**) |
+| **2 — Depth** | After Step 1 | Multi-select (pre-select **Main members** + **Targeted block comments**) |
+| **Removal confirm** | Step 1 includes **Remove redundant** | Single-select |
+
+Mirror the gate pattern in [`y-git-commits.mdc`](../git/y-git-commits.mdc).
+
+### Gather context (before Step 0)
+
+Run read-only discovery as needed:
+
+```bash
+git status --short
+git diff
+git diff --staged
+git log @{upstream}..HEAD --oneline
+```
+
+Pre-select Step 0 when obvious: `@` paths → user-specified; uncommitted `.py` in session → current task local changes; “my commits” → latest unpushed commits.
+
+### Step 0 — Scope (single-select)
+
+| Option | Scope |
+|--------|--------|
+| **Current task local changes** | Staged + unstaged `.py` in the working tree |
+| **User-specified files or directories** | Paths from the message or `@` references |
+| **Latest unpushed local commits** | Combined diff `@{upstream}..HEAD` (or `origin/<branch>..HEAD`) |
+| **`other`** | User describes scope in chat |
+
+Only **`.py`** files unless the user widens scope in `other`.
+
+### Large-scope guardrail
+
+After Step 0, count `.py` files in scope and list root paths. If **any** trigger applies, **`AskQuestion`** before Step 1 — state file count and roots in the prompt.
+
+**Triggers:** user asked for entire project / whole repo / all Python; scope is repo root or a full top-level tree (`app/`, `src/`, etc.); **more than 10** `.py` files; unpushed-commits scope with **more than 10** `.py` files in the combined diff.
+
+| Option | Action |
+|--------|--------|
+| **Narrow scope** (recommended) | Re-run Step 0 smaller |
+| **Proceed with full scope** | Continue to Step 1 — user accepts risk |
+| **Cancel** | Stop without edits |
+
+### Step 1 — Intent (multi-select)
+
+| Option | Default | Behavior |
+|--------|---------|----------|
+| **Fill gaps** | Yes | Add or **complete** docstrings and comments — missing **or incomplete** per **Incomplete docstrings** |
+| **Revise existing code docs** | — | Improve clarity and wording on docstrings that already meet structural standards |
+| **Remove redundant or outdated docs** | — | Shorten or delete redundant narration only; second gate required |
+
+**Order when multiple:** fill gaps → revise → remove redundant.
+
+**Fill gaps** — treat as a gap when the docstring is absent **or** incomplete (thin one-liner on a non-trivial API, missing required `Args` / `Returns` / `Raises`, non-Google prose). Bring each symbol in scope to the minimum bar in **Docstrings** and **Incomplete docstrings**. Do not skip a symbol only because it already has a one-line docstring.
+
+**Revise existing** — prose and clarity only; does not replace **Fill gaps** for missing sections.
+
+**Remove redundant — hard rules:**
+
+- Never remove debug, `TODO`, `FIXME`, or investigation comments unless the user confirms in the **removal second gate**.
+- Never remove comments that explain **why** or business rules.
+- On **public API**, prefer tightening docstrings over deleting them.
+
+### Removal second gate
+
+Only when **Remove redundant** is selected. Single-select: redundant docstrings only / redundant inline narration only / both / cancel clean pass.
+
+### Step 2 — Depth (multi-select)
+
+| Option | Default | Behavior |
+|--------|---------|----------|
+| **Main members** | Yes | Module, class, public function/method docstrings — no inline logic comments |
+| **Targeted block comments** | Yes | Unclear or complicated blocks only; skip obvious code |
+| **Verbose walkthrough (not recommended)** | No | Line-level comments on most statements for session understanding; skip trivial lines |
+
+**Verbose mode:**
+
+- Temporary help for the **current developer** — not production documentation.
+- **Do not commit** verbose-only changes unless the user explicitly asks to commit afterward.
+- Note in the handoff: verbose comments are local/temp — review before commit.
+- Plain prose only; no reST markup.
+
+### Apply
+
+- Follow all **standards** sections above for every edit.
+- Under **Fill gaps**, scan each main member in scope against **Incomplete docstrings** — do not treat an existing one-liner as done when sections or prose are still required.
+- Respect **`y-agt-debug-comments`** throughout.
+- If **verbose** and **remove redundant** are both selected: add verbose first; clean pass must not strip new verbose comments without removal-gate confirmation.
+- End with a short summary: files touched, intents applied, commit-ready vs temp-only.
+

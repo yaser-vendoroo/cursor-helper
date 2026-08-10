@@ -7,11 +7,11 @@ alwaysApply: false
 
 # Plan phase (`y-agt-plan-phase`)
 
-Run this rule **before** `CreatePlan` or writing a plan file. Output shape is governed by [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc) — complete this phase first, then hand off to guidelines.
+Run this rule **before** `CreatePlan` or writing a plan file. Complete this phase first, then choose a [plan document approach](#12-plan-document-approach-mandatory-askquestion) and call **`CreatePlan`** per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
 
 **Use when** the user asks to plan, enters plan mode, invokes **`/y-agt-plan`**, or **`@y-agt-plan-phase`**.
 
-Artifact paths: follow [`y-agt-workspace.mdc`](y-agt-workspace.mdc) (plans → `.cursor/plans/`).
+Plans: follow [`y-agt-workspace.mdc`](y-agt-workspace.mdc) — not `cursor_workspace/`.
 
 ---
 
@@ -57,16 +57,18 @@ Do **not** run the full refinement pipeline (create ticket, steps 1–8) — the
 | **Quick fix** | Fast patch; limited root-cause analysis |
 | **`other`** | User describes a different bar |
 
-Record the choice in the plan **`## Constraints`** bullet **Solution approach**.
+Record the choice in the plan — **Rules approach:** **`## Constraints`** bullet **Solution approach**. **Cursor approach:** include the same fact in the plan body where it fits (no fixed section required).
 
 ### 6. Engineering guardrails
 
-Record in plan **`## Constraints`** (always):
+Capture in the plan for both approaches:
 
 - **No side effects** — do not change unrelated code paths.
 - **No regressions** — preserve behavior outside the fix scope.
 - **No unrelated flow breaks** — unless the ticket requires fixing them.
 - **No over-engineering** — no premature abstractions or “while we’re here” refactors.
+
+**Rules approach:** record under **`## Constraints`**. **Cursor approach:** weave into the plan body (e.g. approach or risks) — no mandatory **Constraints** section.
 
 ### 7. E2E / testing scope (mandatory AskQuestion)
 
@@ -77,30 +79,90 @@ Record in plan **`## Constraints`** (always):
 | **Not needed** | State why (e.g. docs-only) |
 | **E2E in this plan** | Add optional plan **`## Testing`** with sub-tasks that **link** to rules below — no runbook copy |
 
-Record choice in **`## Constraints`** bullet **Testing scope**.
+Record choice in the plan — **Rules approach:** **`## Constraints`** bullet **Testing scope**. **Cursor approach:** state testing scope in the plan body (e.g. near goals or implementation notes).
 
 **When E2E in this plan** and generative-search rules are installed, sub-tasks cite (in order):
 
-1. `y-generative-search/y-generative-search-rules/test/y-tst-testing-criteria.mdc`
-2. `y-generative-search/y-generative-search-rules/test/y-tst-test-cases.mdc`
-3. `y-generative-search/y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed)
-4. `y-generative-search/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+1. `y-generative-search-rules/test/y-tst-testing-criteria.mdc`
+2. `y-generative-search-rules/test/y-tst-test-cases.mdc`
+3. `y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed)
+4. `y-generative-search-rules/insight/y-ins-e2e-report.mdc`
 
 Optional when relevant: `y-tst-unit-of-code`, `y-tst-test-case` ([`y-rules/test/y-tst-test-case.mdc`](../test/y-tst-test-case.mdc)), marketplace/resiroo/pmroo payload rules.
 
 For repos without generative-search rules, plan high-level testing only (pytest, manual QA).
 
-### 8. RFC (conditional)
+### 8. Ruff format/lint in plan todos (AskQuestion when Python)
+
+When the plan includes **Python code changes**, or the repo has **Ruff** configured (`pyproject.toml`, `ruff.toml`, Makefile, pre-commit), **`AskQuestion`**:
+
+| Option | Plan behavior |
+|--------|----------------|
+| **Yes — include Ruff todos** (default) | Add **`ruff format`** and **`ruff check`** to plan **YAML `todos`** and to implementation sub-tasks (Rules approach). Run on touched Python paths before handoff/PR. |
+| **No** | Omit Ruff todos; note briefly in **Out of scope** or plan body if the user declined. |
+
+**Default:** **Yes** — pre-select **Yes** in **`AskQuestion`** when the tool allows a default.
+
+Skip when the plan is **non-Python only** (docs-only, config outside Python, no Ruff in repo).
+
+**Todo text (example):** `Run ruff format and ruff check on changed Python files; fix findings before PR`
+
+Use the repo’s usual invocation (`ruff`, `uv run ruff`, `make lint`, etc.) in the sub-task detail when known.
+
+### 9. Code docs in plan todos (AskQuestion when Python API)
+
+When the plan includes **new or changed Python public API** (modules, classes, functions, methods callers use), **`AskQuestion`**:
+
+| Option | Plan behavior |
+|--------|----------------|
+| **Yes — include code-docs todos** (default) | Add docstrings for new/changed public members **while implementing** per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc). Include YAML `todos` and implementation sub-tasks — same PR as the code, not a deferred doc-only pass. |
+| **No** | Omit code-docs todos; note briefly in **Out of scope** if the user declined. |
+
+**Default:** **Yes** — pre-select **Yes** in **`AskQuestion`** when the tool allows a default.
+
+Skip when the plan is **non-Python**, **docs-only**, or **no public API changes** (internal refactor with unchanged contracts).
+
+**Todo text (example):** `Document new/changed public Python API per y-dev-code-docs while implementing`
+
+Dedicated doc-only sessions use **`/y-dev-code-docs`** — do not substitute that full gated workflow for this plan todo.
+
+### 10. RFC (conditional)
 
 If **Thorough / production-grade** and design is still unclear: add a plan sub-task — **Read and follow [`y-dev-rfc.mdc`](../dev/y-dev-rfc.mdc)**. Do **not** inline the RFC workflow here.
 
-### 9. Branch (optional note only)
+### 11. Branch (optional note only)
 
 If the plan mentions a branch, cite [`y-git-branch-name.mdc`](../git/y-git-branch-name.mdc). Do **not** run `git checkout` during planning.
 
-### 10. Hand off
+### 12. Plan document approach (mandatory AskQuestion)
 
-Only after steps 1–9 (or explicit skips): call **`CreatePlan`** per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
+After steps 1–11 (or explicit skips), **`AskQuestion`** how to shape the **plan document** (content and structure only — steps 2–11 context still applies to both):
+
+| Option | Meaning |
+|--------|---------|
+| **Cursor approach** (default when user wants speed) | Cursor chooses sections and depth from ticket context, repo, and phase answers. Does **not** require the full rules section catalog. |
+| **Rules approach** | Full structure per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc) — **Rules path** section order. |
+| **`other`** | User describes a hybrid (e.g. rules sub-tasks but skip Product perspective). |
+
+Skip this gate only when the user **already chose** the same option in the same thread.
+
+**Both paths** must still follow guidelines **Common to all plans** (versioning, **`## Goals`**, **`## Out of scope`**, storage, YAML frontmatter).
+
+### 13. Diagrams (AskQuestion when reasonable)
+
+When the task involves **architecture, data flow, or multi-step runtime ordering**, **`AskQuestion`** whether to include **Mermaid diagram(s)** in the plan:
+
+| Option | Meaning |
+|--------|---------|
+| **Yes — include diagram(s)** | Add Mermaid where it clarifies (per guidelines Mermaid rules). |
+| **No — text only** | No diagrams unless the user asks later. |
+| **Let Cursor decide** | Include diagrams only if they clearly help; skip otherwise. |
+
+If the plan is trivial (typo, single-file change, docs-only with no flow), **skip** this question.
+
+### 14. Hand off
+
+Only after steps 1–13 (or explicit skips): call **`CreatePlan`** using the approach from step 12 and diagram choice from step 13 (if asked), per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
 
 **Post-implementation** (not this phase): PR and Local Tests Report → [`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc). That rule requires the **full PR draft** (title + body code blocks) in chat **before** checklist or approve/edit **`AskQuestion`** gates.
 
@@ -110,4 +172,4 @@ Only after steps 1–9 (or explicit skips): call **`CreatePlan`** per [`y-agt-pl
 
 - Duplicate plan section catalogs, AC templates, Jira MCP tables, or E2E runbooks from other rules.
 - Run full **`y-team-task-refinement`** on an existing ticket.
-- Call **`CreatePlan`** before solution approach and E2E scope are resolved or explicitly deferred.
+- Call **`CreatePlan`** before solution approach, E2E scope, Ruff todos choice (step 8 when applicable), code-docs todos choice (step 9 when applicable), plan document approach (step 12), or diagram choice (step 13 when applicable) are resolved or explicitly deferred.
