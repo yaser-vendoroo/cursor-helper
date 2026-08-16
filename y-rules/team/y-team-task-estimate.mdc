@@ -1,0 +1,291 @@
+---
+description: >-
+  Fast Agile story-point estimate for an existing Jira ticket (Fibonacci 1–8).
+  Requires ticket key or URL; gathers Jira + related repos; AskQuestion to
+  confirm and optionally write Story Point estimate.
+alwaysApply: false
+---
+
+# Team task estimate (`y-team-task-estimate`)
+
+Use when the user wants a **story-point estimate** for an **existing** tracker item, or invokes **`/y-team-task-estimate`** / **`@y-team-task-estimate`**.
+
+**Not** ticket creation — that is [`y-team-task-refinement.mdc`](y-team-task-refinement.mdc). **Not** an implementation plan — that is `y-agt-plan-phase`.
+
+Keep it **fast** (startup): enough context to pick a number, not a workshop.
+
+---
+
+## AskQuestion
+
+Use **`AskQuestion`** for every gate below. If the tool is **unavailable**: say so in **one line**, then ask the **same options in chat** and **wait**. Do not skip gates.
+
+---
+
+## 0b. Short intro (mandatory)
+
+**Before** fetching Jira, post a short intro. Do **not** AskQuestion on the intro unless the user objects.
+
+Cover, in tight bullets (close to this length — do not lecture):
+
+```
+Quick estimate for this ticket.
+
+- Scale: Fibonacci 1 2 3 5 8. Relative size, **not** hours or days.
+- Why not time: (1) we compare to similar work, not a clock; (2) hours ignore risk/unknowns and fake a deadline.
+- I weigh complexity, effort (incl. review/QA), risk, and unknowns.
+- AI speeds implementation; unknowns and QA still count.
+- Over 8 → split or spike. I ask only if something would change the number.
+- I glance at related code (can be more than one repo). If I cannot open a repo, I ask you for it.
+```
+
+Do **not** paste a factor table or a long methodology.
+
+---
+
+## 0c. Ticket required (hard stop)
+
+Do **not** gather or recommend a number without a ticket reference.
+
+**Accept:**
+
+- Jira key (`VAP-1234`)
+- Jira browse URL (`https://vendoroo-dev.atlassian.net/browse/VAP-1234`)
+
+**If missing:** **AskQuestion** — paste key / paste URL / cancel. **Stop** until they provide one.
+
+**Do not:**
+
+- Estimate from a free-text idea with no ticket
+- Infer the ticket **only** from the git branch unless the user confirms that key in the same turn
+- Invent a key
+
+If the key/URL is invalid or **`getJiraIssue`** fails, say so and ask for a correct ref — do not guess.
+
+---
+
+## 1. Gather (read-only, time-boxed)
+
+Use the **confirmed** key. Pull:
+
+- Summary, description, AC, type, status, recent comments (not the entire history)
+- Linked issues (blocks / is blocked by / clones)
+- Attachments / linked docs **only if** they would change the number
+
+Do **not** crawl Confluence or start a long investigation. If a gap would change `1` vs `3` vs `8`, go to step 2.
+
+Jira: Atlassian MCP, `cloudId: vendoroo-dev.atlassian.net`, `getJiraIssue` with `responseContentFormat: "markdown"`. Linked issues via issue links / JQL as needed.
+
+---
+
+## 1b. Related code (one or more repos)
+
+Code context makes the estimate more accurate. Identify **which projects** the work likely touches (description, links, service names, `github.com/...` URLs, workspace folders).
+
+A ticket **may map to more than one repo**. Give **one combined** number unless the user asks to split tickets.
+
+**Look (fast, not a full review):**
+
+- Current Cursor workspace / matching sibling folders
+- GitHub URLs on the ticket
+- `gh` / remotes if already cloned
+
+Look at **entry points, similar existing code, and obvious blast radius** — not every file.
+
+**No access:**
+
+- Name the repo(s) you **cannot** open and **why** (not in workspace, private, missing clone, `gh` denied).
+- **AskQuestion:** local path / open the folder in Cursor / clone URL / skip that repo (lower confidence).
+- **Do not** invent module structure or pretend you read code you did not see.
+- If a skipped repo is likely **large** complexity, prefer `needs-refinement` or a spike over a fake `3`.
+
+---
+
+## 2. Clarify only blockers
+
+**AskQuestion** (or recommend a ~10-minute sync) only when **any** of these would move the number:
+
+- Unclear done / missing AC
+- Unknown owner of a dependency
+- Open product decision
+- Hidden scope (“also refactor X”)
+
+Skip questions that would not change `1` vs `3` vs `8`.
+
+---
+
+## 3. Score four factors (mental — not a long table in chat)
+
+Each factor **S / M / L**. Combine with judgment (guideline, not a formula):
+
+| Factor | Meaning (AI-era) |
+|--------|------------------|
+| **Complexity** | New design vs known pattern — not lines of code |
+| **Effort** | Remaining **human** work: glue, tests, review, QA — typing is usually cheap |
+| **Risk** | Production / data / rollback |
+| **Unknowns** | Need a spike or a meeting before a fair number |
+
+- Mostly **S** → `1` or `2`
+- Mixed **M** → `3` or `5`
+- Any **L** as one ticket → `8` or **split**
+- Unknowns **L** → **spike** or **needs-refinement** — do not fake a `3`
+
+**Cap:** `1, 2, 3, 5, 8` only. Do **not** use 13 or 21. If honest size is above 8 → **split** (or spike if unknowns dominate).
+
+**Spike:** if the work is mostly investigation, estimate the spike `1`–`3`; estimate the follow-up after.
+
+**AI-era:** do not inflate because “coding used to take days.” Unknowns, review, QA, and product back-and-forth still count.
+
+**Relative size:** `3` means “about like other 3s,” not three hours.
+
+---
+
+## 4. Recommend (short chat)
+
+Required shape:
+
+- **Estimate:** `<1|2|3|5|8>` (or split / spike / needs-refinement)
+- **Confidence:** `high` / `ok` / `needs-refinement`
+- **Checked / considered:** a **short bullet list** of what you actually looked at. Always include:
+  - **Repos** you opened (name them). If you skipped a repo, say so and why.
+  - **Ticket context:** AC, type, recent comments, linked issues (only what you used).
+  - **Blockers:** active and potential (Jira “is blocked by”, missing access, unclear done).
+  - **Dependencies:** active and potential (other tickets, services, people, releases).
+  - Write `none seen` for a line if that bucket is empty — do not invent.
+- **Why this number is reasonable:** a **short bullet list** (about 3–5 bullets). Explain the **outcome**, not a methodology lecture:
+  - What is already known / similar in the codebase
+  - What still costs human time (review, QA, glue, product)
+  - Risk or unknowns that moved the number **up** or **down**
+  - Why it is **not** the next Fibonacci step (e.g. not a `5` because …)
+
+Keep bullets **short**. No multi-page analysis. Do **not** paste the S/M/L factor table.
+
+Example:
+
+```
+**Estimate:** 3
+**Confidence:** ok
+**Checked / considered:**
+- Repos: vendoroo-ai (follow-up language), resiroo — skipped (not in workspace)
+- Ticket: AC + last 3 comments; linked VAP-xxxx (blocks)
+- Blockers: VAP-xxxx still In Progress; no other active blockers
+- Dependencies: voice-server config; potential QA on staging
+**Why this number is reasonable:**
+- Same pattern as existing follow-up language; no new design
+- Implementation is cheap with AI; review + QA still matter
+- One extra service touch, but blast radius looks small
+- Not a 2: AC has an edge case that needs a check
+- Not a 5: no schema/migration and no open product fork
+```
+
+**AskQuestion:** approve this number / pick another of `1 2 3 5 8` / split instead / cancel.
+
+If confidence is `needs-refinement`, do **not** force a precise number — offer a range or split/meet.
+
+### Outcome file (mandatory)
+
+Write a **shareable Markdown file** when you post the recommend. Chat stays short; the file is the full artifact. If the user later picks another number, **overwrite** the file (`Status: confirmed`).
+
+**Path:**
+
+1. Prefer `<project-root>/cursor_workspace/`. Create it with `mkdir -p` when the project root is writable.
+2. If that is not possible, write under a temp dir (`mktemp -d` or `/tmp`). Do not invent another repo folder.
+
+**Filename:** `estimation-<ticket-code>.md`
+
+- Lowercase Jira key: `VAP-2345` → `estimation-vap-2345.md`
+- No timestamp. Overwrite on re-run for the same ticket.
+
+**File rules:**
+
+- Use the template below. Fill real facts; do not invent repos, blockers, or deps.
+- Empty buckets: write `none seen`.
+- Headings, not a wall of bold labels. Keep each section short.
+- Do **not** paste the S/M/L factor table. One compact **Factors** line is enough.
+- Always include **How we estimate** (copy the onboarding block; do not expand it).
+- B2 English.
+
+In chat, paste the file path once.
+
+**Template (copy structure):**
+
+```markdown
+# Estimate VAP-2345
+
+- **Jira:** [VAP-2345](https://vendoroo-dev.atlassian.net/browse/VAP-2345)
+- **Summary:** <one line from the ticket>
+- **Estimate:** 3
+- **Confidence:** ok
+- **Status:** recommended
+- **Factors:** complexity M · effort M · risk S · unknowns S
+- **Approach:** relative Fibonacci `1 2 3 5 8` — not hours. See [How we estimate](#how-we-estimate-good-practice).
+
+## Checked / considered
+
+**Repos**
+- vendoroo-ai — glanced at follow-up language
+- resiroo — skipped (not in workspace)
+
+**Ticket**
+- Type/status; AC; last few comments; linked VAP-xxxx (blocks)
+
+**Blockers** (active and potential)
+- Active: VAP-xxxx still In Progress
+- Potential: none seen
+
+**Dependencies** (active and potential)
+- Active: voice-server config
+- Potential: QA on staging
+
+## Why this number is reasonable
+
+- Same pattern as existing follow-up language; no new design
+- Implementation is cheap with AI; review + QA still matter
+- One extra service touch; blast radius looks small
+- Not a 2: AC has an edge case that needs a check
+- Not a 5: no schema/migration and no open product fork
+
+## How we estimate (good practice)
+
+We use **relative Fibonacci points** (`1 2 3 5 8`), not hours or days. A `3` means “about like other 3s.”
+
+**What the number includes**
+
+- **Complexity** — new design vs a known pattern (not lines of code)
+- **Effort** — remaining human work: glue, tests, review, QA
+- **Risk** — production, data, rollback
+- **Unknowns** — need a spike or a short sync before a fair number
+- AI makes **coding** cheaper; review, QA, and ambiguity still count
+- Honest size above 8 → **split** or **spike**, not 13
+
+**Why not hours or days**
+
+- Hours look precise but hide risk and unknowns, then become a fake deadline
+- People pad or under-promise; the number stops matching similar work when the team or AI speed changes
+- Points are for **planning capacity**, not a calendar clock
+```
+
+If the outcome is **split** or **spike**, set **Estimate** to that word, keep **Why**, and add one bullet on what to split (or what the spike must answer).
+
+---
+
+## 5. Optional Jira write
+
+**AskQuestion:** write **Story Point estimate** / skip.
+
+On write: Atlassian MCP **`editJiraIssue`** for the confirmed key. Field display name **Story Point estimate** (same as Slack PR-ready). Confirm before write. If MCP fails, paste the number for the user to set.
+
+Do **not** write Jira without this gate.
+
+---
+
+## One ticket per run
+
+Do not estimate a whole sprint or epic as one number — recommend child items / split.
+
+---
+
+## Cross-references
+
+- [`y-team-task-refinement.mdc`](y-team-task-refinement.mdc) — refine/create tickets; hand off here for points
+- `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc` — Story Point estimate must already be filled before In Review
