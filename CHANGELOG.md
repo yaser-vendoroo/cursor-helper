@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/y-team-task-estimate` — fast Fibonacci (1–8) story-point estimate for an existing Jira ticket
+
+### Changed
+
+- Testing criteria, test cases, unit-of-code, Slack PR-ready, and Python readability now live in shared `y-rules` / `y-commands` (install those for generative-search too)
+- Slack PR-ready asks for destination from a known team-channel list instead of always posting to `#generative-search-team`
+- `/y-dev-code-docs` asks docstring style once (Google recommended; PEP 257 or NumPy optional); casual Python edits stay Google
+
 ## [1.2.0] - 2026-08-10
 
 ### Added
