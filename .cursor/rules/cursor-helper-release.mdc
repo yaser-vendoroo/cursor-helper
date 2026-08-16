@@ -94,5 +94,6 @@ Historical releases (already documented in CHANGELOG):
 | `v1.0.0` | `588a809` |
 | `v1.1.0` | `15adee7` |
 | `v1.2.0` | release commit for `chore(release): v1.2.0` |
+| `v1.3.0` | release commit for `chore(release): v1.3.0` |
 
 New releases append rows; do not move old tags without explicit user request.

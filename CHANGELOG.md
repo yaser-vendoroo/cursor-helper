@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-16
+
 ### Added
 
 - `/y-team-task-estimate` — fast Fibonacci (1–8) story-point estimate for an existing Jira ticket
