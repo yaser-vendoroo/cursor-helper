@@ -37,7 +37,7 @@ This command is the entry point; **`y-agt-plan-phase`** is the pre-plan workflow
 | [`y-dev-code-docs.mdc`](../y-rules/dev/y-dev-code-docs.mdc) | Plan step 9 = Yes — docstrings while implementing; dedicated doc pass → `/y-dev-code-docs` |
 | [`y-dev-rfc.mdc`](../y-rules/dev/y-dev-rfc.mdc) | Thorough approach needs a design RFC before code |
 | [`y-git-branch-name.mdc`](../y-rules/git/y-git-branch-name.mdc) | Branch name in plan sub-tasks |
-| `y-tst-testing-criteria` → `y-tst-test-cases` → `y-tst-e2e*` → `y-ins-e2e-report` | E2E in this plan (`y-generative-search-rules/` when installed) |
+| `y-tst-testing-criteria` → `y-tst-test-cases` → `y-tst-e2e*` → `y-ins-e2e-report` | E2E in this plan (`y-rules/test/` for criteria/cases; GS pack for E2E runbooks when installed) |
 | [`y-git-create-pr.mdc`](../y-rules/git/y-git-create-pr.mdc) | Post-implementation PR + Local Tests Report (not planning) |
 | [`y-agt-workspace.mdc`](../y-rules/agent/y-agt-workspace.mdc) | Plans not in `cursor_workspace/` |
 

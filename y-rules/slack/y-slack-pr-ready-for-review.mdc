@@ -1,16 +1,15 @@
 ---
 description: >-
-  Slack PR-ready template: by default always post to #generative-search-team.
-  Use DM/self or any other destination only when the user explicitly asks.
-  Headline “Ready for review 👀”, plain PR/Task/Summary lines, mentions line
-  (no Reviewers: label). Before sending any Slack message, run a mandatory
-  confirmation gate with the user (summary, mentions, destination, PR link,
-  and calendar line when applicable). User must confirm the PR review meeting
-  is on Google Calendar before the calendar sentence is included. Before
-  moving a Jira task to In Review, verify ten required fields are filled
-  (Assignee, Product Owner, Release Coverage, Labels, Priority, Quality Owner,
-  Sprint, Story Point estimate, Fix versions, Reporter) — wait for the user
-  to fill gaps and re-check before transitioning.
+  Slack PR-ready template. AskQuestion destination from a known team-channel
+  list (up to 8), DM/self, or other. Headline “Ready for review 👀”, plain
+  PR/Task/Summary lines, mentions line (no Reviewers: label). Before sending
+  any Slack message, run a mandatory confirmation gate with the user (summary,
+  mentions, destination, PR link, and calendar line when applicable). User
+  must confirm the PR review meeting is on Google Calendar before the calendar
+  sentence is included. Before moving a Jira task to In Review, verify ten
+  required fields are filled (Assignee, Product Owner, Release Coverage,
+  Labels, Priority, Quality Owner, Sprint, Story Point estimate, Fix versions,
+  Reporter) — wait for the user to fill gaps and re-check before transitioning.
 alwaysApply: false
 ---
 
@@ -18,23 +17,38 @@ alwaysApply: false
 
 Use when the user asks to **Slack** that a **PR is ready for review**, **notify on Slack**, or follow this template after a PR exists (e.g. `gh pr create` succeeded or they supply a PR number / URL).
 
-## Default destination (Slack)
+## Destination (Slack)
 
-Default policy: send PR-ready notifications to `#generative-search-team` unless the user explicitly asks for another destination.
+Do **not** auto-send to a channel. Use **`AskQuestion`** and wait for the user’s choice.
+
+**Known team channels (choose one, up to 8):**
+
+| Channel | Notes |
+|---------|--------|
+| `#generative-search-team` | Private |
+| `#command-dev-team` | Private |
+| `#project-pmroo-ai` | Public |
+| `#innovation-squad` | Private |
+| `#product-team` | Public |
+| `#integration-development` | Public |
+| `#project-pmroo-insights` | Public |
+| `#vendoroo-text-agent` | Public |
 
 | Situation | **`channel_id` for `slack_send_message`** |
 |-----------|-------------------------------------------|
-| **Default (no override)** | The channel **`#generative-search-team`**. Resolve its **channel id** (**`C…`**) and use that id. **Do not** default to the user’s DM. |
+| **Known team channel** | Resolve the chosen `#…` name → **`C…`**. **Do not** default to the user’s DM. |
 | **Testing / self** | When the user says **to myself**, **DM me**, **for testing**, **send to me**, or equivalent, use **their** Slack **user** **`channel_id`** (**`U…`**) or an existing **DM** id (**`D…`**) if you already have it from a prior successful send to them. |
-| **Someone else** | When they name another person or channel (e.g. **“send to Ali”**, **`#other-channel`**), resolve **`slack_search_users`** / **`slack_search_channels`** and use that id. **Do not** invent ids. |
+| **Someone else / other channel** | When they name another person or channel, resolve **`slack_search_users`** / **`slack_search_channels`** and use that id. **Do not** invent ids. |
 
-The **Slack app / bot** used by Cursor must be **in** **`#generative-search-team`** (invited) or **`chat:write`** posts will fail—if send fails with **not_in_channel** (or similar), tell the user to invite the app to that channel.
+The **Slack app / bot** used by Cursor must be **in** the chosen channel (invited) or **`chat:write`** posts will fail—if send fails with **not_in_channel** (or similar), tell the user to invite the app to that channel.
 
-### Resolving **`#generative-search-team`** → **`C…`**
+### Resolving a channel name → **`C…`**
 
-1. Try **`slack_search_channels`** with **`generative-search-team`** (or **`#generative-search-team`**).
-2. If **no results**, try **`slack_search_public_and_private`** with a broader query (**`generative search team`**, **`generative-search`**) and read the **`Channel: #generative-search-team (ID: C…)`** line from a hit (message search still returns the channel header).
+1. Try **`slack_search_channels`** with the channel name (with or without `#`). Include **`private_channel`** in **`channel_types`** when the channel may be private.
+2. If **no results**, try **`slack_search_public_and_private`** with the channel name and read the **`Channel: #<name> (ID: C…)`** line from a hit.
 3. If still unresolved, ask the user for the **channel id** or confirm the channel name in Slack.
+
+Cached private-channel ids (verify with search if send fails): `#generative-search-team` → **`C0AL9JWTX3N`**; `#command-dev-team` → **`C0AH090T6Q4`**; `#innovation-squad` → **`C08EANVU6A0`**.
 
 ---
 
@@ -92,10 +106,11 @@ Use a structured question flow (prefer **`AskQuestion`**) and do **not** send an
    - **Default:** PR reviewers resolved from GitHub review requests.
 
 4. **Choose destination**
-   - Ask where to send the message:
-     - `#generative-search-team`
+   - Ask where to send the message via **`AskQuestion`**:
+     - the **known team channels** listed in [Destination (Slack)](#destination-slack)
      - myself (DM)
      - list of reviewers (**multi-select**)
+     - **other** (user names a channel or person)
    - If multiple destinations are selected, confirm that sending to all selected destinations is intended.
 
 5. **Confirm PR link and number**
@@ -180,7 +195,7 @@ Rules:
 
 | Piece | Rule |
 |--------|------|
-| **Where to send** | **`#generative-search-team`** unless the user overrides (see **Default destination**). |
+| **Where to send** | **`AskQuestion`** — known team channels (see [Destination (Slack)](#destination-slack)), DM, reviewers, or **other**. |
 | **Headline** | **`Ready for review: 👀`** (literal emoji U+1F440) |
 | **PR** | **`PR: `** + full GitHub PR URL, **one line** |
 | **Task** | **`Task: `** + `https://vendoroo-dev.atlassian.net/browse/<KEY>` (from branch **`VAP-\d+`** or user), **one line** |
@@ -267,7 +282,7 @@ Summary: Improves Resiroo when image analysis fails or is empty: we still attach
 3. **Summary** — Write **1–2** sentences from **title + Description + commit subjects**; outcome-only; no **`##`**, no unchecked checklist dumps.
 4. **Slack user ids** — For each **`reviewRequests`** entry with **`__typename":"User"`**, **`slack_search_users`** (query: **`login`**, shortened handle if your org maps that way, or **email** if GitHub returned one). Collect **`<@USER_ID>`** in GitHub order.
 5. **Assemble** — Concatenate with **`\n\n`**; include the calendar sentence **only** if step 0 / confirmation gate confirmed the meeting exists; apply **`\u200bTask:`** only if **`Task:`** still glues to **`PR:`** in Slack.
-6. **Resolve destination** — **Default:** resolve **`#generative-search-team`** → **`C…`** per **Resolving `#generative-search-team` → `C…`** above. **Override only when explicit:** if the user clearly asked to send **to me / for testing / DM**, use **their** **`U…`** (or known **`D…`**); if they named **another user or channel**, resolve that id. **Never** use DM as default for “send Slack” or “PR ready”.
+6. **Resolve destination** — Use the user’s **`AskQuestion`** choice. Resolve the chosen `#…` → **`C…`** per **Resolving a channel name** above. **Override:** if the user clearly asked to send **to me / for testing / DM**, use **their** **`U…`** (or known **`D…`**); if they named **another user or channel**, resolve that id. **Never** use DM as default for “send Slack” or “PR ready”.
 7. **Run confirmation gate** — Ask the mandatory questions in **Mandatory confirmation gate (before any Slack send)** and get explicit confirmation on all required items (calendar first when applicable).
 8. **Send** — **`slack_send_message`** with **`channel_id`** from step 6 and **`message`** from step 5, only after step 7 is fully confirmed.
 9. **Post-send Jira confirmation** — Ask if the user wants to move the Jira task to In Review now.
@@ -304,7 +319,7 @@ Summary: Improves Resiroo when image analysis fails or is empty: we still attach
 ## Output vs Slack MCP
 
 - **Copy-paste (default):** Output the filled template in a **fenced code block** for the user to paste into Slack.
-- **`slack_send_message`:** Pass the full string as **`message`** (UTF-8 so **👀** is valid). **`channel_id`** = **default channel** (**`#generative-search-team`** → **`C…`**) unless the user overrides (self / testing / named user or channel). **Every `<@USER_ID>` notifies that user**—only include people who should be pinged. Always run and complete the **mandatory confirmation gate** first.
+- **`slack_send_message`:** Pass the full string as **`message`** (UTF-8 so **👀** is valid). **`channel_id`** = the **confirmed destination** from the confirmation gate. **Every `<@USER_ID>` notifies that user**—only include people who should be pinged. Always run and complete the **mandatory confirmation gate** first.
 - After send, always run **Post-send Jira confirmation**, then **[Jira required fields before In Review](#jira-required-fields-before-in-review)** before any transition.
 
 ---
@@ -314,7 +329,7 @@ Summary: Improves Resiroo when image analysis fails or is empty: we still attach
 - Do **not** post Slack tokens, webhooks, or bot secrets in chat or in this rule file.
 - Do **not** paste private emails or secrets into **`Summary:`** or into shared channels unless the user asked.
 - Do **not** guess **`U…`** / **`C…`** / **`D…`** ids—resolve via **`slack_search_*`** tools (or ask the user).
-- Do **not** send PR-ready pings to a **DM** by default; use **`#generative-search-team`** unless the user asked otherwise.
+- Do **not** send PR-ready pings to a **DM** by default; pick a **known team channel** (or **other**) via **`AskQuestion`** unless the user asked for DM.
 - Do **not** open the Slack confirmation gate before **`y-rules/agent/y-agt-gc-meet-helper.mdc`** (Step A) — generate title/description or create draft event first.
 - Do **not** send any Slack message before finishing the **mandatory confirmation gate** (Step B + items below).
 - Do **not** include **`:calendar: PR review meeting is already on your calendar`** unless Step A is done and the user confirmed the meeting exists on Google Calendar (Step B).
@@ -358,15 +373,15 @@ Either works when connected. If one fails, try the other before giving up.
 
 ### 4. Bot must be in the channel
 
-Invite the Cursor Slack app to **`#generative-search-team`** if **`slack_send_message`** fails with **not_in_channel**.
+Invite the Cursor Slack app to the **chosen channel** if **`slack_send_message`** fails with **not_in_channel**.
 
-### 5. Resolving `#generative-search-team` when channel search is empty
+### 5. Resolving a private channel when channel search is empty
 
-**`#generative-search-team`** is a **private** channel — **`slack_search_channels`** often returns no hits even when the bot can post. Use this order:
+Several known destinations are **private** (`#generative-search-team`, `#command-dev-team`, `#innovation-squad`) — **`slack_search_channels`** often returns no hits even when the bot can post. Use this order:
 
-1. **`slack_search_channels`** with **`generative-search-team`**
-2. If empty → **`slack_search_public_and_private`** with **`Ready for review`** or **`generative-search-team`** and read **`Channel: #generative-search-team (ID: C…)`** from a hit
-3. Cached id (verify with search if send fails): **`C0AL9JWTX3N`**
+1. **`slack_search_channels`** with the channel name and **`channel_types`** including **`private_channel`**
+2. If empty → **`slack_search_public_and_private`** with the channel name and read **`Channel: #<name> (ID: C…)`** from a hit
+3. Cached ids (verify with search if send fails): `#generative-search-team` **`C0AL9JWTX3N`**, `#command-dev-team` **`C0AH090T6Q4`**, `#innovation-squad` **`C08EANVU6A0`**
 
 ---
 
@@ -374,4 +389,4 @@ Invite the Cursor Slack app to **`#generative-search-team`** if **`slack_send_me
 
 - **Emoji:** Replace **👀** with another character or Slack shortcode if the user prefers; keep **`Ready for review:`** unless they ask to change the wording.
 - **Headline detail:** If the user wants the PR number in the first line, use **`Ready for review (#<n>): 👀`** only when **`n`** is known from **`gh pr view`**.
-- **Channel rename:** If the workspace renames the channel, update the **default channel name** in this rule to match.
+- **Channel rename:** If the workspace renames a known team channel, update the **known team channels** table in this rule to match.

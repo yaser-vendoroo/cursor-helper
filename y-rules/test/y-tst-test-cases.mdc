@@ -9,20 +9,20 @@ Use this rule when a work item needs a **Test Cases** document: a concise, execu
 
 **Criteria vs test cases:**
 
-- **Testing Criteria** (`.cursor/rules/y-generative-search-rules/test/y-tst-testing-criteria.mdc`) — what must be true (Pass/Fail requirements).
+- **Testing Criteria** (`.cursor/rules/y-rules/test/y-tst-testing-criteria.mdc`) — what must be true (Pass/Fail requirements).
 - **Test Cases** (this rule) — how to exercise those requirements (steps, evidence).
 
 Do **not** duplicate acceptance criteria prose here; **reference criterion numbers** in each case **Goal** when traceability helps.
 
 ## When to use
 
-- After `docs/<JIRA-KEY>/testing-criteria.md` exists (or in the same task once criteria are defined).
+- After a testing-criteria artifact exists for the work item (see `y-tst-testing-criteria.mdc` — `testing-criteria-<jira-key>-<YYYYMMDD-HHMM>.md` under `docs/<JIRA-KEY>/`), or in the same task once criteria are defined.
 - QA handoff, regression planning, or manual E2E prep for behavior changes.
 - User asks for “test cases for this task/ticket” at document level (not a single ad-hoc case).
 
-For **one standalone test case** in chat only, use **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`** directly.
+For **one standalone test case** in chat only, use **`.cursor/rules/y-rules/test/y-tst-test-case.mdc`** directly.
 
-Do **not** use this rule for E2E run reports (`.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`).
+Do **not** use this rule for E2E run reports. When generative-search rules are installed, use `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
 
 ## Artifact location
 
@@ -44,11 +44,11 @@ Use the **local** date and time when the document is **written or last substanti
 
 ```markdown
 **Work item:** [<JIRA-KEY>](https://vendoroo-dev.atlassian.net/browse/<JIRA-KEY>)
-**Criteria:** [testing-criteria.md](testing-criteria.md)
+**Criteria:** [testing-criteria-vap-2291-20260812-1006.md](testing-criteria-vap-2291-20260812-1006.md)
 **Audience:** QA
 ```
 
-Use a relative link to the sibling criteria file in the same `docs/<JIRA-KEY>/` folder.
+Use a relative link to the sibling criteria file in the same `docs/<JIRA-KEY>/` folder (actual filename: `testing-criteria-<jira-key>-<YYYYMMDD-HHMM>.md`).
 
 ---
 
@@ -66,13 +66,13 @@ Each test case is one `###` subsection, separated by `---` from the next.
 ### TST-<AREA>-<NNN> — <Short Title In Title Case>
 ```
 
-- **Code and title rules:** follow **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`** (`TST-<AREA>-<NNN>`, unique within the document).
+- **Code and title rules:** follow **`.cursor/rules/y-rules/test/y-tst-test-case.mdc`** (`TST-<AREA>-<NNN>`, unique within the document).
 - **AREA examples:** `BUG`, `WO`, `CASE`, `REG` — pick one area prefix per work item when possible.
 - **Numbering:** `001`, `002`, … in execution priority order (core paths first, edge cases later).
 
 ### Fields per test case (required)
 
-Every test case **must** include all fields from **`.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`**, using **bold labels**:
+Every test case **must** include all fields from **`.cursor/rules/y-rules/test/y-tst-test-case.mdc`**, using **bold labels**:
 
 ```markdown
 ### TST-<AREA>-<NNN> — <Short Title>
@@ -91,11 +91,11 @@ Every test case **must** include all fields from **`.cursor/rules/y-generative-s
   - <field names, ids, transcript snippets>
 ```
 
-**Per-case rules** (from `.cursor/rules/y-generative-search-rules/test/y-tst-test-case.mdc`, applied here):
+**Per-case rules** (from `.cursor/rules/y-rules/test/y-tst-test-case.mdc`, applied here):
 
 - Short bullets; one action per step.
 - **Expected result** must be pass/fail measurable (no vague “works correctly”).
-- **Evidence** must be practical (for ResiRoo: `Response`, `State`, `Title`, `IsEmergency`, `Evidence`, conversation id, transcript).
+- **Evidence** must be practical (logs, ids, screenshots, API responses, transcript snippets).
 - Wording may allow **semantic equivalence** when criteria doc says so — state that in expected result only when relevant.
 
 Separate each test case with:
@@ -114,7 +114,7 @@ When authoring from a Testing Criteria doc:
 
 1. Read all numbered criterion groups (`### 1.` … `### N.`).
 2. Add at least one test case per **critical** criterion group; combine related groups in one case when efficient.
-3. Include **positive** paths (expected routing/behavior) and **boundary** paths (urgent wording, photos already sent, cannot send photos, handoff timing).
+3. Include **positive** paths (expected behavior) and **boundary** paths (invalid input, missing data, error handling).
 4. Prefer **multi-turn** steps when criteria allow behavior across messages (not everything required in turn 1).
 5. Keep the set **concise** — omit redundant cases that differ only in wording.
 
@@ -127,14 +127,14 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 - **B2 English:** clear, executable, professional.
 - **Scope:** test cases only; no product essays or code paths.
 - **Title Case:** test case titles in `###` headings.
-- **Resident messages:** write natural opener text in **Steps** (quoted or after “Report:”).
-- **Environment:** mention MP (Testing) or Local in preconditions when relevant; do not duplicate full E2E runbooks (see `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` at execution time).
+- **User messages:** write natural opener text in **Steps** when the scenario is conversational (quoted or after “Report:”).
+- **Environment:** mention staging, local, or the relevant stack in preconditions when it matters; do not duplicate full E2E runbooks. When generative-search E2E is in scope, see `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` at execution time.
 
 ---
 
 ## Quality checks (before handoff)
 
-- [ ] Header links to correct Jira key and `testing-criteria.md`.
+- [ ] Header links to correct Jira key and the sibling `testing-criteria-<jira-key>-<YYYYMMDD-HHMM>.md` file.
 - [ ] Every case has a unique `TST-<AREA>-<NNN>` code.
 - [ ] Every case includes Goal, Preconditions, Steps, Expected result, Evidence (bold labels).
 - [ ] Each case maps to at least one acceptance criterion (named in Goal).
@@ -147,14 +147,10 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 
 | Rule | Use |
 |------|-----|
-| `y-tst-test-case.mdc` | Single test case field definitions and quality checks |
-| `y-tst-testing-criteria.mdc` | Parent Testing Criteria document structure |
-| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case |
-| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` | E2E entry point — Q0 Resiroo vs PMRoo, then delegates to path sub-rule |
-| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` | ResiRoo E2E runbook (Local / MP Testing, RabbitMQ / Chat API / SMTP) |
-| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc` | PMRoo E2E runbook — defaults **Local + mp_mock**; remote MP/n8n opt-in |
-| `resiroo/create-work-order-in-marketplace.mdc` | MP WO setup when preconditions require it (Resiroo) |
-| `.cursor/rules/y-generative-search-rules/pmroo/y-pmroo-chat-api-payload.mdc` | PMRoo Chat API payload when preconditions require it |
+| `.cursor/rules/y-rules/test/y-tst-test-case.mdc` | Single test case field definitions and quality checks |
+| `.cursor/rules/y-rules/test/y-tst-testing-criteria.mdc` | Parent Testing Criteria document structure |
+| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case (when GS pack is installed) |
+| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` | GS E2E entry point — Q0 Resiroo vs PMRoo (when GS pack is installed) |
 
 ## Example reference
 

@@ -1,17 +1,19 @@
 ---
-description: Create clear, reusable test cases for bugs, features, and QA scenarios
+description: Create clear, reusable test cases for bugs, features, work orders, and QA scenarios
 alwaysApply: false
 ---
 
 # Test Case Rule (`y-tst-test-case`)
 
-Use this rule whenever the user asks for test cases (bug validation, QA scenarios, incident checks, or similar).
+Use this rule whenever the user asks for test cases (bug validation, QA scenarios, incident checks, work orders, or similar).
+
+For a **full test-cases document** per ticket, use **`.cursor/rules/y-rules/test/y-tst-test-cases.mdc`**.
 
 ## Required format
 
 - Every test case must have a simple code: `TST-<AREA>-<NNN>`.
 - Keep the code short and usable.
-- Examples: `TST-AUTH-001`, `TST-BUG-002`, `TST-API-003`.
+- Examples: `TST-AUTH-001`, `TST-BUG-002`, `TST-API-003`, `TST-WO-001`.
 
 ## For each test case, always include
 

@@ -81,16 +81,16 @@ Capture in the plan for both approaches:
 
 Record choice in the plan — **Rules approach:** **`## Constraints`** bullet **Testing scope**. **Cursor approach:** state testing scope in the plan body (e.g. near goals or implementation notes).
 
-**When E2E in this plan** and generative-search rules are installed, sub-tasks cite (in order):
+**When E2E in this plan**, sub-tasks cite (in order):
 
-1. `y-generative-search-rules/test/y-tst-testing-criteria.mdc`
-2. `y-generative-search-rules/test/y-tst-test-cases.mdc`
-3. `y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed)
-4. `y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+1. `y-rules/test/y-tst-testing-criteria.mdc`
+2. `y-rules/test/y-tst-test-cases.mdc`
+3. `y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed; when GS pack is installed)
+4. `y-generative-search-rules/insight/y-ins-e2e-report.mdc` (when GS pack is installed)
 
 Optional when relevant: `y-tst-unit-of-code`, `y-tst-test-case` ([`y-rules/test/y-tst-test-case.mdc`](../test/y-tst-test-case.mdc)), marketplace/resiroo/pmroo payload rules.
 
-For repos without generative-search rules, plan high-level testing only (pytest, manual QA).
+For repos without generative-search rules, still use shared testing-criteria / test-cases / unit-of-code; plan remaining E2E at a high level (pytest, manual QA).
 
 ### 8. Ruff format/lint in plan todos (AskQuestion when Python)
 

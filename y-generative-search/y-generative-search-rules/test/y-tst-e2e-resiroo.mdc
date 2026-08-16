@@ -218,7 +218,7 @@ Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) 
 | `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` | Image URLs |
 | `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
 | `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
-| `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
+| `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
 | `.cursor/rules/y-rules/git/y-git-create-pr.mdc` | Open Task PR when none exists yet |
 | `.cursor/rules/qa-jira-sync.mdc` | Post E2E verdict comment to Jira (optional) |
 
@@ -243,7 +243,7 @@ Before any Slack work, use **`AskQuestion`**:
 
 | Option | Meaning |
 |--------|---------|
-| **Send Slack** | Follow `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc` end-to-end for this PR |
+| **Send Slack** | Follow `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc` end-to-end for this PR |
 | **Skip** | Do not send Slack in this flow (default when user declines or Slack MCP unavailable) |
 | **`other`** | User wants copy-paste-only template, a different channel, or to defer |
 
@@ -251,7 +251,7 @@ In the prompt, show the **PR number and URL** from **`gh pr view`** (current bra
 
 **When the user chooses Send Slack:**
 
-1. Read and follow **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its gates (Google Calendar prerequisite when applicable, mandatory confirmation gate, full message draft).
+1. Read and follow **`.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`** — do **not** shorten or skip its gates (Google Calendar prerequisite when applicable, mandatory confirmation gate, full message draft).
 2. Resolve PR details with **`gh pr view <n> --json url,title,body,reviewRequests,assignees`**.
 3. **Default destination:** **`#generative-search-team`** unless the user overrides in that rule.
 4. Send with **`slack_send_message`** only after all confirmations in the Slack rule.
@@ -276,7 +276,7 @@ In the prompt, show the **PR number and URL** from **`gh pr view`** (current bra
 
 ### Step P2a — Jira required fields (before transition)
 
-Follow **Jira required fields before In Review (see `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** in **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`** — same checklist and re-check loop for **all** In Review transitions from E2E handoff.
+Follow **Jira required fields before In Review (see `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`)** in **`.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`** — same checklist and re-check loop for **all** In Review transitions from E2E handoff.
 
 **Summary — all ten fields must be filled before transition:**
 
@@ -310,8 +310,8 @@ Follow **Jira required fields before In Review (see `.cursor/rules/y-generative-
 - Do **not** send Slack before the E2E report exists (unless the user explicitly overrides).
 - Do **not** auto-send Slack or auto-transition Jira without **`AskQuestion`** confirmation.
 - Do **not** move Jira to **In Review** before the user's explicit **Yes** (whether asked from the Slack rule or Step P2).
-- Do **not** transition Jira without running **Step P2a** / **Jira required fields before In Review (see `.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`)** (re-fetch after user fills gaps).
-- Do **not** include the **calendar reminder sentence** in Slack unless the user confirmed the PR review meeting is on Google Calendar (per **`.cursor/rules/y-generative-search-rules/slack/y-slack-pr-ready-for-review.mdc`**).
+- Do **not** transition Jira without running **Step P2a** / **Jira required fields before In Review (see `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`)** (re-fetch after user fills gaps).
+- Do **not** include the **calendar reminder sentence** in Slack unless the user confirmed the PR review meeting is on Google Calendar (per **`.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`**).
 - Do **not** invent PR URLs or Jira keys — resolve from **`gh pr view`** and branch/report metadata.
 
 ---

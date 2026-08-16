@@ -1,7 +1,8 @@
 ---
 description: >-
-  Python docstrings (Google) and production comments — standards plus gated
-  workflow when the user asks to document code (/y-dev-code-docs).
+  Python docstrings (Google default; PEP 257 / NumPy on /y-dev-code-docs) and
+  production comments — standards plus gated workflow when the user asks to
+  document code (/y-dev-code-docs).
 globs: "**/*.py"
 alwaysApply: true
 ---
@@ -9,6 +10,8 @@ alwaysApply: true
 # Code documentation (`y-dev-code-docs`)
 
 Apply when writing or editing Python.
+
+**Default docstring style: Google.** Use it on casual Python edits with **no** extra question. Ask style only in the on-demand workflow below.
 
 ## When to document
 
@@ -46,7 +49,7 @@ A symbol needs a **complete** docstring when any of the following apply:
 
 - No docstring, or empty / placeholder (`"""..."""`, `"""TODO"""`).
 - Summary fails standards (not imperative, vague, or uses reST / Sphinx markup).
-- **`Args`** is missing but one or more parameters need meaning beyond type hints.
+- **Parameter section** is missing but one or more parameters need meaning beyond type hints (`Args` in Google; `Parameters` in NumPy / PEP 257 when sections are used).
 - **`Returns`** is missing but the return value needs meaning beyond the type (e.g. `None` means not found, sentinels, error vs success).
 - **`Raises`** is missing but callers must handle documented exceptions.
 
@@ -75,19 +78,20 @@ Cross-cutting design belongs in an RFC or external doc (`y-dev-rfc`), not long c
 
 ## When the user asks to document code
 
-**On-demand only.** Run this workflow when the user invokes **`/y-dev-code-docs`**, **`@y-dev-code-docs`**, or clearly asks to document code (add docstrings, improve comments, fill documentation gaps). Do **not** run the gates below on casual Python edits — apply only the **standards** sections above.
+**On-demand only.** Run this workflow when the user invokes **`/y-dev-code-docs`**, **`@y-dev-code-docs`**, or clearly asks to document code (add docstrings, improve comments, fill documentation gaps). Do **not** run the gates below on casual Python edits — apply only the **standards** sections above (**Google** style).
 
 **Do not** auto-commit. Hand off to **`/y-git-commits`** if the user wants commits.
 
 ### AskQuestion gates (mandatory)
 
-Every decision must use **`AskQuestion`** — not chat-only prompts. Do **not** edit files until Steps 0–2 are answered (plus large-scope confirmation and removal second gate when triggered).
+Every decision must use **`AskQuestion`** — not chat-only prompts. Do **not** edit files until Steps 0–2 are answered (plus docstring style, large-scope confirmation, and removal second gate when triggered).
 
 | Step | When | Select |
 |------|------|--------|
 | **0 — Scope** | Start of workflow | Single-select |
 | **Large scope** | After Step 0 when triggers match | Single-select (pre-select **Narrow scope**) |
-| **1 — Intent** | After scope confirmed | Multi-select (pre-select **Fill gaps**) |
+| **0b — Docstring style** | After scope confirmed (and large-scope if it ran) | Single-select (pre-select **Google (recommended)**) |
+| **1 — Intent** | After style confirmed | Multi-select (pre-select **Fill gaps**) |
 | **2 — Depth** | After Step 1 | Multi-select (pre-select **Main members** + **Targeted block comments**) |
 | **Removal confirm** | Step 1 includes **Remove redundant** | Single-select |
 
@@ -126,8 +130,23 @@ After Step 0, count `.py` files in scope and list root paths. If **any** trigger
 | Option | Action |
 |--------|--------|
 | **Narrow scope** (recommended) | Re-run Step 0 smaller |
-| **Proceed with full scope** | Continue to Step 1 — user accepts risk |
+| **Proceed with full scope** | Continue to Step 0b — user accepts risk |
 | **Cancel** | Stop without edits |
+
+### Step 0b — Docstring style (single-select)
+
+Ask **once** per `/y-dev-code-docs` run. Pre-select **Google (recommended)**. Do **not** ask this on casual Python edits.
+
+| Option | Style |
+|--------|--------|
+| **Google (recommended)** | Sections `Args`, `Returns`, `Raises` — follow **Docstrings — Google style** above |
+| **PEP 257** | PEP 257 conventions: imperative one-liner; optional sections; prefer `Parameters` / `Returns` / `Raises` when sections are needed (not Google `Args`) |
+| **NumPy** | NumPy / numpydoc: `Parameters`, `Returns`, `Raises` with types in those sections when they add meaning |
+| **`other`** | User names another style (e.g. Sphinx) — follow that for this run only |
+
+Apply the chosen style to **all** docstring edits in this run. Inline comments stay as in **Inline comments** (unchanged by this gate).
+
+If **PEP 257** or **NumPy**: map **Incomplete docstrings** `Args` checks to **`Parameters`**. Do not mix Google `Args` with NumPy `Parameters` in the same run.
 
 ### Step 1 — Intent (multi-select)
 
@@ -139,7 +158,7 @@ After Step 0, count `.py` files in scope and list root paths. If **any** trigger
 
 **Order when multiple:** fill gaps → revise → remove redundant.
 
-**Fill gaps** — treat as a gap when the docstring is absent **or** incomplete (thin one-liner on a non-trivial API, missing required `Args` / `Returns` / `Raises`, non-Google prose). Bring each symbol in scope to the minimum bar in **Docstrings** and **Incomplete docstrings**. Do not skip a symbol only because it already has a one-line docstring.
+**Fill gaps** — treat as a gap when the docstring is absent **or** incomplete (thin one-liner on a non-trivial API, missing required parameter / return / raises sections, prose that fails the **chosen** style). Bring each symbol in scope to the minimum bar in **Docstrings** (or the chosen style from Step 0b) and **Incomplete docstrings**. Do not skip a symbol only because it already has a one-line docstring.
 
 **Revise existing** — prose and clarity only; does not replace **Fill gaps** for missing sections.
 
@@ -170,9 +189,9 @@ Only when **Remove redundant** is selected. Single-select: redundant docstrings 
 
 ### Apply
 
-- Follow all **standards** sections above for every edit.
+- Follow **Docstrings — Google style** unless Step 0b chose another style — then follow that style for this run.
 - Under **Fill gaps**, scan each main member in scope against **Incomplete docstrings** — do not treat an existing one-liner as done when sections or prose are still required.
 - Respect **`y-agt-debug-comments`** throughout.
 - If **verbose** and **remove redundant** are both selected: add verbose first; clean pass must not strip new verbose comments without removal-gate confirmation.
-- End with a short summary: files touched, intents applied, commit-ready vs temp-only.
+- End with a short summary: files touched, **docstring style**, intents applied, commit-ready vs temp-only.
 

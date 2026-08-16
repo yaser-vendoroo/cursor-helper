@@ -6,7 +6,7 @@ alwaysApply: true
 
 # Python: readability, PEP 8, spacing (`y-python-readability-pep8`)
 
-Apply when writing or editing Python in this repo (especially `services/roo`).
+Apply when writing or editing Python in this repo.
 
 ## Names
 
@@ -21,7 +21,7 @@ Apply when writing or editing Python in this repo (especially `services/roo`).
 
 ## Imports
 
-- Prefer **absolute imports** from the app package root (e.g. `from app.net_insight.weather.types import …`). They stay clear when packages move or files get long.
+- Prefer **absolute imports** from the app package root. They stay clear when packages move or files get long.
 - **Avoid relative imports** (`from .module` / `from ..parent`) in application code unless a short exception is agreed for a specific pattern (e.g. re-exports in a package `__init__.py` is still clearer with absolute imports when practical).
 
 ## Vertical spacing

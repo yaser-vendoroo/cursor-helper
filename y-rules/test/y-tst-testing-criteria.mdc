@@ -1,0 +1,213 @@
+---
+description: Reusable testing-criteria document structure for product/tech/QA sign-off on behavior changes.
+alwaysApply: false
+---
+
+# Test: testing criteria (`y-tst-testing-criteria`)
+
+Use this rule when a work item needs **Testing Criteria** that Tech and QA can use to judge pass/fail **without** prescribing specific test cases.
+
+Product owners define **what must be true**; QA defines **how to test it** (see `.cursor/rules/y-rules/test/y-tst-test-cases.mdc`).
+
+## When to use
+
+- Behavior changes that need explicit pass/fail boundaries
+- Domain-expert or PO review follow-ups
+- Handoff from implementation to QA before release sign-off
+
+Do **not** use this rule for E2E run reports. When generative-search rules are installed, use `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` (and conversation formatting via `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`).
+
+---
+
+## AskQuestion gate (mandatory)
+
+Before drafting content, use **`AskQuestion`** to choose the **output type**. Wait for the answer before writing.
+
+| Option | File saved | Also show in chat |
+|--------|------------|-------------------|
+| **doc** | Full markdown doc (default structure) | Path to the saved file |
+| **Slack** | Same full markdown doc as **doc** | Full paste-ready body for the Jira **Testing Criteria** custom field |
+| **Jira** | Same full markdown doc as **doc** | Concise paste-ready body for the Jira **Testing Criteria** custom field |
+| **other** | Same full markdown doc as **doc** (unless user opts out) | Format the user describes |
+
+**Slack** and **Jira** both target the ticket’s **Testing Criteria** field — not Jira comments. **Slack** is the fuller field paste; **Jira** is a shorter, tighter field paste.
+
+If the user already stated the type in the same message, still confirm via **`AskQuestion`** unless they explicitly said to skip.
+
+Resolve **`<JIRA-KEY>`** from the ticket, branch name, or user input before generating output.
+
+---
+
+## Artifact location and filename (all types)
+
+**Always** save the full markdown document for **doc**, **Slack**, **Jira**, and **other** (unless the user explicitly opts out of the file for **other**).
+
+- Folder: **`docs/<JIRA-KEY>/`** (for example `docs/VAP-2291/`).
+- Filename: **`testing-criteria-<jira-key>-<YYYYMMDD-HHMM>.md`**
+  - **`<jira-key>`** — lowercase Jira key (for example `vap-2291`).
+  - **`<YYYYMMDD-HHMM>`** — local date and time when the document is **written** (24-hour time, minute precision).
+- Example: `docs/VAP-2291/testing-criteria-vap-2291-20260812-1006.md`
+- One criteria file per write unless the user specifies a different path.
+- Track the file in git when created for implementation work.
+
+The saved file uses the **same full structure** as the **doc** type (H1, header block, Acceptance Criteria, Definition of Done). **Slack** and **Jira** types add a **second**, tailored excerpt in chat — they do **not** replace or shorten the file.
+
+---
+
+## Shared content rules (all types)
+
+- Criteria only — **no** step-by-step test cases (see `y-tst-test-cases.mdc`).
+- **B2 English:** clear, professional, short sentences.
+- **Audience:** Tech and QA; avoid implementation file paths and code-level detail.
+- Organize acceptance rules as numbered groups with **Pass / Fail** conditions (tables or bold **Pass:** / **Fail:** lines).
+- Include **Definition of Done for Testing** (checklist mirroring criterion groups).
+- When conversation wording matters, allow **semantic equivalence** in pass conditions — state that once in DoD, not in every row.
+
+Do **not** include **Product Goal** or **Reference Implementation** sections in any output type.
+
+---
+
+## Output by type
+
+Every type **must** write the [canonical markdown file](#artifact-location-and-filename-all-types) first, then deliver the type-specific output below.
+
+### doc — full document
+
+Save the file using the [filename pattern](#artifact-location-and-filename-all-types) above. Tell the user the file path.
+
+**H1 title:**
+
+```markdown
+# VAP-2291 - Testing Criteria - 20260812-1006
+```
+
+**Pattern:** `<JIRA-KEY> - Testing Criteria - <YYYYMMDD-HHMM>` (same timestamp as the filename).
+
+**Header block** (required, immediately after H1):
+
+```markdown
+**Work item:** [<JIRA-KEY>](https://vendoroo-dev.atlassian.net/browse/<JIRA-KEY>)
+**Audience:** Tech and QA
+**Purpose:** <One sentence: what “done and correct” means for this change.>
+```
+
+**Body:** full [Required structure](#required-structure-doc) below — Title Case headings, horizontal rules sparingly.
+
+---
+
+### Slack — Jira Testing Criteria field (full paste)
+
+**File:** save the same [canonical markdown file](#artifact-location-and-filename-all-types) as **doc** — do not skip or shorten it.
+
+**Chat:** also provide a **full paste-ready excerpt** for the ticket’s **Testing Criteria** custom field (not a Jira comment).
+
+**Do (chat excerpt):**
+
+- Lead with acceptance criteria groups and Pass/Fail requirements.
+- End with a compact **Definition of Done for Testing** checklist.
+- Use scannable markdown (headings, tables, or bullets) that renders well in Jira.
+
+**Do not (chat excerpt):**
+
+- Mention the ticket key or ticket code anywhere in the body.
+- Add Jira links, “Work item:”, audience lines, or purpose preamble.
+- Repeat the ticket title or restate obvious context from the field location.
+- Include test-case steps or implementation detail.
+
+Omit metadata wrappers in the chat excerpt — the field already identifies the ticket.
+
+---
+
+### Jira — Jira Testing Criteria field (concise paste)
+
+**File:** save the same [canonical markdown file](#artifact-location-and-filename-all-types) as **doc** — do not skip or shorten it.
+
+**Chat:** also provide a **concise paste-ready excerpt** for the ticket’s **Testing Criteria** custom field (not a Jira comment).
+
+**Do (chat excerpt):**
+
+- Cover acceptance criteria and Definition of Done, but **shorter** than the **Slack** excerpt.
+- Prefer tight bullets or a slim Pass/Fail table — highest-signal rules only.
+- Keep sentences short; cut repetition and background the field does not need.
+
+**Do not (chat excerpt):**
+
+- Format as a Jira **comment** or thread message — this is **only** for the Testing Criteria field.
+- Mention the ticket key or ticket code anywhere in the body.
+- Add Jira links, “Work item:”, audience lines, or purpose preamble.
+- Over-explain or duplicate the full **Slack** field paste when a lean summary is enough.
+- Include test-case steps or implementation detail.
+
+Omit metadata wrappers in the chat excerpt — the field already identifies the ticket.
+
+---
+
+### other
+
+Save the same [canonical markdown file](#artifact-location-and-filename-all-types) as **doc** unless the user opts out. Ask what destination and shape they need for chat output, then follow their format while keeping [Shared content rules](#shared-content-rules-all-types).
+
+---
+
+## Required structure (doc)
+
+Use **Title Case** for every section and subsection heading (`##` and `###`).
+
+### 1. Acceptance Criteria
+
+Main section: `## Acceptance Criteria`
+
+Organize criteria into numbered subsections:
+
+```markdown
+### 1. <Criterion Group Name>
+```
+
+Guidelines for each criterion group:
+
+- Name the group by **observable behavior** (for example “Auth Redirect”, “Error Message On Invalid Input”).
+- State the rule in plain language first when a short intro helps.
+- Prefer a **Pass / Fail** table when multiple rows make scanning easier.
+- When a single rule fits one row, you may use bold **Pass:** / **Fail:** lines instead of a table.
+- Include brief **product or operational context** only when it clarifies *why* the criterion exists (one line under a table is enough).
+- Do **not** list suggested test cases, scripts, or step-by-step test procedures in this document.
+
+**Pass / Fail table shape (preferred):**
+
+| Requirement | Pass | Fail |
+|-------------|------|------|
+| **<Short label>** | <Observable pass condition> | <Observable fail condition> |
+
+**Routing or priority rules** may use a three-column table when order matters:
+
+| Order | When This Applies | Required Behavior |
+|-------|-------------------|-------------------|
+| **First** | … | … |
+
+Add as many numbered subsections (`### 1.` … `### N.`) as the work item needs.
+
+Separate major criterion groups with `---` when it improves readability.
+
+---
+
+### 2. Definition of Done for Testing
+
+Section: `## Definition of Done for Testing`
+
+- Numbered checklist summarizing **acceptance criterion groups** (mirror `### 1.` … `### N.` titles or themes).
+- State that **\<JIRA-KEY\> is accepted** when Tech and QA confirm the listed behaviors on representative conversations or flows.
+- End with the **semantic equivalence** rule when wording flexibility matters:
+
+  > No single exact phrase is required for pass—**semantic equivalence** is acceptable when the criterion is about natural language in assistant responses.
+
+Adjust or omit the semantic-equivalence line when the work item is not conversation-based.
+
+For **Slack** and **Jira** field excerpts, use the same DoD content but **omit** the ticket key in the acceptance sentence (for example “Accepted when Tech and QA confirm…”). **Jira** may compress DoD to fewer checklist items than **Slack** when the field paste should stay short.
+
+---
+
+## Cross-references
+
+- Test cases document: `.cursor/rules/y-rules/test/y-tst-test-cases.mdc`
+- Single test case fields: `.cursor/rules/y-rules/test/y-tst-test-case.mdc`
+- E2E evidence and run artifacts (generative-search, when installed): `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+- Transcript formatting from DB exports (generative-search, when installed): `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`

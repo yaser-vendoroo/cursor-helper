@@ -15,7 +15,7 @@ This is **interactive verification**: read the code, choose cases, **run them** 
 ## What this is not
 
 - **Not** a substitute for automated tests when the user explicitly asks for `pytest` or CI.
-- **Not** ResiRoo E2E — use **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`** (Q0 = Resiroo) or **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** directly.
+- **Not** full product E2E (agent flows, UI journeys). When generative-search E2E is in scope, use **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**.
 - **Not** permission to refactor unrelated code or “fix” style without a separate request.
 - **Not** an excuse to skip reading the implementation—cases must map to real branches and contracts.
 
@@ -29,13 +29,13 @@ This keeps **verification** (what does it do today?) separate from **remediation
 
 ## Workflow
 
-1. **Docker Compose — before testing** — When verification runs against **Compose-managed** services (e.g. `roo`, workers), **rebuild images and recreate containers** from the **repository root** so the stack matches the current tree and **`env_file`** values (e.g. root `.env`) are loaded into running containers:
+1. **Docker Compose — before testing** — When verification runs against **Compose-managed** services, **rebuild images and recreate containers** from the **repository root** so the stack matches the current tree and **`env_file`** values (e.g. root `.env`) are loaded into running containers:
    - **Rebuild images:** `docker compose build` (use `docker compose build --no-cache` for a full rebuild when needed).
-   - **Recreate services:** `docker compose up -d --force-recreate` (optionally limit to services under test, e.g. `roo`).
-   - Pass **`-f`** flags exactly as in this repo’s **Makefile** / dev docs (e.g. `docker-compose.yml` + `docker-compose.dev.yml` if that is the standard stack).
+   - **Recreate services:** `docker compose up -d --force-recreate` (optionally limit to services under test).
+   - Pass **`-f`** flags exactly as in this repo’s **Makefile** / dev docs.
    Skip this step only when the user explicitly runs tests **outside** Docker (e.g. host `uv run` only).
 
-2. **Locate the unit** — full import path (e.g. `app.net_insight.web_search.openai_web_search.OpenAIWebSearch`). Open the file and note **public methods**, **env vars**, **exceptions**, and **side effects** (HTTP, disk, Redis, etc.).
+2. **Locate the unit** — full import path. Open the file and note **public methods**, **env vars**, **exceptions**, and **side effects** (HTTP, disk, Redis, etc.).
 
 3. **Infer numbered test cases** from the code and docstrings, not only the happy path. Assign **Case 1, Case 2, …** in a fixed order (same numbers in chat and in `cursor_workspace/` artifact):
    - **Case N — Happy path** — typical inputs; expected shape of return values.
@@ -44,7 +44,7 @@ This keeps **verification** (what does it do today?) separate from **remediation
    - **Case N — Errors** — HTTP 4xx/5xx, timeouts, malformed JSON responses (as far as you can simulate safely).
    - **Case N — Idempotence / purity** — whether repeated calls are safe; global env mutation.
 
-4. **Run in the right context** — prefer the same Python env as `services/roo` (e.g. project venv, `docker exec` into the app container, or `uv run` from `services/roo` if that matches how imports resolve). Load **`.env`** only as needed; **never paste secrets** into the chat or into `cursor_workspace/` files (redact tokens, use placeholders like `Bearer <REDACTED>`).
+4. **Run in the right context** — prefer the same Python env as the service under test (project venv, `docker exec` into the app container, or `uv run` from the service directory if that matches how imports resolve). Load **`.env`** only as needed; **never paste secrets** into the chat or into `cursor_workspace/` files (redact tokens, use placeholders like `Bearer <REDACTED>`).
 
 5. **Record evidence** — short excerpts in chat; **full detail** (including HTTP request/response as below) goes to **`cursor_workspace/`**. When you call **methods** on the unit, note **args** and **returns** (or exceptions) so the report can include them. Follow **“Do not change product code while testing”** above—no fixes in the product tree until the user asks.
 
@@ -55,7 +55,7 @@ This keeps **verification** (what does it do today?) separate from **remediation
    - **Cases run:** **numbered** list — **Case 1 — …** → pass / fail / skipped (same numbering as `cursor_workspace/` artifact). When a case exercises a **method** (or callable), include **arguments** and **return value** (or exception) in short form so direction of data flow is obvious.
    - **Notable behavior:** 2–4 sentences on correctness vs code intent
    - **Risks / gaps:** what was **not** exercised and why
-   - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/openai_web_search/20260730-161245-manual-verification.md`)
+   - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verification.md`)
 
 ## Detailed artifact: `cursor_workspace/` directory
 
@@ -75,7 +75,7 @@ Do **not** write new test artifacts under root-level **`ai_tests/`**; use **`cur
 
 Example: `20260730-161245` for 30 Jul 2026 at 16:12:45 local. Avoid `:` in filenames for portability.
 
-Examples: `cursor_workspace/ai_test/openai_web_search/20260730-161245-manual-verification.md`, `cursor_workspace/ai_test/weather_resolver/20260414-091003-manual-verification.md`
+Examples: `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verification.md`
 
 **What to include in that Markdown file (more detail than chat):**
 
@@ -105,7 +105,7 @@ Examples: `cursor_workspace/ai_test/openai_web_search/20260730-161245-manual-ver
   - **Non-HTTP I/O** — file paths, Redis keys, DB identifiers (no secrets).
   - **Observed output** — stdout/stderr excerpts. For **method/function** calls, always tie **args → return** (or **args → raised**); do not rely on prose alone.
   - **Result** — pass / fail / skipped and **why**.
-- **Appendix (optional)** — links to source files (`services/roo/...`), relevant env keys from `.env.example`, curl equivalents for replay (without real keys).
+- **Appendix (optional)** — links to source files, relevant env keys from `.env.example`, curl equivalents for replay (without real keys).
 
 If a case was **skipped** (no network, no key), document **Case N — Skipped** with the blocker.
 
@@ -117,4 +117,4 @@ Write the **chat summary** and the **`cursor_workspace/` Markdown** in **English
 
 ## When the user names a class (example)
 
-If they say e.g. *“check `OpenAIWebSearch`”*, you still apply this rule: run **Workflow step 1** (Docker Compose rebuild/recreate) when tests use containers; **read** `openai_web_search.py`, list env vars (`OPENAI_WEB_SEARCH_URL`, `OPENAI_API_KEY`, …), run **`is_configured`**, then **`search`** / **`complete_json`** with a tiny prompt if credentials exist; otherwise report **skipped network cases** and what you validated offline—**with matching Case numbers** in chat and under **`cursor_workspace/ai_test/`** (include **request/response** detail in the artifact as above). For every **method** you invoke, record **arguments** and **return value** (or exception) in the artifact per **Method calls** above. **Do not** change product code during that pass unless the user asks you to fix something afterward.
+If they say e.g. *“check `<ClassName>`”*, you still apply this rule: run **Workflow step 1** (Docker Compose rebuild/recreate) when tests use containers; **read** the implementation, list env vars, run configuration checks, then exercise public methods with a tiny input if credentials exist; otherwise report **skipped network cases** and what you validated offline—**with matching Case numbers** in chat and under **`cursor_workspace/ai_test/`** (include **request/response** detail in the artifact as above). For every **method** you invoke, record **arguments** and **return value** (or exception) in the artifact per **Method calls** above. **Do not** change product code during that pass unless the user asks you to fix something afterward.

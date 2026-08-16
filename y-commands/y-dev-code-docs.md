@@ -37,5 +37,5 @@ Read and follow **`y-rules/dev/y-dev-code-docs.mdc`** — do not duplicate its w
 
 ## Global rules
 
-- Use **`AskQuestion`** at every gate defined in **`y-dev-code-docs.mdc`** (scope, large-scope confirmation, intent, depth, removal confirm).
+- Use **`AskQuestion`** at every gate defined in **`y-dev-code-docs.mdc`** (scope, large-scope confirmation, **docstring style**, intent, depth, removal confirm). Casual Python edits stay **Google** with no style question.
 - **Do not** auto-commit. **Verbose walkthrough** output is temp-only — not commit-ready unless the user asks separately.
