@@ -35,7 +35,7 @@ Quick estimate for this ticket.
 - Why not time: (1) we compare to similar work, not a clock; (2) hours ignore risk/unknowns and fake a deadline.
 - I weigh complexity, effort (incl. review/QA), risk, and unknowns.
 - AI speeds implementation; unknowns and QA still count.
-- Over 8 → split or spike. I ask only if something would change the number.
+- Over 8 → split or spike. I ask if something would change the number, **or if I am not sure**.
 - I glance at related code (can be more than one repo). If I cannot open a repo, I ask you for it.
 ```
 
@@ -140,6 +140,29 @@ Each factor **S / M / L**. Combine with judgment (guideline, not a formula):
 
 ---
 
+## 3b. Low confidence — inform and follow up (mandatory)
+
+Do **not** recommend a precise `1|2|3|5|8` while you are unsure, or while confidence would be below **`ok`** (`needs-refinement`, or you cannot honestly pick between two Fibonacci steps).
+
+**Tell the user in chat** (one short block, not a lecture):
+
+- That confidence is not good enough yet
+- **What** is missing (AC, repo, product call, blast radius, …)
+- **Why** that blocks a fair number
+
+Then **AskQuestion** (or the same options in chat if the tool is down) with **concrete follow-ups**. Wait for answers. Gather again as needed. Repeat.
+
+**Until one of these is true:**
+
+- Confidence is **`ok`** or **`high`** — continue to step 4 with a number
+- The user chooses **spike**, a **short sync**, **range only**, or **cancel** — stop; do not invent a `3`
+
+Cap at **two or three** question rounds (startup pace). If it is still unclear, stop at a **range** plus spike/meet — do not keep interrogating.
+
+This is **in addition to** step 2 (blockers that would move `1` vs `3` vs `8`). Step 2 can run first; 3b still applies if you remain unsure after scoring.
+
+---
+
 ## 4. Recommend (short chat)
 
 Required shape:
@@ -180,7 +203,7 @@ Example:
 
 **AskQuestion:** approve this number / pick another of `1 2 3 5 8` / split instead / cancel.
 
-If confidence is `needs-refinement`, do **not** force a precise number — offer a range or split/meet.
+A precise number in this step requires **`ok`** or **`high`** after step 3b. If confidence is still `needs-refinement`, do **not** force a precise number — offer a range or split/meet (after you already informed the user and asked follow-ups).
 
 ### Outcome file (mandatory)
 
@@ -273,9 +296,19 @@ If the outcome is **split** or **spike**, set **Estimate** to that word, keep **
 
 **AskQuestion:** write **Story Point estimate** / skip.
 
-On write: Atlassian MCP **`editJiraIssue`** for the confirmed key. Field display name **Story Point estimate** (same as Slack PR-ready). Confirm before write. If MCP fails, paste the number for the user to set.
+On write:
 
-Do **not** write Jira without this gate.
+1. **`getJiraIssue`** for the confirmed key (read current **labels** and any existing Story Point estimate).
+2. **`editJiraIssue`** — set **Story Point estimate** to the confirmed number (field display name; resolve custom field id from the issue if the API rejects display name only).
+3. **Add label `y-ai-estimated`** on the same edit (or a second `editJiraIssue` if the API requires it):
+   - **Merge** with existing labels — append `y-ai-estimated` only if it is not already present.
+   - Do **not** remove or replace other labels.
+
+Confirm before write. After success, tell the user the points and that **`y-ai-estimated`** was added.
+
+If MCP fails, paste the number and ask the user to set Story Point estimate and add label **`y-ai-estimated`** manually.
+
+Do **not** write Jira without this gate. Do **not** add **`y-ai-estimated`** when the user skips the Jira write.
 
 ---
 
