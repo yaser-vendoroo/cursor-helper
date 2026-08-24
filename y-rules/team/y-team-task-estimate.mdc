@@ -1,8 +1,9 @@
 ---
 description: >-
   Fast Agile story-point estimate for an existing Jira ticket (Fibonacci 1–8).
-  Requires ticket key or URL; gathers Jira + related repos; AskQuestion to
-  confirm and optionally write Story Point estimate.
+  Requires ticket key or URL; gathers Jira + related repos; always returns
+  Fibonacci estimate plus confidence 0–5; AskQuestion to confirm and
+  optionally write Story Point estimate.
 alwaysApply: false
 ---
 
@@ -35,7 +36,7 @@ Quick estimate for this ticket.
 - Why not time: (1) we compare to similar work, not a clock; (2) hours ignore risk/unknowns and fake a deadline.
 - I weigh complexity, effort (incl. review/QA), risk, and unknowns.
 - AI speeds implementation; unknowns and QA still count.
-- Over 8 → split or spike. I ask if something would change the number, **or if I am not sure**.
+- I always give a Fibonacci number **and** a confidence score **0–5** (low = less accurate). Split and spike are recommendations beside the number, not the estimate itself. Honest size above 8 → recommend split (cap the number at 8).
 - I glance at related code (can be more than one repo). If I cannot open a repo, I ask you for it.
 ```
 
@@ -95,9 +96,9 @@ Look at **entry points, similar existing code, and obvious blast radius** — no
 **No access:**
 
 - Name the repo(s) you **cannot** open and **why** (not in workspace, private, missing clone, `gh` denied).
-- **AskQuestion:** local path / open the folder in Cursor / clone URL / skip that repo (lower confidence).
+- **AskQuestion:** local path / open the folder in Cursor / clone URL / skip that repo (lower **confidence** score).
 - **Do not** invent module structure or pretend you read code you did not see.
-- If a skipped repo is likely **large** complexity, prefer `needs-refinement` or a spike over a fake `3`.
+- If a skipped repo is likely **large** complexity, lower **confidence** and note the gap — still give a best-effort Fibonacci number. You may **recommend** split or spike beside that number.
 
 ---
 
@@ -127,12 +128,14 @@ Each factor **S / M / L**. Combine with judgment (guideline, not a formula):
 
 - Mostly **S** → `1` or `2`
 - Mixed **M** → `3` or `5`
-- Any **L** as one ticket → `8` or **split**
-- Unknowns **L** → **spike** or **needs-refinement** — do not fake a `3`
+- Any **L** as one ticket → `8` and **recommend split** if honest size is above 8
+- Unknowns **L** → still give a Fibonacci number with **low confidence (0–2)**; **recommend** spike or split beside it — do not pretend unknowns are small
 
-**Cap:** `1, 2, 3, 5, 8` only. Do **not** use 13 or 21. If honest size is above 8 → **split** (or spike if unknowns dominate).
+**Cap:** `1, 2, 3, 5, 8` only. Do **not** use 13 or 21. If honest size is above 8 → **Estimate is 8** and **recommend split**. Do not replace the Estimate field with the word “split”.
 
-**Spike:** if the work is mostly investigation, estimate the spike `1`–`3`; estimate the follow-up after.
+**Spike:** if the work is mostly investigation, **Estimate** is still `1`–`3` (size of the ticket as written). **Recommend** treating it as a spike and say what the spike must answer. Do not set Estimate to the word “spike”.
+
+**Forbidden:** do **not** inflate Story Points from confidence (no `final SP = initial × (1 / confidence)`, no non-Fibonacci results such as 4). Confidence does not change the Estimate number.
 
 **AI-era:** do not inflate because “coding used to take days.” Unknowns, review, QA, and product back-and-forth still count.
 
@@ -140,26 +143,41 @@ Each factor **S / M / L**. Combine with judgment (guideline, not a formula):
 
 ---
 
-## 3b. Low confidence — inform and follow up (mandatory)
+## 3b. Confidence score 0–5 (mandatory)
 
-Do **not** recommend a precise `1|2|3|5|8` while you are unsure, or while confidence would be below **`ok`** (`needs-refinement`, or you cannot honestly pick between two Fibonacci steps).
+Always output **Confidence: N/5** alongside the estimate. **Never leave the estimate blank** because the ticket is vague — give a **best-effort Fibonacci number** and use **confidence** to show how reliable it is.
 
-**Tell the user in chat** (one short block, not a lecture):
+Score from what you **have** vs what is **missing**:
 
-- That confidence is not good enough yet
-- **What** is missing (AC, repo, product call, blast radius, …)
-- **Why** that blocks a fair number
+| Score | Meaning |
+|-------|---------|
+| **5** | Ticket is refined and clear: solid AC, enough context, repos checked, few gaps |
+| **4** | Mostly clear; minor gaps that are unlikely to move the number |
+| **3** | Usable estimate; some vagueness, missing detail, or unchecked repo |
+| **2** | Significant gaps (thin AC, open product call, skipped important repo) — number is directional |
+| **1** | Very vague ticket — best-effort only; recommend refinement or a short sync |
+| **0** | Almost no usable context — placeholder guess; strongly recommend **`/y-team-task-refinement`** before planning |
 
-Then **AskQuestion** (or the same options in chat if the tool is down) with **concrete follow-ups**. Wait for answers. Gather again as needed. Repeat.
+**How to treat the number for sprint load**
 
-**Until one of these is true:**
+- **4–5 / 5** — treat the Estimate as sprint load
+- **3 / 5** — usable; it might move
+- **0–2 / 5** — still output the number; **do not treat it as a sure sprint load**; warn in **chat and the local estimate markdown** (not on the Jira issue)
 
-- Confidence is **`ok`** or **`high`** — continue to step 4 with a number
-- The user chooses **spike**, a **short sync**, **range only**, or **cancel** — stop; do not invent a `3`
+**Raise the score when provided:** clear AC, recent decisive comments, linked tickets fetched, code paths seen, similar done tickets cited, assignee/owner known.
 
-Cap at **two or three** question rounds (startup pace). If it is still unclear, stop at a **range** plus spike/meet — do not keep interrogating.
+**Lower the score when missing:** no/thin AC, contradictory description, unknown blast radius, repo not opened, blocker not checked, open product fork, hidden scope, cannot pick between two Fibonacci steps.
 
-This is **in addition to** step 2 (blockers that would move `1` vs `3` vs `8`). Step 2 can run first; 3b still applies if you remain unsure after scoring.
+In chat and the outcome file, add **Confidence drivers** (short bullets):
+
+- **What we had** — what supported the estimate
+- **Gaps** — what was missing or vague (each gap should map to a lower score)
+
+If confidence is **0–2**, **tell the user** the estimate is low accuracy, list gaps, and offer **`AskQuestion`**: answer follow-ups now / run **`/y-team-task-refinement`** / accept as-is / keep a split-or-spike **recommendation**. **Always keep the Fibonacci Estimate.**
+
+Cap follow-up at **two or three** rounds (startup pace). Re-score confidence after new answers.
+
+Optional (local file and chat only, **never** Jira): if confidence is 0–2, you may note a **planning talk** round-up of **one** Fibonacci step (2 → 3, or 3 → 5) with a one-line reason. That is judgment, not a formula, and it is **not** the Estimate written to Jira.
 
 ---
 
@@ -167,8 +185,15 @@ This is **in addition to** step 2 (blockers that would move `1` vs `3` vs `8`). 
 
 Required shape:
 
-- **Estimate:** `<1|2|3|5|8>` (or split / spike / needs-refinement)
-- **Confidence:** `high` / `ok` / `needs-refinement`
+- **Estimate:** `<1|2|3|5|8>` — **always** a Fibonacci number. Size of **the ticket as written** (what Done means on that ticket). Never the words `split` or `spike`.
+- **Confidence:** `N/5` (integer **0–5** per step 3b)
+- **Recommendations:** omit this block if none. Otherwise short bullets:
+  - Split into … (named slices + suggested sizes)
+  - Spike first: … (what it must answer)
+  - Run `/y-team-task-refinement` (when confidence is 0–2 or AC is empty)
+- **Confidence drivers:**
+  - **What we had** — bullets (provided context that supported the number)
+  - **Gaps** — bullets (vagueness, missing AC, repo access, unknowns — why the score is not higher)
 - **Checked / considered:** a **short bullet list** of what you actually looked at. Always include:
   - **Repos** you opened (name them). If you skipped a repo, say so and why.
   - **Ticket context:** AC, type, recent comments, linked issues (only what you used).
@@ -187,7 +212,12 @@ Example:
 
 ```
 **Estimate:** 3
-**Confidence:** ok
+**Confidence:** 2/5
+**Recommendations:**
+- Run /y-team-task-refinement — AC for the edge case is missing
+**Confidence drivers:**
+- What we had: summary + partial AC; one repo glanced
+- Gaps: edge-case AC unclear; second repo skipped; no similar done ticket cited
 **Checked / considered:**
 - Repos: vendoroo-ai (follow-up language), resiroo — skipped (not in workspace)
 - Ticket: AC + last 3 comments; linked VAP-xxxx (blocks)
@@ -201,9 +231,9 @@ Example:
 - Not a 5: no schema/migration and no open product fork
 ```
 
-**AskQuestion:** approve this number / pick another of `1 2 3 5 8` / split instead / cancel.
+**AskQuestion:** approve this number / pick another of `1 2 3 5 8` / cancel.
 
-A precise number in this step requires **`ok`** or **`high`** after step 3b. If confidence is still `needs-refinement`, do **not** force a precise number — offer a range or split/meet (after you already informed the user and asked follow-ups).
+Low confidence (**0–2**) does **not** remove the estimate — it signals the number may change after refinement or more context. Split and spike stay in **Recommendations**; they do not clear the number.
 
 ### Outcome file (mandatory)
 
@@ -226,6 +256,8 @@ Write a **shareable Markdown file** when you post the recommend. Chat stays shor
 - Headings, not a wall of bold labels. Keep each section short.
 - Do **not** paste the S/M/L factor table. One compact **Factors** line is enough.
 - Always include **How we estimate** (copy the onboarding block; do not expand it).
+- **Estimate** is always a Fibonacci number. Put split/spike/refinement under **Recommendations** (omit that section if none).
+- If confidence is **0–2**, put the low-accuracy warning in **this file** (and chat), **not** on the Jira issue.
 - B2 English.
 
 In chat, paste the file path once.
@@ -238,10 +270,26 @@ In chat, paste the file path once.
 - **Jira:** [VAP-2345](https://vendoroo-dev.atlassian.net/browse/VAP-2345)
 - **Summary:** <one line from the ticket>
 - **Estimate:** 3
-- **Confidence:** ok
+- **Confidence:** 2/5
 - **Status:** recommended
-- **Factors:** complexity M · effort M · risk S · unknowns S
+- **Factors:** complexity M · effort M · risk S · unknowns M
 - **Approach:** relative Fibonacci `1 2 3 5 8` — not hours. See [How we estimate](#how-we-estimate-good-practice).
+
+## Recommendations
+
+- Run /y-team-task-refinement — AC for the edge case is missing
+- (Omit this whole section if there are no recommendations.)
+
+## Confidence drivers
+
+**What we had**
+- Summary and partial AC from Jira
+- vendoroo-ai — entry point for follow-up language
+
+**Gaps**
+- Second repo not in workspace — blast radius uncertain
+- No similar Done ticket cited for calibration
+- Edge case in AC not fully specified
 
 ## Checked / considered
 
@@ -279,7 +327,8 @@ We use **relative Fibonacci points** (`1 2 3 5 8`), not hours or days. A `3` mea
 - **Risk** — production, data, rollback
 - **Unknowns** — need a spike or a short sync before a fair number
 - AI makes **coding** cheaper; review, QA, and ambiguity still count
-- Honest size above 8 → **split** or **spike**, not 13
+- Honest size above 8 → Estimate **8** and **recommend split**, not 13
+- Split and spike are **recommendations** beside the number, not the Estimate field
 
 **Why not hours or days**
 
@@ -288,33 +337,40 @@ We use **relative Fibonacci points** (`1 2 3 5 8`), not hours or days. A `3` mea
 - Points are for **planning capacity**, not a calendar clock
 ```
 
-If the outcome is **split** or **spike**, set **Estimate** to that word, keep **Why**, and add one bullet on what to split (or what the spike must answer).
-
 ---
 
 ## 5. Optional Jira write
 
 **AskQuestion:** write **Story Point estimate** / skip.
 
+If **confidence is 0–2**, say in the prompt that the estimate is low accuracy (the number is still the raw Fibonacci Estimate) before the user chooses write or skip. Do **not** put that warning on the Jira issue.
+
 On write:
 
 1. **`getJiraIssue`** for the confirmed key (read current **labels** and any existing Story Point estimate).
-2. **`editJiraIssue`** — set **Story Point estimate** to the confirmed number (field display name; resolve custom field id from the issue if the API rejects display name only).
-3. **Add label `y-ai-estimated`** on the same edit (or a second `editJiraIssue` if the API requires it):
-   - **Merge** with existing labels — append `y-ai-estimated` only if it is not already present.
-   - Do **not** remove or replace other labels.
+2. **`editJiraIssue`** — set **Story Point estimate** to the **confirmed Fibonacci Estimate** (raw). Never a confidence-adjusted number. Field display name; resolve custom field id from the issue if the API rejects display name only.
+3. **Labels (hard rule):**
+   - **Never delete a label that does not start with `y-ai-`.** Copy every such label through unchanged (`pmroo`, `command-center`, etc.).
+   - **Only modify `y-ai-*` labels this rule owns.** Do not remove other `y-ai-*` labels from a different workflow.
+   - When the API requires a full labels array, **read current labels first**, then send the **merged** list. Never send only the new `y-ai-*` labels.
+   - Add **`y-ai-estimated`** if not already present.
+   - Set **`y-ai-est-confidence-<n>`** — `n` is the confirmed integer **0–5** (examples: `y-ai-est-confidence-3`, `y-ai-est-confidence-5`). Remove only previous **confidence** labels this rule uses (`y-ai-est-confidence-0` … `y-ai-est-confidence-5`, plus legacy `y-ai-est-confidence-0/5` … `y-ai-est-confidence-5/5`, `y-ai-est-confident-0` … `y-ai-est-confident-5`, and `y-ai-confidence-0/5` … `y-ai-confidence-5/5`) so one current score remains.
+   - Add **`y-ai-needs-refinement`** when confidence is **0–2** or when the recommendation is `/y-team-task-refinement`. On a later write, **remove that same label** if confidence is 3–5 and refinement is no longer recommended.
+   - Do **not** add `y-ai-needs-refinement` only because the ticket is large and we recommend split.
 
-Confirm before write. After success, tell the user the points and that **`y-ai-estimated`** was added.
+Confirm before write. After success, tell the user the points, **`y-ai-estimated`**, **`y-ai-est-confidence-<n>`**, and **`y-ai-needs-refinement`** if it was added or removed.
 
-If MCP fails, paste the number and ask the user to set Story Point estimate and add label **`y-ai-estimated`** manually.
+If MCP fails, paste the number and ask the user to set Story Point estimate and add labels **`y-ai-estimated`** and **`y-ai-est-confidence-<n>`** (and **`y-ai-needs-refinement`** when it applies) manually — without deleting other labels.
 
-Do **not** write Jira without this gate. Do **not** add **`y-ai-estimated`** when the user skips the Jira write.
+Do **not** write Jira without this gate. Do **not** add these labels when the user skips the Jira write.
+
+Do **not** add Jira comments, description edits, or warning / buffer wording on the issue.
 
 ---
 
 ## One ticket per run
 
-Do not estimate a whole sprint or epic as one number — recommend child items / split.
+Do not estimate a whole sprint or epic as one number — still give **one Fibonacci number** for the item you were asked to estimate; **recommend** child items / split beside it.
 
 ---
 

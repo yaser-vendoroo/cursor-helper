@@ -152,7 +152,7 @@ Required = block creation until filled. Recommended = strongly suggest, but the 
 | Acceptance criteria | ✅ (Story/Task/Bug) | See [AC format](#acceptance-criteria-format) |
 | Priority | ✅ | e.g. Highest / High / Medium / Low |
 | Labels / area | ⚪ recommended | Use `common_labels` from config when relevant |
-| Estimate | ⚪ recommended | Per `estimation`; do not invent — `/y-team-task-estimate` or `needs-refinement` |
+| Estimate | ⚪ recommended | Do not invent — run **`/y-team-task-estimate`** (returns points + confidence 0–5) or leave blank until then |
 | Parent / Epic link | ⚪ recommended | Required if the work clearly belongs to an epic |
 | Assignee | ⚪ optional | Resolve names via `lookupJiraAccountId` before setting |
 
@@ -297,7 +297,7 @@ When delivery mode is **Markdown only**, after approval return one copy-paste-re
 | Type | Story |
 | Priority | High |
 | Labels / area | … |
-| Estimate | 3 (or needs-refinement) |
+| Estimate | 3 (confidence 2/5 — run `/y-team-task-estimate` for full breakdown) |
 | Parent / Epic | … |
 | Assignee | <set in tracker> |
 
@@ -347,5 +347,5 @@ This ticket is vague — clean it up before I create it.
 ## Notes / limitations
 
 - Custom field IDs and issue-type names vary per Jira project — fall back to display names from `getJiraIssue`, or ask.
-- Estimation style follows the **Team config**. **Never invent points.** If the user wants a number, run **`/y-team-task-estimate`** (or **`@y-team-task-estimate`**) — or offer `needs-refinement` until they do.
+- Estimation style follows the **Team config**. **Never invent points.** If the user wants a number, run **`/y-team-task-estimate`** (or **`@y-team-task-estimate`**) — it always returns a Fibonacci value plus **confidence 0–5**; low confidence means refine the ticket or add context, not “no estimate.”
 - Sprint, fix version, and release fields are intentionally left out of creation; they belong to planning, not refinement.
