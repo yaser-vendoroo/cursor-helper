@@ -56,21 +56,46 @@ Use **`AskQuestion`** for every gate — no chat-only confirmation (same pattern
 
 ## What to check (prioritize by risk)
 
-- **Correctness & edge cases** — happy path, null/empty inputs, error paths, concurrency/async if relevant
-- **Fit with the codebase** — naming, patterns, imports, project conventions (see **CONTRIBUTING.md** when present)
-- **Scope** — unrelated refactors or drive-by changes
-- **Tests & regressions** — coverage gaps, broken tests
-- **Security & safety** — secrets, injection, authz, PII/logging, unsafe defaults
-- **Operability** — logging, metrics, config, migrations, backward compatibility
-- **Docs & API contracts** — public behavior or integrations needing updates
+Review the diff against the categories below. **Do not** repeat the same finding under multiple headings — pick the best fit (usually **Design & scope** or **Blocking**).
+
+### Behavior
+
+| Check | Look for |
+|-------|----------|
+| **Correctness** | Happy path, null/empty inputs, error paths, concurrency/async when relevant |
+| **Tests** | Gaps for changed behavior; broken or missing regression coverage |
+
+### Design & scope
+
+| Check | Look for |
+|-------|----------|
+| **Task scope** | Changes limited to what the ticket needs — no unrelated refactors, drive-by cleanups, or extra files |
+| **Reuse & generality** | Existing helpers, patterns, and config before new code; prefer a **generic** solution when the codebase already solves the same shape of problem — flag one-off logic that will duplicate on the next similar ticket |
+| **Overfitting** | Hard-coding this ticket's edge case (special cases, magic strings, forked flow) where a small shared rule or parameter would stay maintainable — call it out when the fix only works for this story |
+| **Over-engineering** | Premature abstractions, new layers, or frameworks not required by the diff; one-line wrappers; speculative “future-proof” code — prefer the **simplest** change that is correct |
+| **Codebase fit** | Naming, imports, structure match surrounding code and **CONTRIBUTING.md** when present |
+
+**Severity:** overfitting or over-engineering that blocks merge → **Blocking** or **Request changes**; nice-to-have simplification → **Follow-up**. Do **not** block on style nits when behavior is correct and consistent with nearby code.
+
+### Security & operations
+
+| Check | Look for |
+|-------|----------|
+| **Security** | Secrets, injection, authz, PII in logs, unsafe defaults |
+| **Operability** | Logging, metrics, config, migrations, backward compatibility |
+
+### Contracts
+
+| Check | Look for |
+|-------|----------|
+| **Docs & API** | Public behavior or integrations that need doc/contract updates |
 
 ---
 
 ## Output — chat
 
-- Be **direct**: **blocking** vs **follow-ups** vs **nits**.
+- Be **direct**: **blocking** vs **follow-ups** vs **nits** — one home per issue (see **Design & scope** above).
 - Point to **files/lines** when possible.
-- Do **not** block on style nits when behavior is correct and consistent with surrounding code.
 
 **Verdict:** Approve | Approve with follow-ups | Request changes
 
@@ -125,7 +150,7 @@ Keep the doc **short** (roughly one screen):
 (numbered — must fix before merge; omit section if none)
 
 ## Follow-ups
-(numbered — non-blocking; omit if none)
+(numbered — non-blocking; design simplifications, reuse, or generic refactor ideas go here; omit if none)
 
 ## Residual risks
 (bullets — omit if none)
