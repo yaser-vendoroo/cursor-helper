@@ -152,6 +152,13 @@ When a Jira id appears on a **ticket-related activity** card (see [4.0a](#40a--c
 
 **Hard rule:** never treat `ticket_activity` as an update to a `task_work` card **only** because both mention the same `vap-xxxx`. Those are different cards.
 
+**No ticket id in the message — do not infer (mandatory):**
+
+- If the user **does not** name a `vap-xxxx` / `VAP-xxxx` in their message, **do not** attach the log to an existing Jira-linked card on Nightly — even when chat context, branch name, or a related ticket on the board makes the link obvious.
+- **Create** a new **non-Jira** card (activity-first title) instead.
+- **Do not** append to a `task_work` or `ticket_activity` card for a ticket the user did not cite in **this** message.
+- Only use a ticket id on the card when the user **explicitly** names it in the message (or says **update that vap-XXXX card** / points at a specific card from this chat).
+
 **Title shape by path:**
 
 - **`task_work` (Jira):** `vap-XXXX <short Jira title> > <implementation progress> > …`
@@ -163,9 +170,9 @@ When a Jira id appears on a **ticket-related activity** card (see [4.0a](#40a--c
 1. **Fetch only** open cards in **Today Nightly to Nightly** (names + ids + shortUrl). Use **`GET /lists/{nightlyListId}/cards`** (or equivalent MCP on that list) — **never** `GET /boards/{boardId}/cards` or a cross-list search.
 2. **Do not** look at **Done**, **Todo**, date lists, or any other list when matching. If the only match is on another list, treat it as **no match on Nightly** → **create** (unless the user explicitly asks to update a card on a named list).
 3. **`task_work` — prefer update** when the message clearly continues the **same implementation thread** on Nightly, for example:
-   - Same **Jira id** on a card that is already a **task-work** card (not a meeting/review/collaboration card).
-   - User progress on work they already logged today or in this chat on that ticket.
-   - User says **still on**, **finished**, **blocked**, **updated PR** (their PR), etc., and context points at their task card.
+   - User **names the same Jira id** in this message **and** a matching **task-work** card for that id is on Nightly (not a meeting/review/collaboration card).
+   - User progress on work they already logged today or in this chat on that ticket **and** they named the ticket in this message.
+   - User says **still on**, **finished**, **blocked**, **updated PR** (their PR), etc., **with the ticket id in the message**, and a matching task-work card exists.
 4. **`task_work` — prefer create** when:
    - No **task-work** card for that ticket on Nightly (including when the ticket appears only on an **activity** card).
    - User explicitly says **new task**, **different ticket**, or **separate card**.
