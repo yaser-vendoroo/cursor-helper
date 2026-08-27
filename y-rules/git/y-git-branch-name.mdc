@@ -39,6 +39,8 @@ Follow your repo’s **CONTRIBUTING.md → Branch Naming Convention** when it ex
 
 If the user already gave an exact branch name in the same message, still confirm via AskQuestion unless they explicitly said to use that name without asking.
 
+**Exception — y-git-workflow new path:** when **[`y-git-workflow.mdc`](y-git-workflow.mdc)** is active on the **new** workflow, do **not** apply this `type/JIRA-key-desc` format. That path uses exact names `VAP-xxxx` (from `origin/production`) and `mg-testing-VAP-xxxx`. This rule still applies to the **legacy** path and to Task PRs opened outside that orchestrator.
+
 ## Examples (good)
 
 - `feature/PROJ-123-add-user-auth`

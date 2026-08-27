@@ -62,14 +62,18 @@ After candidate tasks are confirmed (Release step 1 / Hotfix step 1) and **befor
 - If the user already named the origin branch in the **same message** (e.g. "use staging"), still confirm with **`AskQuestion`** (pre-select that option in the prompt text).
 - Record the confirmed name as **`<origin-branch>`** (no `origin/` prefix) for the rest of the flow.
 
+**Exception — y-git-workflow new path:** when invoked from **[`y-git-workflow.mdc`](y-git-workflow.mdc)** N11 on the **new** workflow, **do not** use this testing/staging table as the first origin question. N11 already ran **Cherry-pick source** (default **task branch `VAP-xxxx`**). Use that confirmed **`<origin-branch>`**. Commit lookup is `git log <origin-ref> --grep=<ticket>` where `<origin-ref>` is `origin/<origin-branch>` if it exists, else the local branch of the same name. Fetch `origin production` always; fetch `origin <origin-branch>` when that remote branch exists. **Legacy** workflow and standalone `/y-git-create-pr` still use the testing/staging table above (default **`testing`**).
+
 ### How `<origin-branch>` is used
 
 | PR type | Usage |
 |---------|--------|
-| **Release PR** | `git fetch origin <origin-branch> production` → create `release-<version>` from `origin/<origin-branch>` → reset to `origin/production` → cherry-pick commits found on `origin/<origin-branch>` |
-| **Hotfix PR** | `git fetch origin <origin-branch> production` → cherry-pick from `origin/<origin-branch>` onto `prod-*` (still branch **from** `origin/production`) |
+| **Release PR** | `git fetch origin production` (and `origin/<origin-branch>` when it exists) → create `release-<version>` from **`origin/production`** when `<origin-branch>` is a **task branch** (`VAP-xxxx`); otherwise the existing flow (create from `origin/<origin-branch>` then `reset --hard origin/production` when scoping) → cherry-pick commits from **`<origin-ref>`** |
+| **Hotfix PR** | `git fetch origin production` (and `origin/<origin-branch>` when it exists) → cherry-pick from **`<origin-ref>`** onto `prod-*` (still branch **from** `origin/production`) |
 
-Cherry-pick **order** follows history on **`origin/<origin-branch>`** (oldest first among selected commits).
+**`<origin-ref>`:** `origin/<origin-branch>` if that remote branch exists; otherwise the local branch of the same name (typical for new-path **`VAP-xxxx`**).
+
+Cherry-pick **order** follows history on **`<origin-ref>`** (oldest first among selected commits).
 
 **Task PR** merge destination stays **`testing`** by default ([Task PR — target branch](#task-pr--target-branch)); Task PR scope comparison also uses **`origin/testing`** unless the user confirms **`other`** for an unusual comparison base.
 
@@ -84,6 +88,7 @@ Use for **feature**, **bugfix**, **chore**, or similar work that merges into **`
 - **Always fetch latest `testing` first** — run `git fetch origin testing` before commit lookup or diff review. Use **`origin/testing`** as the comparison base.
 - **Merge destination: `testing`.** Default `gh pr create --base testing`.
 - **Source branch** follows **`.cursor/rules/y-rules/git/y-git-branch-name.mdc`**: `<type>/<jira-issue-key>-<short-description>` (`feature/`, `bugfix/`, `hotfix/`, `chore/`).
+- **Exception — y-git-workflow new path:** when invoked from **[`y-git-workflow.mdc`](y-git-workflow.mdc)** on the **new** workflow, the Task PR **head** is `mg-testing-VAP-xxxx` (not a type-prefix branch). Comparison base stays **`origin/testing`**. Skip the type-prefix branch-name confirmation; keep all other Task PR gates (scope, title/body, Calendar, Slack, In Review).
 - **PR scope = pushed commits only** on the current branch vs **`origin/testing`** (`git log origin/testing..HEAD`, `git diff origin/testing...HEAD`). Uncommitted or staged local changes are **not** in the PR until the user commits and you re-run scope review.
 - **Do not** use `release-*` or `prod-*` branch patterns for Task PRs.
 - **Do not** cherry-pick or reset onto `production` for Task PRs.
@@ -99,7 +104,7 @@ Pattern (from **y-git-branch-name.mdc**):
 
 Examples: `feature/VAP-2224-add-greeter-config`, `bugfix/VAP-2291-resiroo-overflow-plumbing-routing`
 
-**Mandatory confirmation — branch name:** use **`AskQuestion`** to confirm the current branch name (or a proposed name before `git checkout -b`) when the branch does not exist yet or the user has not confirmed it in this session. Include **`other`** if they may want a different name. See **y-git-branch-name.mdc**.
+**Mandatory confirmation — branch name:** use **`AskQuestion`** to confirm the current branch name (or a proposed name before `git checkout -b`) when the branch does not exist yet or the user has not confirmed it in this session. Include **`other`** if they may want a different name. See **y-git-branch-name.mdc**. Skip this type-prefix confirmation when the head is already `mg-testing-VAP-xxxx` from **y-git-workflow** new path (see [Task PR — principles](#task-pr--principles)).
 
 ### Task PR — scope and Jira ticket (mandatory input)
 

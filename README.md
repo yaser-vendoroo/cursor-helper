@@ -64,6 +64,7 @@ Common slash commands — useful in most projects. Install as `.cursor/commands/
 | `/y-git-commits` | Analyze uncommitted changes; propose grouped Conventional Commits; commit after AskQuestion approval |
 | `/y-git-commit-message` | Draft Conventional Commit messages; optional amend unpushed HEAD and push |
 | `/y-git-create-pr` | Create a task PR (→ testing), hotfix PR (→ production), or release PR (→ production) |
+| `/y-git-workflow` | Orchestrate legacy vs new task git flow from branch through QA and production |
 | `/y-agt-code-review` | Senior code review of unpushed commits — read-only; markdown report when needed |
 | `/y-git-branch-name` | Create or confirm a task branch name before checkout |
 | `/y-git-track-new-files` | Stage new task-related files so nothing important stays untracked |
@@ -118,6 +119,7 @@ Common rules — same scope as `y-commands/`. Install as `.cursor/rules/y-rules`
 |------|-------------|
 | `y-git-commits` | Analyze uncommitted work; create atomic Conventional Commits with AskQuestion gates |
 | `y-git-create-pr` | Full task / hotfix / release PR workflow with checklists and optional Calendar + Slack |
+| `y-git-workflow` | Detect legacy vs new path and current step; AskQuestion through QA and production |
 | `y-git-branch-name` | Branch naming (`type/JIRA-key/desc`); AskQuestion before checkout |
 | `y-git-track-new-files` | Track new task files during implementation |
 | `y-team-task-refinement` | Refine vague tasks into well-scoped Jira items before work starts |

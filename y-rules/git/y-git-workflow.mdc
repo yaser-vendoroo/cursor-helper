@@ -1,0 +1,360 @@
+---
+description: >-
+  Orchestrate task git workflow (legacy Task PR vs new VAP-xxxx + mg-testing
+  path) from branch through QA and production — detect step, AskQuestion gates,
+  delegate to existing git/Slack rules.
+alwaysApply: false
+---
+
+# Git: workflow (`y-git-workflow`)
+
+Use when the user invokes **`/y-git-workflow`**, **`@y-git-workflow`**, or asks to **continue the git workflow** for a ticket.
+
+This rule is an **orchestrator**. It detects **legacy vs new** and the **current step**, then guides the developer with **`AskQuestion`** at every decision. It **does not** copy PR checklists, In Review field lists, or Release/Hotfix cherry-pick steps — those stay in the rules below.
+
+**Out of scope:** automating marketplace release to testing (N8 is a checklist only); implementing Release PR / Hotfix PR git steps (N11 delegates).
+
+---
+
+## AskQuestion gates (mandatory)
+
+Every user decision must use **`AskQuestion`** — not chat-only prompts. Same pattern as [`y-git-commits.mdc`](y-git-commits.mdc).
+
+| Gate | When | Options (minimum) |
+|------|------|-------------------|
+| **Jira key** | No `VAP-\d+` (or other `PROJ-\d+`) in branch, PR, or user message | User-supplied key / `other` |
+| **Workflow path** | Detection **ambiguous** or **conflicting** | **New workflow** / **Legacy workflow** / `other` |
+| **Current step** | After showing inferred path + step | Continue from detected step / Pick a different step / Stop |
+| **Per-step action** | Before every `git checkout`, `git pull`, `git push`, `gh pr create`, or `transitionJiraIssue` | Proceed / Skip this step / Stop |
+| **Conflict resolution** | Merge failed or conflict markers in `git status` | Continue resolving / Abort merge / Get help / `other` |
+| **Post-PR follow-ups** | After a Task PR exists | Delegate Calendar/Slack gates to **y-git-create-pr** — do not duplicate |
+| **PR rework (N7r)** | After fixes pushed to `mg-testing-VAP-xxxx` | Re-request review / Notify Slack again / Done for now |
+| **QA pass (N10)** | Ticket at Ready for QA | Move to Ready for Release / QA failed → N9r / Not yet |
+| **Production (N11)** | Ticket at Ready for Release | Release PR / Hotfix PR / Wait |
+| **Cherry-pick source (N11, new path only)** | After Release PR or Hotfix PR is chosen | **Task branch `VAP-xxxx` (recommended default)** / `mg-testing-VAP-xxxx` / `testing` / `other` |
+
+**Hard rules:**
+
+- Do **not** run `git checkout -b`, `git pull`, `git push`, `gh pr create`, or `transitionJiraIssue` until the matching gate is answered.
+- **New path** branch names are exact: `VAP-xxxx` and `mg-testing-VAP-xxxx`. This **overrides** [`y-git-branch-name.mdc`](y-git-branch-name.mdc) **only on the new path**.
+- Skip the **workflow path** gate when detection is high-confidence. Pre-select the detected path when you must ask.
+
+---
+
+## Gather context (start of every run)
+
+Run in parallel:
+
+```bash
+git branch --show-current
+git branch -a | grep -E 'VAP-[0-9]+|mg-testing-VAP'
+git status --short
+git fetch origin production testing 2>/dev/null || true
+gh pr list --head <current-or-inferred-branch> --json number,state,baseRefName,headRefName,reviewDecision 2>/dev/null || true
+```
+
+When the Jira key is known: Atlassian MCP **`getJiraIssue`** with `contentFormat: "markdown"` (workspace **jira-workflow**).
+
+Present detected **path + step** in chat, then the **Current step** gate.
+
+---
+
+## Path detection
+
+Skip path **AskQuestion** when one signal is clear. Ask when signals conflict or none match.
+
+| Signal | Path |
+|--------|------|
+| Branch `mg-testing-VAP-xxxx` (local or remote) | **New** |
+| Branch matches `^VAP-\d+$` | **New** |
+| Open or merged PR head `mg-testing-VAP-*` → base `testing` | **New** |
+| Branch matches `^(feature\|bugfix\|chore\|hotfix)/` + issue key | **Legacy** |
+| Open PR head `feature/VAP-*` (or bugfix/chore/hotfix) → `testing` | **Legacy** |
+| Both styles exist for the same ticket | **AskQuestion** |
+
+---
+
+## Step detection
+
+Use the **first matching** row (more specific first).
+
+| Signals | Likely step |
+|---------|-------------|
+| Jira **Ready for Release** | **N11** |
+| Jira **Ready for QA** and user reports QA passed | **N10** |
+| Jira **Ready for QA** and QA still in progress | N9 complete — offer N10 when QA finishes |
+| Jira **To Do** after Ready for QA, merged PR exists for the ticket | **N9r** (confirm vs a new unrelated start) |
+| Open PR, `CHANGES_REQUESTED`, or user says PR rejected | **N7r** (new) or L3 rework (legacy) |
+| Open PR, `OPEN`, review approved / mergeable | **N7** (await merge) |
+| PR `MERGED`, Jira not Ready for QA | **N8–N9** |
+| Jira **In Review**, legacy branch, open PR | **L3+** |
+| On `mg-testing-VAP-xxxx`, merge in progress / conflicts | **N5** |
+| On `mg-testing-*`, clean tree, no open PR | **N6** |
+| On `VAP-xxxx`, no `mg-testing-*` | **N2–N3** |
+| No local/remote task branch for the ticket | **N1** / **L1** |
+
+---
+
+## Full flow (reference)
+
+```mermaid
+flowchart TB
+  invoke(["/y-git-workflow"])
+  gather["Gather git + Jira + gh PR"]
+  pathQ{Legacy or New?}
+  autoPath["Auto-detect path"]
+
+  invoke --> gather --> autoPath --> pathQ
+
+  subgraph legacyPath [Legacy L1 to L3]
+    L1["L1: type/VAP-xxxx-desc"]
+    L2["L2: implement + tests"]
+    L3["L3+: Task PR via y-git-create-pr"]
+    L1 --> L2 --> L3
+  end
+
+  subgraph newPath [New N1 to N7]
+    N1["N1: VAP-xxxx from production"]
+    N2["N2: implement + tests"]
+    N3["N3: mg-testing-VAP-xxxx"]
+    N4["N4-N5: pull testing + conflicts"]
+    N6["N6: PR mg-testing to testing"]
+    N7["N7: review + merge"]
+    N7r["N7r: fix VAP-xxxx then re-sync"]
+    N1 --> N2 --> N3 --> N4 --> N6 --> N7
+    N6 --> N7r
+    N7r --> N6
+  end
+
+  pathQ -->|Legacy| L1
+  pathQ -->|New| N1
+
+  subgraph sharedTail [Shared tail]
+    N8["N8: release to testing env"]
+    N9["N9: Jira Ready for QA"]
+    qaGate{QA result?}
+    N9r["N9r: To Do then new PR cycle"]
+    N10["N10: Ready for Release"]
+    N11{"N11: production path?"}
+    relPR["Release PR"]
+    hotPR["Hotfix PR"]
+    shipped(["Shipped"])
+
+    N8 --> N9 --> qaGate
+    qaGate -->|Reject| N9r
+    N9r --> N8
+    qaGate -->|Pass| N10 --> N11
+    N11 -->|Weekly| relPR --> shipped
+    N11 -->|Urgent| hotPR --> shipped
+    N11 -->|Wait| N10
+  end
+
+  L3 --> N8
+  N7 --> N8
+```
+
+---
+
+## New path
+
+Exact names only. Ticket key example: `VAP-xxxx`.
+
+| Step | Action | Branch / target |
+|------|--------|-----------------|
+| **N1** | `git fetch origin production` then `git checkout -b VAP-xxxx origin/production` | Task branch `VAP-xxxx` |
+| **N2** | Implement + local tests; [`y-git-commits.mdc`](y-git-commits.mdc) / [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc) when needed | `VAP-xxxx` |
+| **N3** | `git checkout -b mg-testing-VAP-xxxx` from the task branch | Integration branch |
+| **N4** | `git pull --no-rebase origin testing` | `mg-testing-VAP-xxxx` |
+| **N5** | Resolve conflicts on the integration branch | `mg-testing-VAP-xxxx` |
+| **N6** | Open PR → `testing` | Head `mg-testing-VAP-xxxx` |
+| **N7** | Review approved → merged into `testing` | Track with `gh pr view` |
+| **N7r** | PR rejected — see [N7r](#n7r--pr-rejected-new-path) | Same open PR |
+| **N8** | [Release to testing](#n8--marketplace-release-to-testing) | Manual |
+| **N9** | Jira → **Ready for QA** | Transition gate |
+| **N9r** | QA rejected — see [N9r](#n9r--qa-rejected) | New PR cycle |
+| **N10** | QA passed → **Ready for Release** | Transition gate |
+| **N11** | Production — [N11](#n11--production-deploy) | `y-git-create-pr` |
+
+### N1 — task branch
+
+1. Confirm Jira key (gate if missing).
+2. **AskQuestion** — create `VAP-xxxx` from `origin/production` now?
+3. On Yes: fetch, then `git checkout -b VAP-xxxx origin/production`.
+4. Do **not** use `feature/` / `bugfix/` prefixes on this path.
+
+### N2 — implement
+
+Stay on `VAP-xxxx`. All real code changes land here first.
+
+- Commits: [`y-git-commits.mdc`](y-git-commits.mdc) when the user asks to commit.
+- Untracked files: [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc).
+- **AskQuestion** when ready to move to N3 (create integration branch) vs keep implementing.
+
+### N3–N5 — integrate
+
+1. **AskQuestion** before `git checkout -b mg-testing-VAP-xxxx`.
+2. **AskQuestion** before `git pull --no-rebase origin testing`.
+3. If the pull fails or `git status` shows conflicts: **Conflict resolution** gate. Resolve **only** on `mg-testing-VAP-xxxx`.
+4. Do **not** push `VAP-xxxx` as the PR head.
+
+### N6 — open PR (new-path exceptions)
+
+Read and follow [`y-git-create-pr.mdc`](y-git-create-pr.mdc) **Task PR** end-to-end, with these exceptions:
+
+- **Head branch** is `mg-testing-VAP-xxxx` — skip `y-git-branch-name` type-prefix naming.
+- Comparison base stays **`origin/testing`**.
+- Calendar and Slack steps still apply after the PR exists.
+
+### N7 — await merge
+
+Track `gh pr view`. Do **not** merge unless the user asks and a **Per-step action** gate confirms. After merge, continue at N8.
+
+### N7r — PR rejected (new path)
+
+When the open PR (`mg-testing-VAP-xxxx` → `testing`) is **not** approved (`CHANGES_REQUESTED`, reviewer comments, or the user says rejected): **do not** merge and **do not** go to N8/N9.
+
+| Sub-step | Action | Branch |
+|----------|--------|--------|
+| N7r.1 | `gh pr view --json reviewDecision,state,comments` | — |
+| N7r.2 | `git checkout VAP-xxxx` | Task branch — **all fixes here first** |
+| N7r.3 | Implement + tests; commits via `y-git-commits` when asked | `VAP-xxxx` |
+| N7r.4 | `git checkout mg-testing-VAP-xxxx` | Integration |
+| N7r.5 | `git merge VAP-xxxx` | Integration |
+| N7r.6 | `git pull --no-rebase origin testing` | Integration |
+| N7r.7 | Resolve conflicts if any | Integration |
+| N7r.8 | `git push origin mg-testing-VAP-xxxx` | Same PR updates |
+| N7r.9 | **AskQuestion** — re-request review / Slack again / done for now | Slack only if chosen — [`y-slack-pr-ready-for-review.mdc`](../slack/y-slack-pr-ready-for-review.mdc) |
+
+**Jira during N7r:** leave **In Review** (or current). Do **not** move to Ready for QA until N7 merge completes.
+
+**PR closed without merge:** **AskQuestion** — reopen the same PR / open a new PR from `mg-testing-VAP-xxxx` (re-run N6) / stop. Do **not** delete `VAP-xxxx`.
+
+---
+
+## Legacy path
+
+Do **not** use `mg-testing-*` or a plain `VAP-xxxx` task branch.
+
+| Step | Delegation |
+|------|------------|
+| **L1** | [`y-git-branch-name.mdc`](y-git-branch-name.mdc) — `<type>/VAP-xxxx-desc`. Base branch is **not** forced to `production`. |
+| **L2** | Implement + local tests; [`y-git-commits.mdc`](y-git-commits.mdc) when asked; [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc) as needed. |
+| **L3+** | Full [`y-git-create-pr.mdc`](y-git-create-pr.mdc) **Task PR** (Calendar, Slack, In Review checklist). PR-rejected rework stays inside that rule (fix on the task branch, push, same PR). |
+
+After the Task PR is **merged** into `testing`, continue at **N8** (shared tail). After QA, **N10** and **N11** apply the same as the new path.
+
+---
+
+## Shared tail (both paths)
+
+### N8 — marketplace release to testing
+
+Manual. No CI or deploy automation in this rule.
+
+**AskQuestion** after listing a short checklist, for example:
+
+- Marketplace **testing** release project / pipeline for this service is started or already done
+- Expected env is the QA testing environment
+- User confirms release is complete / skip for now / stop
+
+On **complete**, continue to N9. Do **not** invent a runbook URL if none exists.
+
+### N9 — Jira Ready for QA
+
+1. **AskQuestion** — move this ticket to **Ready for QA** now?
+2. On Yes: `getTransitionsForJiraIssue` → confirm the transition exists → `transitionJiraIssue`.
+3. No required-fields checklist unless the team adds one later (unlike In Review).
+
+**In Review** (when still needed on the PR path): follow [`y-slack-pr-ready-for-review.mdc`](../slack/y-slack-pr-ready-for-review.mdc) § Jira required fields — do not copy that list here.
+
+### N9r — QA rejected
+
+**Not the same as N7r.** Similar git pattern; different timing.
+
+| | **N7r** | **N9r** |
+|---|---------|---------|
+| When | Before merge (open PR) | After merge + N8 + Ready for QA |
+| Trigger | `CHANGES_REQUESTED` or reviewer comments | Jira **To Do** (from Ready for QA) or user reports QA failure |
+| Jira | Stays In Review | Ready for QA → **To Do** |
+| PR | **Same** open PR | Previous PR **merged** — need a **new** PR |
+| Fix on | `VAP-xxxx` | `VAP-xxxx` |
+| After fix | Re-request review | N4–N5 → **new** N6 → N7 → N8 → N9 |
+
+| Sub-step | Action |
+|----------|--------|
+| N9r.1 | Confirm QA rejection (Jira **To Do** or user report). **AskQuestion** if this might be a new unrelated start on the same key. |
+| N9r.2 | `git checkout VAP-xxxx` — QA fixes + commit |
+| N9r.3 | Reuse `mg-testing-VAP-xxxx`, or recreate from `VAP-xxxx` if deleted |
+| N9r.4 | `git pull --no-rebase origin testing` + resolve conflicts |
+| N9r.5 | Open a **new** PR → `testing` (N6 exceptions) |
+| N9r.6 | If code review rejects the new PR, follow **N7r** |
+| N9r.7 | After merge → N8 → N9 again |
+
+Legacy N9r: fix on the type-prefix task branch, new Task PR via `y-git-create-pr`, then N8–N9.
+
+### N10 — QA passed
+
+No further git work on `VAP-xxxx` / `mg-testing-*` unless QA failed (N9r).
+
+1. Confirm QA passed (user report or sign-off; ticket at **Ready for QA**).
+2. **AskQuestion** — move to **Ready for Release** now? / QA failed → N9r / not yet.
+3. On Yes: `getTransitionsForJiraIssue` → `transitionJiraIssue` to **Ready for Release**.
+
+### N11 — production deploy
+
+1. **AskQuestion** — **Release PR** (scheduled weekly) / **Hotfix PR** (urgent) / **Wait** (stay Ready for Release).
+2. **New path only — cherry-pick source (mandatory):** after Release PR or Hotfix PR is chosen, **`AskQuestion`** which branch to cherry-pick from **before** handing off to `y-git-create-pr`:
+
+   | Option | Meaning |
+   |--------|---------|
+   | **Task branch `VAP-xxxx` (recommended)** | Cherry-pick this ticket’s commits from **`VAP-xxxx`** — **default**. Prefer this so production does not pick up extra `testing` / `mg-testing` merge commits. |
+   | **`mg-testing-VAP-xxxx`** | Integration branch (includes `testing` pull). Use only if the user explicitly wants those merge commits. |
+   | **`testing`** | Same as legacy Release/Hotfix origin (`origin/testing`). |
+   | **`other`** | User names another branch in chat. |
+
+   - Pre-select **`VAP-xxxx`**. Do **not** skip this gate on the new path.
+   - Resolve a usable ref: `origin/VAP-xxxx` if it exists after `git fetch`, otherwise the **local** `VAP-xxxx`. If neither exists, **AskQuestion** — fetch/push the task branch first / pick another source / stop.
+   - Record the confirmed name as **`<origin-branch>`** and pass it into [`y-git-create-pr.mdc`](y-git-create-pr.mdc). That rule **must not** re-ask testing vs staging when this gate already ran (see its new-path exception).
+
+3. **Legacy path:** skip the cherry-pick-source gate above. `y-git-create-pr` still asks testing vs staging (default **`testing`**).
+4. **Release PR:** read and follow [`y-git-create-pr.mdc`](y-git-create-pr.mdc) **Release PR** end-to-end; include this ticket in the release candidate list; cherry-pick from confirmed **`<origin-branch>`**.
+5. **Hotfix PR:** follow **Hotfix PR** end-to-end; cherry-pick this ticket from confirmed **`<origin-branch>`** (new path default: task branch, not `origin/testing`).
+
+Do **not** duplicate Confluence version lookup or cherry-pick order here.
+
+---
+
+## Pitfalls
+
+- Dirty working tree before `git pull` on `mg-testing-*` — stash or commit first (AskQuestion).
+- Opening a PR from `VAP-xxxx` instead of `mg-testing-VAP-xxxx` on the new path.
+- Using `y-git-branch-name` prefixes on the new path.
+- Fixing review comments only on `mg-testing-*` without committing on `VAP-xxxx` first.
+- Moving Jira to Ready for QA while the PR is still open or rejected (N7r).
+- Treating N9r as N7r (need a **new** PR after merge).
+- Inferring legacy vs new when both branch styles exist — ask.
+- New-path production cherry-pick from `testing` or `mg-testing-*` by default — always **AskQuestion**; default is the **task branch** `VAP-xxxx`.
+
+---
+
+## Related rules
+
+| Need | Use |
+|------|-----|
+| Legacy branch name | [`y-git-branch-name.mdc`](y-git-branch-name.mdc) |
+| Commits | [`y-git-commits.mdc`](y-git-commits.mdc) |
+| Track new files | [`y-git-track-new-files.mdc`](y-git-track-new-files.mdc) |
+| Legacy Task PR + Calendar + Slack | [`y-git-create-pr.mdc`](y-git-create-pr.mdc) Task PR |
+| New-path PR | Same Task PR section + `mg-testing-VAP-xxxx` exceptions |
+| In Review required fields | [`y-slack-pr-ready-for-review.mdc`](../slack/y-slack-pr-ready-for-review.mdc) |
+| Release PR / Hotfix PR | [`y-git-create-pr.mdc`](y-git-create-pr.mdc) from N11 |
+
+---
+
+## Do not
+
+- Copy PR body templates, checklist boxes, or In Review field lists into this file.
+- Skip **AskQuestion** for path when detection is unclear.
+- Ask path when `mg-testing-VAP-*` or `^VAP-\d+$` already makes the new path obvious (or type-prefix branch for legacy).
+- Force-push, `git add -A`, or commit uncommitted work unless the user asks via a delegated rule.
+- Automate marketplace N8 deploys.

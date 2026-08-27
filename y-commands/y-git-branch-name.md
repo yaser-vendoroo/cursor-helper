@@ -49,6 +49,8 @@ Follow your repo’s **CONTRIBUTING.md** when it defines branch naming.
 
 If the user already gave an exact branch name in the same message, still confirm via **`AskQuestion`** unless they explicitly said to use that name without asking.
 
+**Exception:** `/y-git-workflow` **new** path uses `VAP-xxxx` and `mg-testing-VAP-xxxx` — follow [y-git-workflow.mdc](../y-rules/git/y-git-workflow.mdc), not this format.
+
 ---
 
 ## Examples (good)

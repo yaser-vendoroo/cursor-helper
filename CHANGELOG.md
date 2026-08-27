@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/y-git-workflow` — orchestrate legacy Task PR vs new `VAP-xxxx` + `mg-testing-VAP-xxxx` flow from branch through QA and production (delegates to existing git/Slack rules)
+
+### Changed
+
+- New-path production (N11) asks which branch to cherry-pick from; default is the **task branch** `VAP-xxxx`, not `testing` or `mg-testing-*`
+
 ## [1.3.0] - 2026-08-16
 
 ### Added
