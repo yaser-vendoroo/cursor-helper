@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-27
+
 ### Added
 
 - `/y-git-workflow` — orchestrate legacy Task PR vs new `VAP-xxxx` + `mg-testing-VAP-xxxx` flow from branch through QA and production (delegates to existing git/Slack rules)
@@ -14,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - New-path production (N11) asks which branch to cherry-pick from; default is the **task branch** `VAP-xxxx`, not `testing` or `mg-testing-*`
+- Story-point estimates always include a Fibonacci number and confidence 0–5, with Jira labels `y-ai-estimated`, `y-ai-est-confidence-<n>`, and optional `y-ai-needs-refinement`
+- Code review now checks task scope, reuse, overfitting, and over-engineering
+
+### Fixed
+
+- Trello Nightly logging does not attach work to a Jira card unless the user names the ticket in that message
 
 ## [1.3.0] - 2026-08-16
 
