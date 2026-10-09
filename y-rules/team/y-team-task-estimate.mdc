@@ -1,15 +1,17 @@
 ---
 description: >-
   Fast Agile story-point estimate for an existing Jira ticket (Fibonacci 1–8).
-  Requires ticket key or URL; gathers Jira + related repos; always returns
-  Fibonacci estimate plus confidence 0–5; AskQuestion to confirm and
-  optionally write Story Point estimate.
+  Dev, QA, or both (default both). Requires ticket key or URL; always returns
+  Fibonacci plus confidence 0–5; AskQuestion to confirm and optionally write
+  Story Point estimate and/or QA Story Point.
 alwaysApply: false
 ---
 
 # Team task estimate (`y-team-task-estimate`)
 
 Use when the user wants a **story-point estimate** for an **existing** tracker item, or invokes **`/y-team-task-estimate`** / **`@y-team-task-estimate`**.
+
+**Audiences:** **Dev team**, **QA team**, or **both** (default **both**). Dev and QA are **two capacity buckets**, not one combined team SP. QA points are **QA work only** (cases, run, retest, report), not implementation.
 
 **Not** ticket creation — that is [`y-team-task-refinement.mdc`](y-team-task-refinement.mdc). **Not** an implementation plan — that is `y-agt-plan-phase`.
 
@@ -44,6 +46,27 @@ Do **not** paste a factor table or a long methodology.
 
 ---
 
+## 0b2. Audience (mandatory AskQuestion)
+
+Immediately **after** the intro, **`AskQuestion`** (multi-select; **pre-select both** when the tool allows):
+
+| Option | Path |
+|--------|------|
+| **Dev team** | Current Dev factors, **Story Point estimate**, labels `y-ai-estimated` / `y-ai-est-confidence-<n>` |
+| **QA team** | QA factor meanings, **QA Story Point**, labels `y-ai-qa-storypoint` / `y-ai-qa-sp-confidence-<n>` |
+
+If **AskQuestion** is unavailable: same options in chat and **wait**.
+
+When **QA** or **Both** is selected, add this in chat (short, no table):
+
+```
+QA uses the same four factor names (complexity, effort, risk, unknowns) with QA evaluation (oracles, evidence, env). Same Fibonacci 1 2 3 5 8 and confidence 0–5. Vague tickets still get a number plus low confidence. Hours on a calendar do not change the Jira points.
+```
+
+Keep the Dev intro wording above when **Dev-only**. Do not replace Dev **Effort** (glue, tests, review, QA) on the Dev path.
+
+---
+
 ## 0c. Ticket required (hard stop)
 
 Do **not** gather or recommend a number without a ticket reference.
@@ -70,7 +93,7 @@ If the key/URL is invalid or **`getJiraIssue`** fails, say so and ask for a corr
 Use the **confirmed** key. Pull:
 
 - Summary, description, AC, type, status, recent comments (not the entire history)
-- Linked issues (blocks / is blocked by / clones)
+- Linked issues: **Blocked by** / **blocks** (cannot start; QA cannot test) **and** **Requires in Production** / **Is Required in Production by** (can QA on `testing`; must not cherry-pick to production alone). Do **not** treat those two link types as the same. Also clones when present.
 - Attachments / linked docs **only if** they would change the number
 
 Do **not** crawl Confluence or start a long investigation. If a gap would change `1` vs `3` vs `8`, go to step 2.
@@ -81,9 +104,9 @@ Jira: Atlassian MCP, `cloudId: vendoroo-dev.atlassian.net`, `getJiraIssue` with 
 
 ## 1b. Related code (one or more repos)
 
-Code context makes the estimate more accurate. Identify **which projects** the work likely touches (description, links, service names, `github.com/...` URLs, workspace folders).
+When **Dev** is selected (alone or with QA): code context makes the **Dev** estimate more accurate. Identify **which projects** the work likely touches (description, links, service names, `github.com/...` URLs, workspace folders).
 
-A ticket **may map to more than one repo**. Give **one combined** number unless the user asks to split tickets.
+A ticket **may map to more than one repo**. Give **one combined Dev number** unless the user asks to split tickets.
 
 **Look (fast, not a full review):**
 
@@ -96,9 +119,11 @@ Look at **entry points, similar existing code, and obvious blast radius** — no
 **No access:**
 
 - Name the repo(s) you **cannot** open and **why** (not in workspace, private, missing clone, `gh` denied).
-- **AskQuestion:** local path / open the folder in Cursor / clone URL / skip that repo (lower **confidence** score).
+- **AskQuestion:** local path / open the folder in Cursor / clone URL / skip that repo (lower **Dev confidence**).
 - **Do not** invent module structure or pretend you read code you did not see.
 - If a skipped repo is likely **large** complexity, lower **confidence** and note the gap — still give a best-effort Fibonacci number. You may **recommend** split or spike beside that number.
+
+When **QA-only:** do **not** do a deep “implement this” review. Glance at product behavior only to judge **blast radius** (surfaces, oracles). Also look at AC, comments, **Requires in Production** links, and existing test docs under `docs/<KEY>/` when present.
 
 ---
 
@@ -141,11 +166,30 @@ Each factor **S / M / L**. Combine with judgment (guideline, not a formula):
 
 **Relative size:** `3` means “about like other 3s,” not three hours.
 
+### QA factor meanings (when QA or Both)
+
+Same **S / M / L**, same combine guide, same Fibonacci `1 2 3 5 8`. **Different questions** (do not paste this table in chat):
+
+| Factor | QA meaning |
+|--------|------------|
+| **Complexity** | How hard is it to **know pass/fail**? Oracles, multi-turn flows, data combinations, many surfaces. Not lines of product code. |
+| **Effort** | Remaining **human QA** work: criteria/cases, data/env setup, execution, evidence, retest, report. Not coding the feature. |
+| **Risk** | Cost of a **missed fail** (prod, data, payments, PII). Include QA on the `testing` mix vs production cherry-pick when other unreleased work may be involved. Flag **Requires in Production** / **Is Required in Production by**. Do **not** use **Blocked by** for that. |
+| **Unknowns** | Thin AC, no oracle, no env, unclear test data, missing **Requires in Production** when the stack needs it. Do not treat **Blocked by** as the same signal. |
+
+**Vague AC / no oracle:** still pick `1 2 3 5 8` with **QA confidence 0–2** and recommend refinement or a short exploratory pass. Do **not** skip the QA estimate until the ticket is clean.
+
+People may keep **hours** on a calendar for QA execution. That does **not** change **QA Story Point**.
+
+Dev and QA remain **separate** numbers. Do not add them into one SP.
+
 ---
 
 ## 3b. Confidence score 0–5 (mandatory)
 
-Always output **Confidence: N/5** alongside the estimate. **Never leave the estimate blank** because the ticket is vague — give a **best-effort Fibonacci number** and use **confidence** to show how reliable it is.
+Always output **Confidence: N/5** alongside **each** estimate you produce (Dev, QA, or both). **Never leave an estimate blank** because the ticket is vague — give a **best-effort Fibonacci number** and use **confidence** to show how reliable it is.
+
+When **Both**, output **two** Fibonacci numbers and **two** confidence scores (gaps can differ).
 
 Score from what you **have** vs what is **missing**:
 
@@ -158,7 +202,7 @@ Score from what you **have** vs what is **missing**:
 | **1** | Very vague ticket — best-effort only; recommend refinement or a short sync |
 | **0** | Almost no usable context — placeholder guess; strongly recommend **`/y-team-task-refinement`** before planning |
 
-**How to treat the number for sprint load**
+**How to treat the number for sprint load** (same bands for Dev and QA; official scale is **0–5**, not High/Medium/Low):
 
 - **4–5 / 5** — treat the Estimate as sprint load
 - **3 / 5** — usable; it might move
@@ -183,10 +227,10 @@ Optional (local file and chat only, **never** Jira): if confidence is 0–2, you
 
 ## 4. Recommend (short chat)
 
-Required shape:
+Required shape **per selected audience**. When **Both**, use two labeled blocks (**Dev** then **QA**), each with its own Estimate, Confidence, Factors line, drivers, and Why.
 
-- **Estimate:** `<1|2|3|5|8>` — **always** a Fibonacci number. Size of **the ticket as written** (what Done means on that ticket). Never the words `split` or `spike`.
-- **Confidence:** `N/5` (integer **0–5** per step 3b)
+- **Estimate:** `<1|2|3|5|8>` — **always** a Fibonacci number. Size of **the ticket as written** for that audience. Never the words `split` or `spike`.
+- **Confidence:** `N/5` (integer **0–5** per step 3b) for **that** audience
 - **Recommendations:** omit this block if none. Otherwise short bullets:
   - Split into … (named slices + suggested sizes)
   - Spike first: … (what it must answer)
@@ -197,7 +241,7 @@ Required shape:
 - **Checked / considered:** a **short bullet list** of what you actually looked at. Always include:
   - **Repos** you opened (name them). If you skipped a repo, say so and why.
   - **Ticket context:** AC, type, recent comments, linked issues (only what you used).
-  - **Blockers:** active and potential (Jira “is blocked by”, missing access, unclear done).
+  - **Blockers:** active and potential (Jira **Blocked by**; missing access; unclear done). **Requires in Production** is a **dependency**, not a start-blocker — list it under Dependencies.
   - **Dependencies:** active and potential (other tickets, services, people, releases).
   - Write `none seen` for a line if that bucket is empty — do not invent.
 - **Why this number is reasonable:** a **short bullet list** (about 3–5 bullets). Explain the **outcome**, not a methodology lecture:
@@ -233,11 +277,13 @@ Example:
 
 **AskQuestion:** approve this number / pick another of `1 2 3 5 8` / cancel.
 
-Low confidence (**0–2**) does **not** remove the estimate — it signals the number may change after refinement or more context. Split and spike stay in **Recommendations**; they do not clear the number.
+When **Both:** approve **both** numbers (or pick replacements for each) in one gate if the tool allows; otherwise two questions (Dev, then QA).
+
+Low confidence (**0–2**) on an audience does **not** remove that estimate — it signals the number may change after refinement or more context. Split and spike stay in **Recommendations**; they do not clear the number.
 
 ### Outcome file (mandatory)
 
-Write a **shareable Markdown file** when you post the recommend. Chat stays short; the file is the full artifact. If the user later picks another number, **overwrite** the file (`Status: confirmed`).
+Write a **shareable Markdown file** when you post the recommend. Chat stays short; the file is the full artifact. If the user later picks another number, **overwrite** the file (`Status: confirmed`). When **Both**, overwrite **both** confirmed numbers.
 
 **Path:**
 
@@ -256,8 +302,8 @@ Write a **shareable Markdown file** when you post the recommend. Chat stays shor
 - Headings, not a wall of bold labels. Keep each section short.
 - Do **not** paste the S/M/L factor table. One compact **Factors** line is enough.
 - Always include **How we estimate** (copy the onboarding block; do not expand it).
-- **Estimate** is always a Fibonacci number. Put split/spike/refinement under **Recommendations** (omit that section if none).
-- If confidence is **0–2**, put the low-accuracy warning in **this file** (and chat), **not** on the Jira issue.
+- **Estimate** is always a Fibonacci number **per audience**. Put split/spike/refinement under **Recommendations** (omit that section if none).
+- If **either** selected audience has confidence **0–2**, put the low-accuracy warning in **this file** (and chat), **not** on the Jira issue.
 - B2 English.
 
 In chat, paste the file path once.
@@ -269,10 +315,14 @@ In chat, paste the file path once.
 
 - **Jira:** [VAP-2345](https://vendoroo-dev.atlassian.net/browse/VAP-2345)
 - **Summary:** <one line from the ticket>
-- **Estimate:** 3
-- **Confidence:** 2/5
+- **Audience:** Dev | QA | Both
+- **Dev estimate:** 3
+- **Dev confidence:** 2/5
+- **QA estimate:** 3
+- **QA confidence:** 3/5
 - **Status:** recommended
-- **Factors:** complexity M · effort M · risk S · unknowns M
+- **Dev factors:** complexity M · effort M · risk S · unknowns M
+- **QA factors:** complexity M · effort M · risk S · unknowns M
 - **Approach:** relative Fibonacci `1 2 3 5 8` — not hours. See [How we estimate](#how-we-estimate-good-practice).
 
 ## Recommendations
@@ -298,7 +348,7 @@ In chat, paste the file path once.
 - resiroo — skipped (not in workspace)
 
 **Ticket**
-- Type/status; AC; last few comments; linked VAP-xxxx (blocks)
+- Type/status; AC; last few comments; linked VAP-xxxx (Blocked by and/or Requires in Production)
 
 **Blockers** (active and potential)
 - Active: VAP-xxxx still In Progress
@@ -330,37 +380,52 @@ We use **relative Fibonacci points** (`1 2 3 5 8`), not hours or days. A `3` mea
 - Honest size above 8 → Estimate **8** and **recommend split**, not 13
 - Split and spike are **recommendations** beside the number, not the Estimate field
 
+**QA — what the number includes** (include when Audience is QA or Both)
+
+- **Complexity** — how hard it is to know pass/fail (oracles, multi-turn, data, surfaces)
+- **Effort** — cases, data/env setup, execution, evidence, retest, report (not coding the feature)
+- **Risk** — cost of a missed fail; testing mix vs production cherry-pick; **Requires in Production**, not **Blocked by**
+- **Unknowns** — thin AC, no oracle, no env, unclear test data
+- Vague tickets still get `1 2 3 5 8` plus low confidence (0–2); do not wait to refine first
+- Hours on a calendar do not change **QA Story Point**
+
 **Why not hours or days**
 
 - Hours look precise but hide risk and unknowns, then become a fake deadline
 - People pad or under-promise; the number stops matching similar work when the team or AI speed changes
 - Points are for **planning capacity**, not a calendar clock
+- QA may keep hours on a personal calendar; that does not change the Jira number
 ```
+
+Omit **Dev** or **QA** estimate, confidence, and factors lines when that audience was not selected. **Dev-only** may use a single **Estimate** / **Confidence** / **Factors** line (legacy shape).
 
 ---
 
 ## 5. Optional Jira write
 
-**AskQuestion:** write **Story Point estimate** / skip.
+**AskQuestion:** write selected Jira field(s) / skip.
 
-If **confidence is 0–2**, say in the prompt that the estimate is low accuracy (the number is still the raw Fibonacci Estimate) before the user chooses write or skip. Do **not** put that warning on the Jira issue.
+If **any selected audience** has confidence **0–2**, say in the prompt that that estimate is low accuracy (the number is still the raw Fibonacci) before write or skip. Do **not** put that warning on the Jira issue. Still write the confirmed Fibonacci number if the user chooses write.
 
 On write:
 
-1. **`getJiraIssue`** for the confirmed key (read current **labels** and any existing Story Point estimate).
-2. **`editJiraIssue`** — set **Story Point estimate** to the **confirmed Fibonacci Estimate** (raw). Never a confidence-adjusted number. Field display name; resolve custom field id from the issue if the API rejects display name only.
+1. **`getJiraIssue`** for the confirmed key (read current **labels** and existing point fields).
+2. **`editJiraIssue`** — never a confidence-adjusted number. Resolve custom field ids if the API rejects display names.
+   - **Dev selected:** set **Story Point estimate** to the confirmed Dev Fibonacci.
+   - **QA selected:** set **QA Story Point** to the confirmed QA Fibonacci. If the field is missing, say so and paste the number for a manual fill. Do **not** invent a field id.
+   - **QA-only:** do **not** change **Story Point estimate** or Dev `y-ai-estimated` / `y-ai-est-confidence-*` / `y-ai-needs-refinement`.
+   - **Dev-only:** do **not** change **QA Story Point** or `y-ai-qa-*` labels.
+   - **Both:** set **both** fields in one edit after merging labels.
 3. **Labels (hard rule):**
    - **Never delete a label that does not start with `y-ai-`.** Copy every such label through unchanged (`pmroo`, `command-center`, etc.).
-   - **Only modify `y-ai-*` labels this rule owns.** Do not remove other `y-ai-*` labels from a different workflow.
+   - **Only modify `y-ai-*` labels this rule owns** for the audience(s) selected. Do not remove other `y-ai-*` labels from a different workflow.
    - When the API requires a full labels array, **read current labels first**, then send the **merged** list. Never send only the new `y-ai-*` labels.
-   - Add **`y-ai-estimated`** if not already present.
-   - Set **`y-ai-est-confidence-<n>`** — `n` is the confirmed integer **0–5** (examples: `y-ai-est-confidence-3`, `y-ai-est-confidence-5`). Remove only previous **confidence** labels this rule uses (`y-ai-est-confidence-0` … `y-ai-est-confidence-5`, plus legacy `y-ai-est-confidence-0/5` … `y-ai-est-confidence-5/5`, `y-ai-est-confident-0` … `y-ai-est-confident-5`, and `y-ai-confidence-0/5` … `y-ai-confidence-5/5`) so one current score remains.
-   - Add **`y-ai-needs-refinement`** when confidence is **0–2** or when the recommendation is `/y-team-task-refinement`. On a later write, **remove that same label** if confidence is 3–5 and refinement is no longer recommended.
-   - Do **not** add `y-ai-needs-refinement` only because the ticket is large and we recommend split.
+   - **Dev:** add **`y-ai-estimated`** if missing. Set **`y-ai-est-confidence-<n>`** (`n` = 0–5). Remove only previous Dev confidence labels this rule uses (`y-ai-est-confidence-0` … `y-ai-est-confidence-5`, plus legacy `y-ai-est-confidence-0/5` … `y-ai-est-confidence-5/5`, `y-ai-est-confident-0` … `y-ai-est-confident-5`, and `y-ai-confidence-0/5` … `y-ai-confidence-5/5`) so one Dev score remains. Add **`y-ai-needs-refinement`** when **Dev** confidence is **0–2** or Dev refinement is recommended. Remove that same label on a later Dev write if Dev confidence is 3–5 and refinement is no longer recommended. Do **not** add it only because the ticket is large and we recommend split.
+   - **QA:** add **`y-ai-qa-storypoint`** if missing. Set **`y-ai-qa-sp-confidence-<n>`** (`n` = 0–5, e.g. `y-ai-qa-sp-confidence-3`). Remove only previous `y-ai-qa-sp-confidence-*` so one QA score remains. Add **`y-ai-qa-needs-refinement`** when **QA** confidence is **0–2** or QA refinement is recommended. Remove it on a later QA write if QA confidence is 3–5 and refinement is no longer recommended. Do **not** reuse `y-ai-estimated` / `y-ai-est-confidence-*` / `y-ai-needs-refinement` for QA.
 
-Confirm before write. After success, tell the user the points, **`y-ai-estimated`**, **`y-ai-est-confidence-<n>`**, and **`y-ai-needs-refinement`** if it was added or removed.
+Confirm before write. After success, tell the user which fields and which labels changed.
 
-If MCP fails, paste the number and ask the user to set Story Point estimate and add labels **`y-ai-estimated`** and **`y-ai-est-confidence-<n>`** (and **`y-ai-needs-refinement`** when it applies) manually — without deleting other labels.
+If MCP fails, paste the number(s) and ask the user to set the field(s) and labels manually — without deleting other labels.
 
 Do **not** write Jira without this gate. Do **not** add these labels when the user skips the Jira write.
 
@@ -370,7 +435,7 @@ Do **not** add Jira comments, description edits, or warning / buffer wording on 
 
 ## One ticket per run
 
-Do not estimate a whole sprint or epic as one number — still give **one Fibonacci number** for the item you were asked to estimate; **recommend** child items / split beside it.
+Do not estimate a whole sprint or epic as one number. Still estimate **one ticket**. When **Both**, that ticket gets **two** Fibonacci numbers (Dev and QA), not a combined sum. **Recommend** child items / split beside the number(s).
 
 ---
 
