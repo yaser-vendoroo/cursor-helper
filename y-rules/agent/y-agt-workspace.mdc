@@ -40,6 +40,8 @@ Use Cursor **Plan mode** or **`CreatePlan`**. **Do not** write plan files under 
 |------|------|
 | RFC / technical proposal | `cursor_workspace/rfc/<slug>.md` |
 | Code review report | `cursor_workspace/code-review/code-review-<jira-key>-<YYYYMMDD-HHMM>-<branch-slug>.md` (lowercase filename; see **`y-agt-code-review`**) |
+| Code changes walkthrough | `cursor_workspace/code-review/code-changes-<jira-key>-<YYYYMMDD-HHMM>-<branch-slug>.md` (lowercase filename; **Explain changes** outcome in **`y-agt-code-review`**) |
+| Engineering review report | `cursor_workspace/engineering-review/engineering-review-<jira-key>-<YYYYMMDD-HHMM>-<scope-slug>.md` (lowercase filename; see **`y-dev-engineering`**) |
 | Test / E2E artifacts | `cursor_workspace/ai_test/` (per invoking rule) |
 | Task estimate | `cursor_workspace/estimation-<jira-key>.md` (lowercase; see **`y-team-task-estimate`**) |
 

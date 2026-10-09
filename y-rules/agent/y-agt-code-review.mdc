@@ -1,7 +1,8 @@
 ---
 description: >-
-  Senior code review of unpushed commits vs origin; AskQuestion gates; optional
-  markdown report. Read-only — no edits, commits, or push.
+  Senior code review of unpushed commits vs origin; AskQuestion gates; user picks
+  the outcome — review (verdict and scores), plain-language change walkthrough,
+  or both; markdown report. Read-only — no edits, commits, or push.
 alwaysApply: false
 ---
 
@@ -13,17 +14,27 @@ Act as a **senior software engineer**. Assess the work **only** from Git history
 
 Prose: **B2 English** per [`y-agt-communication-b2-english.mdc`](y-agt-communication-b2-english.mdc).
 
+Design bar and scores: **read and apply** [`y-dev-engineering.mdc`](../dev/y-dev-engineering.mdc) (guidance mode — do not run its standalone review). For ticket local changes, a PR, or a custom scope, use **`/y-dev-engineering`** instead.
+
 ---
 
 ## Hard limits
 
 - **Review only** commits that exist **locally** but are **not yet on remote `origin`** (unpushed commits).
-- **Do not** review **uncommitted** work: no staged, unstaged, or untracked files in scope.
+- **Do not** review **uncommitted** work: no staged, unstaged, or untracked files in scope. **Exception:** with the **Explain changes** outcome, the user may choose to include uncommitted work at the uncommitted-changes gate (useful for AI edits that are not committed yet).
 - **Read-only:** no edits, fixes, new commits, or push unless the user clearly asks for separate changes in the same session.
 
 ---
 
 ## Workflow
+
+0. **Outcome** — **`AskQuestion`** first (skip only when the user already said which one):
+
+| Option | You get |
+|--------|---------|
+| **Review** (default) | Verdict, scores, blocking items, follow-ups, risks — see [Output — chat](#output--chat) and [Output — markdown report](#output--markdown-report) |
+| **Explain changes** | What changed and why, one change at a time with code blocks — no verdict or scores. See [Output — changes explained](#output--changes-explained) |
+| **Both** | Review **and** the change walkthrough (two files) |
 
 1. `git fetch origin` (when network allows).
 2. Run in parallel where useful:
@@ -47,8 +58,11 @@ git log @{upstream}..HEAD --oneline
 | Option | Meaning |
 |--------|---------|
 | **Review unpushed commits only** (default) | Ignore working tree |
+| **Include uncommitted changes** | Only for **Explain changes** — add staged, unstaged, and untracked task files to the walkthrough. Not offered for **Review**; with **Both**, the review part still uses unpushed commits only |
 | **Stop — I will commit first** | End review; user commits then re-runs |
 | **`other`** | User explains different intent |
+
+   If there are **no unpushed commits** but there is uncommitted work and the outcome is **Explain changes**, offer **Include uncommitted changes** as the default instead of stopping.
 
 Use **`AskQuestion`** for every gate — no chat-only confirmation (same pattern as [`y-git-commits.mdc`](../git/y-git-commits.mdc) § AskQuestion gates).
 
@@ -56,26 +70,30 @@ Use **`AskQuestion`** for every gate — no chat-only confirmation (same pattern
 
 ## What to check (prioritize by risk)
 
+For the **Review** and **Both** outcomes. **Explain changes** alone skips this section.
+
 Review the diff against the categories below. **Do not** repeat the same finding under multiple headings — pick the best fit (usually **Design & scope** or **Blocking**).
 
 ### Behavior
 
 | Check | Look for |
 |-------|----------|
-| **Correctness** | Happy path, null/empty inputs, error paths, concurrency/async when relevant |
+| **Correctness** | Happy path, null/empty inputs, error paths, concurrency/async when relevant. Each expected failure has a deliberate outcome — safe, visible fallback or clear failure — per [Fallbacks and missing data](../dev/y-dev-engineering.mdc#fallbacks-and-missing-data); flag swallowed errors and silent defaults on important fields |
 | **Tests** | Gaps for changed behavior; broken or missing regression coverage |
 
 ### Design & scope
 
+Judge this section against [`y-dev-engineering.mdc`](../dev/y-dev-engineering.mdc): simplest correct change, no blind copying of weak patterns, SOLID / DRY / patterns only when they help, no unrelated cleanup. Apply its **Python layout** section only to `.py` files.
+
 | Check | Look for |
 |-------|----------|
 | **Task scope** | Changes limited to what the ticket needs — no unrelated refactors, drive-by cleanups, or extra files |
-| **Reuse & generality** | Existing helpers, patterns, and config before new code; prefer a **generic** solution when the codebase already solves the same shape of problem — flag one-off logic that will duplicate on the next similar ticket |
+| **Reuse & generality** | Existing helpers, patterns, and config before new code **when they are a good fit**; prefer a **generic** solution when the codebase already solves the same shape of problem — flag one-off logic that will duplicate on the next similar ticket. Flag a copy of a weak or legacy pattern made only for consistency |
 | **Overfitting** | Hard-coding this ticket's edge case (special cases, magic strings, forked flow) where a small shared rule or parameter would stay maintainable — call it out when the fix only works for this story |
 | **Over-engineering** | Premature abstractions, new layers, or frameworks not required by the diff; one-line wrappers; speculative “future-proof” code — prefer the **simplest** change that is correct |
-| **Codebase fit** | Naming, imports, structure match surrounding code and **CONTRIBUTING.md** when present |
+| **Codebase fit** | Respects public APIs, contracts, schemas, and framework boundaries; matches **CONTRIBUTING.md** when present. Fits nearby code without copying its weak parts |
 
-**Severity:** overfitting or over-engineering that blocks merge → **Blocking** or **Request changes**; nice-to-have simplification → **Follow-up**. Do **not** block on style nits when behavior is correct and consistent with nearby code.
+**Severity:** overfitting or over-engineering that blocks merge → **Blocking** or **Request changes**; nice-to-have simplification → **Follow-up**. Do **not** block on style nits when behavior is correct and consistent with nearby code. Python layout findings are follow-ups unless they hide a real defect.
 
 ### Security & operations
 
@@ -99,9 +117,13 @@ Review the diff against the categories below. **Do not** repeat the same finding
 
 **Verdict:** Approve | Approve with follow-ups | Request changes
 
+### Scores
+
+Always give **`## Scores`** right after the **Verdict**, in chat and in any report. Use the six metrics, format, anchors, and verdict rules from [`y-dev-engineering.mdc` § Review scores](../dev/y-dev-engineering.mdc#review-scores) — do not copy the rubric here.
+
 ### When everything looks good
 
-Reply in chat with verdict, one-line summary, and any **residual risks** only. **No file required.**
+Reply in chat with verdict, one-line summary, **Scores**, and any **residual risks** only. **No file required.**
 
 ---
 
@@ -140,6 +162,9 @@ Keep the doc **short** (roughly one screen):
 **Commits reviewed:** N (hashes)
 **Verdict:** Approve | Approve with follow-ups | Request changes
 
+## Scores
+(six metrics per y-dev-engineering Review scores)
+
 ## Scope
 (table or bullet list of commits + files)
 
@@ -156,12 +181,76 @@ Keep the doc **short** (roughly one screen):
 (bullets — omit if none)
 ```
 
-Also give a **brief chat summary** with verdict and the file path.
+Also give a **brief chat summary** with verdict, scores, and the file path.
+
+---
+
+## Output — changes explained
+
+For the **Explain changes** and **Both** outcomes. **Goal:** a reader who did not write the code (AI changes or a teammate's) understands **what** changed, **why**, and **what it affects** — easily, accurately, and completely. Explain only; no verdict or scores here.
+
+Give the **same walkthrough in chat and in the file**. Always write the file, even for a small diff.
+
+### How to write it
+
+- **Group by logical change**, not by line. One change = one idea (for example "add retry on timeout"), even if it spans several hunks or files.
+- **Order by flow:** the main change first, then what supports it (config, tests, docs). Not alphabetical.
+- **Show code:** each change gets a ` ```diff ` block with the relevant hunk only (`+` / `-` lines and a little context). Trim long hunks with `…`; never invent or rewrite code.
+- **Short, plain descriptions:** one or two sentences each for **What** and **Why**. Common words. Explain project terms the first time.
+- **Why must be honest:** take it from commit messages, the ticket, comments, or code context. When you infer it, mark it **(inferred)**. Never make up a reason.
+- **Complete:** every changed file appears. Group trivial edits (formatting, renames, import order) into one **Small changes** item that lists the files.
+- Point out behavior changes, breaking changes, new config or env vars, migrations, and removed code. Do not judge quality here.
+- No secrets in code blocks — replace values with `…`.
+
+### File
+
+- Path: `cursor_workspace/code-review/code-changes-<jira-key>-<YYYYMMDD-HHMM>-<branch-slug>.md` — same naming rules as the review report (lowercase, `mkdir -p`, do not overwrite).
+- H1: `Code Changes - <JIRA> - <YYYYMMDD-HHMM> - <branch-slug>` (timestamp and slug match the filename).
+
+````markdown
+# Code Changes - VAP-3547 - 20260805-1256 - feature-vap-3547-explain-insight
+
+**Branch:** …
+**Base:** …
+**Included:** N unpushed commits (hashes) | plus uncommitted changes
+
+## Overview
+(2–4 sentences: what this change set does as a whole, and why)
+
+## Changes
+
+### 1. <Short title of the change>
+
+**Files:** `path/to/file.py` (L10–L42)
+**What:** <one or two plain sentences>
+**Why:** <one or two plain sentences; mark (inferred) when not stated>
+**Affects:** <behavior, API, config, data — omit when nothing outside the code changes>
+
+```diff
+- old line
++ new line
+```
+
+### 2. …
+
+### N. Small changes
+- `path/a.py` — import order
+- `path/b.md` — typo
+
+## Coverage
+| File | Change |
+|---|---|
+| `path/to/file.py` | 1 |
+| `path/a.py` | N |
+````
+
+**Chat:** the same Overview and Changes, then the file path. With **Both**, give the review summary (verdict and scores) first, then the walkthrough, then both file paths.
 
 ---
 
 ## Do not
 
-- Review the whole repo or uncommitted diffs as a substitute when unpushed-commit scope cannot be determined.
-- Produce long essays or duplicate the full diff in the report.
+- Review the whole repo or uncommitted diffs as a substitute when unpushed-commit scope cannot be determined (the **Explain changes** opt-in for uncommitted work is the only exception).
+- Produce long essays or duplicate the full diff in the report. In the change walkthrough, show focused hunks per change — not the raw full diff.
+- Invent a **Why** for a change, or skip a changed file in the walkthrough.
 - Auto-fix issues as part of the review task.

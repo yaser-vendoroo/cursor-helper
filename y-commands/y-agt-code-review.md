@@ -1,5 +1,5 @@
 ---
-description: Senior code review of unpushed commits — read-only; markdown report when needed
+description: Code review of unpushed commits — pick review, plain-language change walkthrough, or both; read-only; markdown report
 ---
 
 # Code review (`/y-agt-code-review`)
@@ -14,7 +14,8 @@ This command is the entry point; the rule is the full specification.
 
 | Situation | Use |
 |-----------|-----|
-| Code review, PR review before push, review local commits | **`/y-agt-code-review`** |
+| Code review, PR review before push, review local commits | **`/y-agt-code-review`** → **Review** |
+| Understand what changed and why (AI or teammate changes), one change at a time | **`/y-agt-code-review`** → **Explain changes** |
 
 ---
 
@@ -28,6 +29,7 @@ Read and follow **`y-rules/agent/y-agt-code-review.mdc`** — do not duplicate i
 
 | Related rule | When |
 |--------------|------|
+| [`y-dev-engineering.mdc`](../y-rules/dev/y-dev-engineering.mdc) | Design bar and the six review scores; use `/y-dev-engineering` for ticket changes, PRs, or custom scopes |
 | [`y-agt-workspace.mdc`](../y-rules/agent/y-agt-workspace.mdc) | Default report path `cursor_workspace/code-review/` |
 | [`y-agt-communication-b2-english.mdc`](../y-rules/agent/y-agt-communication-b2-english.mdc) | Review prose (B2 English) |
 
@@ -35,6 +37,6 @@ Read and follow **`y-rules/agent/y-agt-code-review.mdc`** — do not duplicate i
 
 ## Global rules
 
-- Use **`AskQuestion`** at the uncommitted-changes gate defined in **`y-agt-code-review.mdc`**.
+- Use **`AskQuestion`** at the outcome gate (Review / Explain changes / Both) and the uncommitted-changes gate defined in **`y-agt-code-review.mdc`**.
 - **Do not** fix code, commit, or push as part of this command.
 - Markdown reports: **`YYYYMMDD-HHMM`** in filename and H1 per **`y-agt-code-review.mdc`** — do not duplicate the template here.
