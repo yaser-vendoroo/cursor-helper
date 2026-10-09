@@ -15,9 +15,9 @@ Apply when writing or editing Python.
 
 ## When to document
 
-- **Public** modules, classes, and functions: docstring when the contract is not clear from the name and type hints alone.
+- **Modules, classes, and functions/methods** (including names that start with `_`): docstring when the contract is not clear from the name and type hints alone. **Do not** skip a member only because it is private.
 - **Non-obvious** behavior, invariants, or workarounds: docstring or inline comment.
-- **Skip** when the code is self-explanatory (trivial helpers, obvious one-liners).
+- **Skip** when the code is self-explanatory (trivial helpers, obvious one-liners) — same bar for public and private.
 
 ## Docstrings — Google style
 
@@ -166,7 +166,7 @@ If **PEP 257** or **NumPy**: map **Incomplete docstrings** `Args` checks to **`P
 
 - Never remove debug, `TODO`, `FIXME`, or investigation comments unless the user confirms in the **removal second gate**.
 - Never remove comments that explain **why** or business rules.
-- On **public API**, prefer tightening docstrings over deleting them.
+- On **any** documented member, prefer tightening docstrings over deleting them. Do not treat private methods as optional to strip.
 
 ### Removal second gate
 
@@ -176,7 +176,7 @@ Only when **Remove redundant** is selected. Single-select: redundant docstrings 
 
 | Option | Default | Behavior |
 |--------|---------|----------|
-| **Main members** | Yes | Module, class, public function/method docstrings — no inline logic comments |
+| **Main members** | Yes | Module, class, and function/method docstrings (public and private equally) — no inline logic comments |
 | **Targeted block comments** | Yes | Unclear or complicated blocks only; skip obvious code |
 | **Verbose walkthrough (not recommended)** | No | Line-level comments on most statements for session understanding; skip trivial lines |
 
@@ -190,7 +190,7 @@ Only when **Remove redundant** is selected. Single-select: redundant docstrings 
 ### Apply
 
 - Follow **Docstrings — Google style** unless Step 0b chose another style — then follow that style for this run.
-- Under **Fill gaps**, scan each main member in scope against **Incomplete docstrings** — do not treat an existing one-liner as done when sections or prose are still required.
+- Under **Fill gaps**, scan each main member in scope against **Incomplete docstrings** (public and private equally) — do not treat an existing one-liner as done when sections or prose are still required.
 - Respect **`y-agt-debug-comments`** throughout.
 - If **verbose** and **remove redundant** are both selected: add verbose first; clean pass must not strip new verbose comments without removal-gate confirmation.
 - End with a short summary: files touched, **docstring style**, intents applied, commit-ready vs temp-only.
