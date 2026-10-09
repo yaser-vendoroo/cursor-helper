@@ -1,7 +1,8 @@
 ---
 description: >-
-  Conventional commit messages with rationale-focused body (past-tense bullets,
-  Refs footer). Optional amend unpushed HEAD and push via AskQuestion.
+  Conventional commit messages with rationale-focused body (past-tense bullets
+  for material points only, Refs footer). Optional amend unpushed HEAD and push
+  via AskQuestion.
 ---
 
 # Git: commit message (`/y-git-commit-message`)
@@ -48,20 +49,22 @@ Avoid generic subjects: "Update code", "Fix issue", "Refactor logic", "Improve i
 
 - Use **bullet points** only (`-`). Never `*`, `•`, or numbered lists.
 - Use **past tense** for verbs in bullets ("Fixed …", "Prevented …", "Added …").
-- Keep the body **short**: **1–2 bullets** in most cases; **3 only** when the change truly has three distinct motivations.
+- Include **one bullet per material point** the reader needs — outcomes, risks avoided, non-obvious behavior, or scope that the **subject alone** does not carry. **No fixed bullet count**; use judgment from the staged diff and intent.
+- **Stay concise.** Do not pad with extra bullets, restate the subject, or narrate obvious or mechanical changes (formatting, rename-only, typo) unless they matter for review or release notes.
 - **Do not overexplain.** Skip implementation walkthroughs, file names, and edge cases the diff already shows.
 - Explain **why** the change exists and **what problem it solves** — not how every line works.
 - Do **not** re-describe file-level diffs — git history shows that.
 - Mention tests only when they were added/updated **for this change** and the result matters.
+- When the subject fully captures the change and nothing else is worth saying, **omit the body** (subject + `Refs` footer only).
 
-**Body template (prefer 1–2 bullets):**
+**Body pattern (illustrative — include only bullets you need):**
 
 ```
-- <Primary outcome — problem solved in one line>
-- <Optional: one supporting detail only if it clarifies scope or non-obvious impact>
+- <Material outcome or motivation not obvious from the subject>
+- <Another distinct point, only if it matters for reviewers or future you>
 ```
 
-Leave **one blank line** between subject, body, and footer.
+Leave **one blank line** between subject, body, and footer when the body is present.
 
 ---
 
@@ -132,6 +135,7 @@ Refs PROJ-2752
 ## Do not
 
 - List every modified file in the body.
+- Add bullets just to hit a length target, or duplicate the subject in different words.
 - Use present tense in body bullets.
 - Exceed 72 characters on the subject line.
 - Amend or push without **`AskQuestion`** confirmation.
