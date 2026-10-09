@@ -1,0 +1,265 @@
+---
+description: >-
+  Practical engineering bar for writing and reviewing code — simplest correct
+  design, no blind copying of weak patterns, no over-engineering, safe fallback
+  versus clear failure, AI and Python specifics, six 1–10 review scores, and a
+  standalone /y-dev-engineering review (ticket local changes, PR, or custom
+  scope) that always writes a report.
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Engineering (`y-dev-engineering`)
+
+## Start here
+
+**Core principle:** choose the **simplest solution that correctly solves the problem** and stays easy to understand, test, maintain, and change.
+
+Before choosing a design, check:
+
+1. What is the real requirement?
+2. What is the simplest correct solution?
+3. What complexity is actually needed today?
+4. Am I copying a pattern only because it already exists?
+5. Does this abstraction solve a real problem?
+6. Would a function be simpler than a class?
+7. Would direct code be clearer than another method or layer?
+8. Is this duplication harmful, or would an abstraction make things worse?
+9. Do SOLID, DRY, or a design pattern really help here?
+10. Can another developer follow this without jumping between many files?
+11. Am I changing more than the task needs?
+12. Are there security, reliability, performance, or AI risks to handle? Does each expected failure have a deliberate outcome (safe fallback or clear failure)?
+
+Then pick the best balance of **simplicity, correctness, clarity, maintainability, and reliability**.
+
+**Two modes:**
+
+- **Guidance mode** — this rule is auto-attached (Python files) or read by another rule (code review, plans). Apply the principles. No AskQuestion, no report file.
+- **Standalone review mode** — the user runs `/y-dev-engineering` or asks `@y-dev-engineering` for a review. Follow [Standalone review](#standalone-review-on-demand-only).
+
+**Precedence:** [`y-agt-debug-comments`](../agent/y-agt-debug-comments.mdc) and [`y-dev-code-docs`](y-dev-code-docs.mdc) win on comments and docstrings. This rule wins on design.
+
+---
+
+## Existing code is context, not the standard
+
+The project may contain legacy code, technical debt, weak names, duplicated logic, and both over- and under-engineered parts. Before copying a pattern, ask whether it is clear, necessary, and simple. Do not copy a bad pattern only for consistency, but do not add needless inconsistency either.
+
+Always respect real constraints: public APIs, interfaces, data contracts, database schemas, framework requirements, architecture boundaries, backward compatibility, and behavior that must stay the same.
+
+Improve code locally when it helps the task. Do not start unrelated refactoring.
+
+## Optimize for the right things
+
+- **Optimize for:** correctness, clarity, maintainability, simplicity, reliability, testability, reasonable performance, easy future change.
+- **Do not optimize for:** maximum abstraction, fewest lines, most patterns, maximum reuse, or following every principle mechanically.
+
+## Avoid over-engineering
+
+Do not build infrastructure for problems that do not exist yet. Avoid extra layers, wrappers, factories, managers, services, repositories, interfaces, base classes, generic frameworks, config systems, dependency injection, or design patterns until there is a real reason. Solve the real problem first. Add abstraction when real complexity needs it.
+
+## Functions vs classes
+
+- **Use functions** when the logic is mostly stateless, the operation is small, state does not live across calls, or a class would only add ceremony.
+- **Use classes** when state and behavior belong together, several operations share meaningful state, there is a lifecycle, polymorphism helps, the domain concept is naturally an object, or a framework requires it.
+
+## SOLID, DRY, and patterns
+
+- **SOLID** is a guideline, not a law. Do not add an interface with one implementation, split a simple class into tiny classes, or add dependency injection where direct construction is enough.
+- **DRY:** remove duplication when there is a real shared concept that will change together. A little duplication is better than the wrong abstraction. Ask: is it the same concept, or only similar today?
+- **Design patterns** are tools, not goals. Use one when the problem matches it. Do not pick a pattern first and force the problem into it.
+
+## Methods and size
+
+- Do not split code into tiny methods without a reason. Avoid thin methods that only forward arguments, hold one or two obvious lines, or make the reader jump around.
+- A one-caller method is fine when it names an important concept, hides real complexity, separates abstraction levels, isolates side effects, helps testing, or makes a business rule clear.
+- No arbitrary size limits. A longer method that reads as one clear workflow can be better than many meaningless small ones. Split when it improves understanding, naming, reuse, testing, or separation of responsibilities.
+
+## Abstractions
+
+A good abstraction makes the caller understand **less**, not more. Avoid abstractions that force someone to open several files to follow a simple operation. Prefer simple code, then a clear function, then a useful abstraction, over interface, factory, manager, service, and wrapper layers, unless those layers solve a real architectural problem.
+
+## Readability
+
+- Code should be easy for another experienced developer to follow: direct control flow, explicit important behavior, predictable results, local reasoning.
+- Avoid clever code when simple code is clearer. Do not trade readability for fewer lines.
+- **Names:** meaningful and concise, so the intent is clear without reading the whole flow. Avoid obscure acronyms (common short forms such as `cfg`, `url`, `id`, `ctx` are fine in a small scope). Prefer clear words over cryptic shortcuts (`provider`, `settings`, `location`, not `p`, `s`, `loc2`).
+
+## Comments
+
+Do not explain obvious code. Use comments for why something exists, non-obvious constraints, trade-offs, workarounds, external limits, and surprising behavior. Prefer making the code itself clear. Keep the user’s debug comments and `print` traces per [`y-agt-debug-comments`](../agent/y-agt-debug-comments.mdc). Docstrings follow [`y-dev-code-docs`](y-dev-code-docs.mdc).
+
+## Error handling
+
+- **Do not:** catch exceptions only to ignore them, catch overly broad exceptions without a reason, hide failures, or add defensive checks everywhere without evidence.
+- **Do:** validate important boundaries, fail clearly, keep useful error context, and handle expected failures where they can be handled meaningfully.
+
+### Fallbacks and missing data
+
+Expected failures happen at boundaries: errors, timeouts, `None` or empty responses, missing fields, invalid values, and model output that does not parse. For each one the change touches, **decide on purpose** what happens: a **safe fallback** or a **clear failure**. "Use a default and continue" is not safe by itself.
+
+- **Validate at boundaries, trust inside.** Check API responses, DB reads, user input, config, and model output where they enter the code. Inside, rely on the validated values. Do not add `None` checks on every line.
+- **Fall back** on expected external failures when a safe outcome exists: an empty or neutral result, a cached or last known good value, skipping an optional step, a reduced but correct response, or a handoff to a human or manual path.
+- **Fail clearly** when no safe outcome exists: broken invariants, programming errors, missing required data, or any case where a guess could cause a wrong business decision, data loss, or wrong money or status values. Raise or return an explicit error with context.
+- **Reads and writes differ.** A read can often degrade. A write should usually fail and be retried safely (idempotent) instead of saving a guessed value.
+- **Never invent data.** A fallback must not create IDs, prices, statuses, dates, or user-facing facts. Prefer a neutral or "unknown" value that callers can see. Watch for silent defaults on fields that matter, such as `data.get("price", 0)` or `value or ""`.
+- **Make fallbacks visible.** Log each fallback with context (what failed and which fallback ran), so it shows in logs and monitoring. A fallback must not hide a real bug.
+- **Bound retries.** Set a timeout on external calls. Retry only transient errors (timeouts, rate limits, 5xx) with a small limit and backoff, then fall back or fail.
+- **Keep it explicit and tested.** Put the fallback where the failure is handled, not deep in a generic helper. Test the fallback path for important flows.
+
+## Performance
+
+Do not optimize early. Pick a correct and clear version first. Still fix obvious problems: N+1 queries, needless network calls, repeated expensive work, loading very large datasets, blocking I/O in the wrong place, and clearly inefficient algorithms for the expected data size.
+
+## Testing
+
+Design code so important behavior can be tested, without bending production design for trivial tests. Prioritize business rules, edge cases, failure cases, important integrations, complex logic, and regression-prone behavior. Avoid tests that only mirror implementation details.
+
+## AI engineering
+
+**Apply only when the change touches a model, a prompt, or model output.** Skip this section for ordinary code.
+
+- Consider: non-deterministic output, prompt versioning, structured output, validation, timeouts, retries, rate limits, token usage, cost, observability, evaluation, model failures, hallucinations, prompt injection, and sensitive data.
+- A successful request does not mean a valid response. Validate important model output before application logic uses it.
+- When model output is missing, invalid, or fails validation, follow [Fallbacks and missing data](#fallbacks-and-missing-data): a bounded retry, a safe default answer, or a human handoff. Never pass a guessed value into application logic.
+- Keep deterministic logic in code, not in prompts. Do not use a model for a task that normal code solves more reliably and cheaply.
+
+## Scope control
+
+Solve the requested problem. Do not refactor unrelated parts unless the task needs it. If nearby code is poor but does not block the task, do not turn a small ticket into a cleanup project. Small, focused improvements are fine when they clearly help.
+
+## Final principle
+
+Do not write code to demonstrate principles. Use principles to write better code. Prefer practical, simple, professional solutions over clever, theoretical, or over-engineered ones.
+
+---
+
+## Python layout
+
+**Apply only when creating or editing `.py` files.** Skip this section for every other file type (other languages, config, markdown), even in a Python repo.
+
+- Follow **PEP 8**: `snake_case` / `PascalCase`, imports, spacing, line length where the project allows. Add type hints when they match the file.
+- Use **absolute imports** from the app package root. Use relative imports only for a rare agreed case (for example a package re-export).
+- Separate logical blocks with blank lines.
+- Put a blank line before `return` when it is not the only statement in its block.
+- Put a blank line before `if`, `for`, `while`, and `try` when they are not the first statement in their block.
+- Keep `elif`, `else`, `except`, and `finally` attached to their chain.
+- Match the density of the file. Do not leave empty-looking functions.
+
+---
+
+## Review scores
+
+Single source for review scores. [`y-agt-code-review`](../agent/y-agt-code-review.mdc) and the standalone review below both use this section.
+
+Six metrics. Each gets an **integer 1–10** and one evidence line. The evidence line names a concrete file, behavior, or risk, or says there is no issue. No decimals. Do not default to 8 or 10. Use **n/a** when a metric does not apply. Do not average the scores. Do not score PEP 8 or blank-line layout.
+
+| Metric | What it measures |
+|---|---|
+| **Correctness** | Behavior matches the change, including important edges and failures. |
+| **Simplicity** | Simplest correct design. Low when it copies a weak pattern, adds needless layers, or is under-built for a real case. |
+| **Scope** | Only the requested change. Low when it refactors unrelated code. |
+| **Clarity** | Another developer can follow names, flow, and comments without extra navigation. |
+| **Tests** | Important behavior is protected. Low when tests only mirror implementation details, or when changed behavior has no check. **n/a** for docs-only or comment-only diffs. |
+| **Risk handling** | Errors, fallbacks, security, reliability, and AI concerns (validation, prompt injection, secrets) when the diff touches them. Low when an error is swallowed, a silent default hides bad data, or a fallback is unsafe. **n/a** when none apply. |
+
+**Anchors:** **1–3** weak, **4–6** mixed, **7–8** solid, **9–10** little left to change.
+
+**Verdict** stays **Approve | Approve with follow-ups | Request changes**. Scores do not replace it.
+
+- **Correctness** or **Risk handling** at **1–4** means **Request changes**.
+- Other metrics at **4–6** are follow-ups unless they hide a real defect.
+
+Format:
+
+```markdown
+## Scores
+
+- **Correctness:** 8 — <evidence>
+- **Simplicity:** 6 — <evidence>
+- **Scope:** 9 — <evidence>
+- **Clarity:** 7 — <evidence>
+- **Tests:** n/a — <reason>
+- **Risk handling:** 7 — <evidence>
+```
+
+---
+
+## Standalone review (on demand only)
+
+Run this only in **standalone review mode**. **Read-only:** do not edit code, commit, push, post PR comments, approve, or check out branches.
+
+Use **`AskQuestion`** for every gate below. If the tool is unavailable, ask the same options in chat and wait.
+
+### 1. Scope (single-select)
+
+| Option | Scope |
+|---|---|
+| **Ticket local changes** | Commits on the current branch that are not on the base branch, plus uncommitted work (staged, unstaged, and untracked task files) |
+| **PR review** | A GitHub PR the user names (number or URL) |
+| **Other** | The user describes the scope in chat (paths, commit range, branch compare) |
+
+### 2. Resolve scope
+
+- **Ticket local changes:**
+  - **AskQuestion** to confirm the base branch. Default: the branch upstream base, else the repo default branch (`git symbolic-ref refs/remotes/origin/HEAD`).
+  - Diff: `git log <base>..HEAD --oneline`, `git diff <base>...HEAD`, plus `git diff`, `git diff --staged`, and `git status --short`.
+  - Ticket key from the branch name (`[A-Z]+-\d+`). If missing, ask, or use `no-ticket`.
+- **PR review:**
+  - If the PR is not given, ask for it.
+  - Read with `gh pr view <n> --json number,title,baseRefName,headRefName,files,body` and `gh pr diff <n>`.
+  - Show title, base, head, and file count before reviewing.
+- **Other:** restate the resolved scope and **AskQuestion** to confirm before reviewing.
+- **Large scope** (more than about 30 changed files): **AskQuestion** — narrow scope / proceed / cancel.
+
+### 3. Review
+
+Review the diff against this rule: design, scope, reuse, overfitting, over-engineering, readability, errors and fallbacks, performance, tests, and AI concerns when relevant. Apply [Python layout](#python-layout) only to `.py` files. Point to files and lines. Give each finding one home (Blocking, Follow-ups, or Residual risks).
+
+### 4. Report (always)
+
+Always write a report, even when the review looks good. Follow [`y-agt-workspace`](../agent/y-agt-workspace.mdc).
+
+- **Path:** `cursor_workspace/engineering-review/engineering-review-<jira-key>-<YYYYMMDD-HHMM>-<scope-slug>.md`
+  - All lowercase. `mkdir -p` first. Do not overwrite earlier reports.
+  - `jira-key`: lowercase key (for example `vap-3547`), or `no-ticket`.
+  - `YYYYMMDD-HHMM`: 24-hour local time when the report is written.
+  - `scope-slug`: branch slug for ticket local changes, `pr-<number>` for a PR, a short kebab slug for other scopes.
+- **H1:** `Engineering Review - <JIRA> - <YYYYMMDD-HHMM> - <scope-slug>`. Normal Jira casing is fine in the H1. Timestamp and slug must match the filename.
+
+```markdown
+# Engineering Review - VAP-3547 - 20261006-2130 - feature-vap-3547-explain-insight
+
+**Scope type:** Ticket local changes | PR review | Other
+**Branch / PR:** …
+**Base:** …
+**Verdict:** Approve | Approve with follow-ups | Request changes
+
+## Scores
+(six metrics per Review scores)
+
+## Scope
+(commits, PR, or paths reviewed; file count)
+
+## What works well
+(only if useful)
+
+## Blocking
+(numbered; must fix before merge)
+
+## Follow-ups
+(numbered; non-blocking)
+
+## Residual risks
+(bullets)
+```
+
+Omit empty sections except **Scores** and **Scope**. B2 English. No secrets.
+
+### 5. Chat summary
+
+Verdict, scores, the top blocking items (if any), and the report path.
+
+### Related
+
+- [`y-agt-code-review`](../agent/y-agt-code-review.mdc) — unpushed-commit review with its own gates and report path. Uses the same scores.
