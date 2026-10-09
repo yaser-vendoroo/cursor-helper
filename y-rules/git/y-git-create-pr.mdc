@@ -262,6 +262,17 @@ Fixes triage routing so active overflow and spreading-water scenarios collect ph
 - **Line 2+ (plain):** One concise paragraph (1–3 sentences) — what changed and why, outcome-focused. Pull from Jira, commits, and diff; do not paste checklist boilerplate.
 - For a Task PR with **multiple related tickets** on one branch (unusual), repeat the block once per confirmed ticket, in ascending Jira key order.
 
+### PR diagram (when applicable)
+
+Add a **Mermaid** diagram under **📝 Description**, right after the ticket summary block, when it helps reviewers see what the PR changes.
+
+- **Add one** when the PR changes a request or data flow, a pipeline or step order, how components or services call each other, routing or decision logic, or a state machine.
+- **Skip it** for a small fix inside one function, prompt or text wording, config or env changes, dependency bumps, tests only, docs only, or renames. Skip silently — no "no diagram needed" line.
+- **Keep it simple.** You decide the size and type, but avoid huge diagrams: show only the part that changed, one concern per diagram. Split into two small diagrams (for example before / after) instead of one large one.
+- Mermaid only — never ASCII art. `flowchart LR` for data flow, `flowchart TD` for steps, `sequenceDiagram` for call order. Follow the workspace **diagrams** rule when it is installed (init directive, palette). GitHub renders Mermaid in PR bodies.
+- Add a one-line caption under the diagram, for example `New: overflow cases collect photos before handoff.`
+- The diagram is part of the body draft, so the user approves or removes it at the normal title + body approval step. No extra **`AskQuestion`**.
+
 **Other Description fields:**
 
 - **🔗 Related Jira Tickets** — link every confirmed ticket: `https://vendoroo-dev.atlassian.net/browse/VAP-1234`
@@ -596,6 +607,8 @@ Under **📝 Description**, add one short intro line for the hotfix, then one su
 
 **Avoid** listing commit hashes, internal cherry-pick mechanics, or other noise unless a reviewer needs it.
 
+**Diagrams:** usually skip — hotfix PRs bundle tickets, so diagrams add noise. At most one small diagram for a single ticket whose flow changed, under that ticket's block, per [PR diagram (when applicable)](#pr-diagram-when-applicable).
+
 ### Hotfix PR — Deployment Notes
 
 Follow [Release PR — Deployment Notes](#release-pr--deployment-notes) — review the hotfix diff vs `origin/production` before writing this section.
@@ -792,6 +805,8 @@ Same structure as [Task PR — PR workflow](#task-pr--pr-workflow). Follow **`.g
 1. A fenced code block with the **full PR title** (single line) — or calendar **title** in a `text` code block per **y-agt-gc-meet-helper**.
 2. A fenced code block with the **full PR body** (all template sections, with proposed checklist and deployment defaults) — or calendar **description** under **`### Description (copy from here)`**.
 
+When the PR body contains its own fenced blocks (for example a ` ```mermaid ` diagram), wrap the body draft in a **four-backtick** fence (` ```` `) so the inner fences do not break it.
+
 **Checklist questions are not an exception** — show the full PR draft (with proposed checklist defaults) **before** Required/Optional checklist **`AskQuestion`** boxes.
 
 If the user says you skipped the draft, **stop**, paste both blocks, then ask for approval again. Do **not** ask reviewers, git commands, or **`gh pr create`** in a turn that omits these two blocks when draft approval is on the agenda.
@@ -936,6 +951,7 @@ Tightens how the assistant fills the Evidence field: per-turn scope, avoiding st
 - **Line 2 (plain):** One concise paragraph (1–3 sentences) — what changed and why, outcome-focused.
 - Repeat once per task key in the title, in title order.
 - Pull headlines and summaries from Jira issue text, commits, and PR context; do not paste checklist boilerplate.
+- **Diagrams:** usually skip — release PRs bundle many tickets. At most one small diagram for a single ticket whose flow changed, under that ticket's block, per [PR diagram (when applicable)](#pr-diagram-when-applicable).
 
 **Full Description example (two tasks):**
 
@@ -1137,6 +1153,7 @@ Applies whenever you **`git stash`** during a **Hotfix PR** or **Release PR** fl
 - Do **not** leave the PR without reviewers or without self-assignment (`@me`).
 - Do **not** leave **Hotfix** or **Release** PR handoff with stashes **you created in this run** still on **`git stash list`** — pop them all per [Stash restore (mandatory)](#stash-restore-mandatory).
 - Do **not** list commit hashes or internal git mechanics in the PR body unless a reviewer needs them.
+- Do **not** add huge or decorative diagrams, ASCII art, or diagrams outside **📝 Description** — see [PR diagram (when applicable)](#pr-diagram-when-applicable).
 
 ### What not to do — Task PR only
 
