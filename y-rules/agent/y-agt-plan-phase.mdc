@@ -7,7 +7,7 @@ alwaysApply: false
 
 # Plan phase (`y-agt-plan-phase`)
 
-Run this rule **before** `CreatePlan` or writing a plan file. Complete this phase first, then choose a [plan document approach](#12-plan-document-approach-mandatory-askquestion) and call **`CreatePlan`** per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
+Run this rule **before** `CreatePlan` or writing a plan file. Complete this phase first, then choose a [plan document approach](#12-plan-document-approach-mandatory-askquestion) and call **`CreatePlan`** per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc). After CreatePlan, run [step 15](#15-unreleased-work-risks-mandatory-after-createplan).
 
 **Use when** the user asks to plan, enters plan mode, invokes **`/y-agt-plan`**, or **`@y-agt-plan-phase`**.
 
@@ -67,6 +67,7 @@ Capture in the plan for both approaches:
 - **No regressions** — preserve behavior outside the fix scope.
 - **No unrelated flow breaks** — unless the ticket requires fixing them.
 - **No over-engineering** — no premature abstractions or “while we’re here” refactors.
+- **Engineering bar** — when the plan changes code, it must follow [`y-dev-engineering.mdc`](../dev/y-dev-engineering.mdc) and carry it into implementation (see **`y-agt-plan-guidelines`** plan todo). Do not paste its text into the plan.
 
 **Rules approach:** record under **`## Constraints`**. **Cursor approach:** weave into the plan body (e.g. approach or risks) — no mandatory **Constraints** section.
 
@@ -85,12 +86,12 @@ Record choice in the plan — **Rules approach:** **`## Constraints`** bullet **
 
 1. `y-rules/test/y-tst-testing-criteria.mdc`
 2. `y-rules/test/y-tst-test-cases.mdc`
-3. `y-generative-search-rules/test/y-tst-e2e.mdc` (→ ResiRoo or PMRoo sub-rule as needed; when GS pack is installed)
-4. `y-generative-search-rules/insight/y-ins-e2e-report.mdc` (when GS pack is installed)
+3. The installed project pack’s E2E entry rule (`y-tst-e2e*`) — for example `.cursor/rules/y-vencom-rules/test/y-tst-e2e-vencom.mdc` or `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`
+4. `y-rules/insight/y-ins-e2e-report.mdc`
 
-Optional when relevant: `y-tst-unit-of-code`, `y-tst-test-case` ([`y-rules/test/y-tst-test-case.mdc`](../test/y-tst-test-case.mdc)), marketplace/resiroo/pmroo payload rules.
+Optional when relevant: `y-tst-unit-of-code`, `y-tst-test-case` ([`y-rules/test/y-tst-test-case.mdc`](../test/y-tst-test-case.mdc)), and the project pack’s payload or marketplace helper rules.
 
-For repos without generative-search rules, still use shared testing-criteria / test-cases / unit-of-code; plan remaining E2E at a high level (pytest, manual QA).
+For repos without a project E2E pack, still use shared testing-criteria / test-cases / unit-of-code; plan remaining E2E at a high level (pytest, manual QA).
 
 ### 8. Ruff format/lint in plan todos (AskQuestion when Python)
 
@@ -111,18 +112,18 @@ Use the repo’s usual invocation (`ruff`, `uv run ruff`, `make lint`, etc.) in 
 
 ### 9. Code docs in plan todos (AskQuestion when Python API)
 
-When the plan includes **new or changed Python public API** (modules, classes, functions, methods callers use), **`AskQuestion`**:
+When the plan includes **new or changed Python API** (modules, classes, functions, methods — **public and private equally**), **`AskQuestion`**:
 
 | Option | Plan behavior |
 |--------|----------------|
-| **Yes — include code-docs todos** (default) | Add docstrings for new/changed public members **while implementing** per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc). Include YAML `todos` and implementation sub-tasks — same PR as the code, not a deferred doc-only pass. |
+| **Yes — include code-docs todos** (default) | Add docstrings for new/changed members **while implementing** per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc). Include YAML `todos` and implementation sub-tasks — same PR as the code, not a deferred doc-only pass. |
 | **No** | Omit code-docs todos; note briefly in **Out of scope** if the user declined. |
 
 **Default:** **Yes** — pre-select **Yes** in **`AskQuestion`** when the tool allows a default.
 
-Skip when the plan is **non-Python**, **docs-only**, or **no public API changes** (internal refactor with unchanged contracts).
+Skip when the plan is **non-Python**, **docs-only**, or **no new/changed Python symbols** (behavior-only tweak with no new or edited functions/methods/classes).
 
-**Todo text (example):** `Document new/changed public Python API per y-dev-code-docs while implementing`
+**Todo text (example):** `Document new/changed Python members per y-dev-code-docs while implementing`
 
 Dedicated doc-only sessions use **`/y-dev-code-docs`** — do not substitute that full gated workflow for this plan todo.
 
@@ -160,9 +161,13 @@ When the task involves **architecture, data flow, or multi-step runtime ordering
 
 If the plan is trivial (typo, single-file change, docs-only with no flow), **skip** this question.
 
-### 14. Hand off
+### 14. Hand off — CreatePlan
 
 Only after steps 1–13 (or explicit skips): call **`CreatePlan`** using the approach from step 12 and diagram choice from step 13 (if asked), per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc).
+
+### 15. Unreleased-work risks (mandatory after CreatePlan)
+
+After the plan exists, follow [`y-agt-ticket-risks.mdc`](y-agt-ticket-risks.mdc) end-to-end (testing vs production, open PRs, scores, **AskQuestion** to add **`## Unreleased work risks`**). Do **not** run this step **before** CreatePlan.
 
 **Post-implementation** (not this phase): PR and Local Tests Report → [`y-git-create-pr.mdc`](../git/y-git-create-pr.mdc). That rule requires the **full PR draft** (title + body code blocks) in chat **before** checklist or approve/edit **`AskQuestion`** gates.
 
@@ -173,3 +178,4 @@ Only after steps 1–13 (or explicit skips): call **`CreatePlan`** using the app
 - Duplicate plan section catalogs, AC templates, Jira MCP tables, or E2E runbooks from other rules.
 - Run full **`y-team-task-refinement`** on an existing ticket.
 - Call **`CreatePlan`** before solution approach, E2E scope, Ruff todos choice (step 8 when applicable), code-docs todos choice (step 9 when applicable), plan document approach (step 12), or diagram choice (step 13 when applicable) are resolved or explicitly deferred.
+- Skip **step 15** (`y-agt-ticket-risks`) after CreatePlan — unless the user **explicitly** asked to skip it.

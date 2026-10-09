@@ -1,0 +1,171 @@
+---
+description: >-
+  After a ticket plan is ready (or on demand): check unreleased testing
+  commits and open PRs for dependency and override risk; score confidence
+  and risk 0–5; warn only; AskQuestion to add a plan section.
+alwaysApply: false
+---
+
+# Ticket unreleased-work risks (`y-agt-ticket-risks`)
+
+Use when:
+
+- **`y-agt-plan-phase`** just finished **CreatePlan** (step 15), or
+- the user invokes **`/y-agt-ticket-risks`** / **`@y-agt-ticket-risks`**, or
+- **`y-agt-plan-guidelines`** after a new plan exists.
+
+**Goal:** avoid starting a ticket that **depends on** other unreleased work, or that **overrides / breaks** other unreleased tickets (on `testing` or in open PRs).
+
+**Warn only.** Do **not** block planning or implementation. Scores and findings are advice.
+
+**Not** git-workflow branch creation, rebase, cherry-pick, or PR review.
+
+---
+
+## AskQuestion
+
+Use **`AskQuestion`** for the add-section gate. If the tool is **unavailable**: say so in **one line**, then ask the **same options in chat** and **wait**. Do **not** skip that gate silently.
+
+If **AskQuestion** is missing at the start of a planning-hook run: tell the user this check needs structured confirmation for the plan-section choice. Offer **continue without the tool** (chat options) or **stop**.
+
+---
+
+## Pipeline (read-only)
+
+Do **not** checkout other branches, merge, or review/approve other PRs.
+
+### 1. Ticket and plan
+
+- Ticket key from the plan, branch name (`VAP-\d+`), or the user. If none: still run git/`gh` on the current repo; mark factor A/B **unclear** and lower **confidence**.
+- Read the **current plan** (files, APIs, behaviors). If there is no plan (standalone command only): score from ticket + branch + intended files if the user named them; skip the add-section AskQuestion.
+
+### 2. Fetch remotes
+
+Vendoroo new-path remotes: **`origin/production`**, **`origin/testing`**.
+
+Fetch each branch on its own. One combined `git fetch origin production testing` fails and fetches nothing when either branch is missing.
+
+```bash
+git fetch origin production
+git fetch origin testing
+git rev-parse --verify --quiet origin/production
+git rev-parse --verify --quiet origin/testing
+```
+
+If a branch is missing: say so, **do not invent** branch names, lower **confidence**, continue with what exists.
+
+### 3. Ticket branch vs production
+
+Current branch (or `VAP-xxxx`) should be based on **production**.
+
+- Compare merge-base with `origin/production` vs `origin/testing`.
+- If the branch already contains testing-only commits: record a finding (raises **risk**).
+
+Do **not** `git checkout` during this check.
+
+### 4. Unreleased on testing
+
+```bash
+git log origin/production..origin/testing --oneline
+git diff origin/production...origin/testing --stat
+```
+
+Map commits to ticket keys (`VAP-\d+` in messages). Collect changed paths.
+
+### 5. Open unmerged PRs
+
+```bash
+gh pr list --state open --base testing --json number,title,headRefName,baseRefName,isDraft,url
+```
+
+Also list open PRs with **other bases** if this repo uses them (`gh pr list --state open` without `--base`, then filter).
+
+- Include **draft** PRs (they can still land).
+- **Exclude** the current ticket’s own PR / head branch.
+- For each remaining PR: `gh pr view <n> --json files,title,headRefName,baseRefName` (file paths).
+- Ticket key from title, branch, or body when present.
+
+If `gh` fails or auth is missing: lower **confidence**; still score from git remotes.
+
+### 6. One unreleased set
+
+Union of testing-only commits **and** open-PR diffs.
+
+Deduplicate the same ticket if it is both on `testing` and in an open PR — report **once**; keep the **stronger** file overlap.
+
+Jira “is blocked by” / links are **extra**, not a replacement for git + `gh`.
+
+### 7. Two factors
+
+| Factor | Question |
+|--------|----------|
+| **A — dependency** | Would this ticket’s plan **need** code/behavior that exists **only** in the unreleased set (testing and/or open PRs)? |
+| **B — override** | Would planned edits **touch the same paths or contracts** as those diffs (likely overwrite or break them when this work and those PRs/`testing` commits land together)? |
+
+Verdict per factor: **yes** / **no** / **unclear**.
+
+### 8. Scores (independent, 0–5)
+
+Show **both** with one line of why each.
+
+**Confidence** — how sure the check is:
+
+- **0** — almost no evidence (no remotes, no plan files, `gh` failed and git failed)
+- **3** — partial (some files unknown, messy commits, `gh` or one remote missing)
+- **5** — remotes and `gh` worked, plan lists files, overlap is obvious (or clearly none)
+
+**Risk** — how bad A+B look:
+
+- **0** — no overlap and no dependency seen
+- **3** — possible overlap or weak dependency
+- **5** — strong need for testing-only or open-PR code **and/or** likely stomp of other tickets
+
+You can be **sure** (confidence 5) that **risk is 0**, or **unsure** (confidence 1) while **risk looks 4**.
+
+### 9. Chat report
+
+B2 English. No secrets, tokens, or `.env` values.
+
+- Factor A, factor B (yes/no/unclear)
+- **Confidence:** n/5 — why
+- **Risk:** n/5 — why
+- Evidence: ticket keys, overlapping paths, **PR numbers**
+- Reminder: **warn only — not a block**
+
+### 10. AskQuestion — plan section
+
+**Skip** if there is no plan file in this thread.
+
+Otherwise **`AskQuestion`** (pre-select **Yes** when the tool allows):
+
+| Option | Action |
+|--------|--------|
+| **Yes — add `## Unreleased work risks`** (default) | Edit **this** plan; **minor** version bump per [`y-agt-plan-guidelines.mdc`](y-agt-plan-guidelines.mdc). Do **not** create a second plan. |
+| **No — chat only** | Leave the plan unchanged. |
+
+---
+
+## Plan section (`## Unreleased work risks`)
+
+When the user chose **Yes**:
+
+**Cursor approach:** optional section (allowed).
+
+**Rules approach:** same heading; place **immediately before** `## Open questions`.
+
+Include:
+
+- Factor A, factor B
+- Confidence 0–5 and risk 0–5
+- Overlapping paths / other ticket keys
+- Open **PR numbers** when relevant
+- **Warn only — not a block**
+
+---
+
+## Do not
+
+- Block implementation or refuse to continue because risk is high
+- Merge `testing` into the task branch, cherry-pick other tickets, or checkout their branches
+- Treat Jira status as the only source of truth
+- Paste secrets from env or PR bodies

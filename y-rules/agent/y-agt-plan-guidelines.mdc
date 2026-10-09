@@ -11,6 +11,8 @@ This rule is **always applied**. Whenever you create a new plan (via the `Create
 
 **Pre-plan workflow:** Complete [`y-agt-plan-phase.mdc`](y-agt-plan-phase.mdc) before `CreatePlan` (ticket context, solution approach, E2E scope, guardrails, **Ruff todos** when Python, **code-docs todos** when Python API changes, **plan document approach**, optional diagrams).
 
+**After CreatePlan:** follow [`y-agt-ticket-risks.mdc`](y-agt-ticket-risks.mdc) (testing vs production, open PRs, confidence/risk scores). If the user chooses to add **`## Unreleased work risks`**, that section is allowed on **both** plan approaches — bump the plan **minor** version; do not create a second plan.
+
 **Storage:** Use **`CreatePlan`** or Plan mode and let Cursor manage plan files. **Do not** store plans under **`cursor_workspace/`**. Use a repo path (e.g. `docs/`) only when the user explicitly wants a committed plan doc.
 
 If the user did not run plan-phase, **`AskQuestion`** for **Cursor approach** vs **Rules approach** (same options as plan-phase step 12) before `CreatePlan`. For **Python** work, default **Yes** on Ruff plan todos (step 8) and code-docs plan todos (step 9) unless the user opts out.
@@ -29,7 +31,9 @@ Every plan — **Cursor approach** or **Rules approach** — must include:
 
 **Plan todos — Ruff (when plan-phase step 8 = Yes):** include at least one YAML `todos` entry, e.g. `Run ruff format and ruff check on changed Python files; fix findings before PR`. Add a matching late sub-task in **Rules approach** (`### P…` before PR/handoff).
 
-**Plan todos — Code docs (when plan-phase step 9 = Yes):** include at least one YAML `todos` entry, e.g. `Document new/changed public Python API per y-dev-code-docs while implementing`. Add a matching sub-task **alongside the code changes** that introduce the API — not deferred to after PR. Follow [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) (**Incomplete docstrings** applies to new symbols).
+**Plan todos — Code docs (when plan-phase step 9 = Yes):** include at least one YAML `todos` entry, e.g. `Document new/changed Python members per y-dev-code-docs while implementing`. Add a matching sub-task **alongside the code changes** that introduce the API — not deferred to after PR. Follow [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) (**Incomplete docstrings** applies to new symbols; public and private equally).
+
+**Plan todos — Engineering bar (when the plan changes code):** include at least one YAML `todos` entry or constraint, e.g. `Follow y-dev-engineering while implementing`. This loads [`y-dev-engineering.mdc`](../dev/y-dev-engineering.mdc) during implementation even before a matching file is open. Do not paste its text into the plan.
 
 **Style:** B2 English; cite file paths as Markdown links; bullet lists for goals and out-of-scope.
 
@@ -45,6 +49,7 @@ Use when the user chose **Cursor approach** in plan-phase (or equivalent).
 - **Sub-tasks:** use numbered steps or todos when helpful — not required to use `### P0` / `### P1` unless the user asks.
 - **E2E in this plan:** link to **y-tst-*** / **y-ins-*** rules when relevant — do not paste runbooks.
 - **Open questions:** include when plan-phase left gaps (missing ticket, deferred decisions).
+- **Unreleased work risks:** include when **`y-agt-ticket-risks`** AskQuestion = **Yes** (after the plan exists).
 
 ---
 
@@ -67,7 +72,7 @@ Use when the user chose **Rules approach** in plan-phase (or equivalent).
    - **Regression guardrails:** no side effects, no regressions, no unrelated flow breaks, no over-engineering
    - **Testing scope:** No E2E in this plan | E2E later | Not needed | E2E in this plan (with links to relevant **y-tst-*** / **y-ins-*** rules when in-plan)
    - **Ruff (when plan-phase step 8 = Yes):** run `ruff format` and `ruff check` on touched Python before PR
-   - **Code docs (when plan-phase step 9 = Yes):** document new/changed public Python API per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) **while implementing** — same PR as the code
+   - **Code docs (when plan-phase step 9 = Yes):** document new/changed Python members (public and private equally) per [`y-dev-code-docs.mdc`](../dev/y-dev-code-docs.mdc) **while implementing** — same PR as the code
 6. `## Sources we port from` — origin code paths and external dependencies.
 7. `## Targets in <service>` — entry points and consumers in the target codebase.
 8. `## Data flow` — optional; include when a flowchart adds clarity.
@@ -75,14 +80,16 @@ Use when the user chose **Rules approach** in plan-phase (or equivalent).
 10. `### Request and response schemas` — optional; include when schema modeling helps decisions.
 11. `## Testing` — optional; include **only** when `y-agt-plan-phase` chose **E2E in this plan**. Sub-tasks **link** to installed test rules (e.g. `y-tst-testing-criteria` → `y-tst-test-cases` → `y-tst-e2e` → `y-ins-e2e-report`) — do not copy runbook steps.
 12. `## Sub-tasks (run in order)` — `### P0`, `### P0.4`, `### P1`, ... Each sub-task lists scope and Markdown links to file paths.
-13. `## Open questions` — numbered list of unresolved decisions and follow-ups (including deferred E2E, missing ticket, ticket ambiguities).
-14. `## Out of scope for this milestone` — bullet list of explicit non-goals.
+13. `## Unreleased work risks` — **only** when [`y-agt-ticket-risks.mdc`](y-agt-ticket-risks.mdc) AskQuestion = **Yes**. Place **immediately before** Open questions. Factors A/B, confidence, risk, paths, PR numbers, warn-only.
+14. `## Open questions` — numbered list of unresolved decisions and follow-ups (including deferred E2E, missing ticket, ticket ambiguities).
+15. `## Out of scope for this milestone` — bullet list of explicit non-goals.
 
-Sections 1–7, 12–14 are the baseline structure for most implementation plans.
+Sections 1–7, 12, 14–15 are the baseline structure for most implementation plans.
 Section 11 (`## Testing`) only when E2E is in this plan.
+Section 13 (`## Unreleased work risks`) only after **y-agt-ticket-risks** and the user chose to add it.
 Sections 8–10 are not mandatory: include them only when they are useful for this task.
 Use judgment based on task context and complexity; skip sections that do not improve clarity.
-When optional sections are included, keep their relative order (place **`## Testing`** after technical optional sections 8–10 and before **`## Sub-tasks`**).
+When optional sections are included, keep their relative order (place **`## Testing`** after technical optional sections 8–10 and before **`## Sub-tasks`**; place **`## Unreleased work risks`** after Sub-tasks and before Open questions).
 
 **Diagrams:** when plan-phase step 13 chose **Yes** or **Let Cursor decide**, add Mermaid in **Product perspective** or **Data flow** when it improves clarity.
 
