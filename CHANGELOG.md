@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `/y-agt-ticket-risks` — after a ticket plan is ready, check `testing` and open PRs for unreleased dependency and override risk; confidence and risk 0–5; warn only; optional plan section
+- E2E reports add a third **QA Test Samples** file (`-qa.md`) for the Jira Test Samples field. It mirrors the whole `test-cases.md` (every case, doc order, **Not run** when skipped), is team-facing with no Metadata, Work item, Source, or local noise, and gives one short block per case. Detailed and Compact stay required
+- VenCom pack (`y-vencom-rules` / `y-vencom-commands`): `/y-tst-e2e-vencom`, `/y-tst-e2e-vencom-owner-report`, `/y-vencom-inbound-payload`
+- `y-dev-engineering` — shared engineering bar (simplest correct design, no blind copying of weak patterns, no over-engineering, safe fallback versus clear failure for errors and missing or invalid data, AI and Python specifics); auto-attaches on `.py` files
+- `/y-dev-engineering` — read-only review of ticket local changes, a PR, or a custom scope; six 1–10 scores; always writes a report under `cursor_workspace/engineering-review/`
+
+### Changed
+
+- `y-agt-workspace` ignores `cursor_workspace/` and other local-only files (e.g. local env files) through `.git/info/exclude`, never the project `.gitignore`; ask when unsure whether a file is local-only
+- `/y-agt-code-review` applies `y-dev-engineering` for design and scope checks and adds a **Scores** section (same six metrics)
+- `/y-agt-code-review` asks for the outcome: **Review**, **Explain changes** (each change with a diff block and a plain What / Why, in chat and in a `code-changes-*.md` file), or **Both**; the walkthrough can include uncommitted changes
+- Plan rules carry `y-dev-engineering` into implementation when a plan changes code
+- `/y-git-create-pr` adds a simple Mermaid diagram under Description when the PR changes a flow (agent picks the size, no huge diagrams); hotfix and release PRs usually skip it
+- `/y-git-commit-message` and `/y-git-commits` — commit body uses **material-point** bullets (no fixed 1–2 cap); omit body when the subject is enough; still avoid file lists and over-explaining
+- E2E **Detailed** report adds **Related documents** with links to `test-cases.md`, `testing-criteria.md`, and other traceability docs; **Compact** and **QA** still omit those paths
+- `/y-ins-e2e-report` is shared (`y-rules/insight/`) so VenCom and generative-search use one report format; shared test/plan rules no longer hardcode the generative-search E2E pack
+- `/y-team-task-estimate` can score **Dev**, **QA**, or **both** (default both); QA uses the same Fibonacci `1 2 3 5 8` and writes **QA Story Point** plus `y-ai-qa-storypoint` / `y-ai-qa-sp-confidence-<n>` labels
+- Code docs treat public and private Python methods equally (no public-only default)
+- Test cases, E2E Summary, and unit-of-code reports require per-case **Setup / Prerequisites** so a second person can judge fairness (no secrets; compact E2E stays team-facing)
+
+### Removed
+
+- `y-python-readability-pep8` — its naming, PEP 8, import, and spacing guidance moved into `y-dev-engineering` (Python layout applies to `.py` edits only)
+
 ## [1.4.0] - 2026-08-27
 
 ### Added
