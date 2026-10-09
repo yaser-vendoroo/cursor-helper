@@ -20,10 +20,23 @@ For a **full test-cases document** per ticket, use **`.cursor/rules/y-rules/test
 - **Test case code**
 - **Title**
 - **Goal**
-- **Preconditions**
+- **Setup / Prerequisites** (alias: **Preconditions** — old docs that still use that label count)
 - **Steps** (bullet list, concise and ordered)
 - **Expected result**
 - **Evidence to collect**
+
+## Setup / Prerequisites (quality bar)
+
+This field must answer: **Could another person tell if this case is valid to run and to judge?**
+
+Include a bullet when it applies. Write **`none`** only when that bucket is truly empty — not as a shortcut.
+
+- **Environment** — e.g. local, MP testing, staging (use team-facing names in shareable reports)
+- **Existing data / entities** — WO, tenant, flags, prior `TST-*` that must already have passed
+- **Role / access** — who must be logged in or which API identity (**no secrets**)
+- **Dependent work** — Jira key still in QA, feature flag, seed data
+
+Do **not** put passwords, tokens, or `.env` values.
 
 ## Steps style
 
@@ -38,9 +51,11 @@ For a **full test-cases document** per ticket, use **`.cursor/rules/y-rules/test
 ### TST-<AREA>-<NNN> — <Short Title>
 
 - Goal: <what this validates>
-- Preconditions:
-  - <condition 1>
-  - <condition 2>
+- Setup / Prerequisites:
+  - Environment: <e.g. MP (Testing)>
+  - Existing data: <WO / tenant / prior TST-* or none>
+  - Role / access: <who or which identity; no secrets>
+  - Dependent work: <Jira key / flag / seed or none>
 - Steps:
   - <step 1>
   - <step 2>
@@ -54,6 +69,7 @@ For a **full test-cases document** per ticket, use **`.cursor/rules/y-rules/test
 ## Quality checks
 
 - Test case code is present and unique in the response.
+- **Setup / Prerequisites** meets the quality bar (or honest `none` per bucket).
 - Steps are clear, concise, and executable.
 - Expected result is measurable (pass/fail).
 - Evidence list is practical for verification.

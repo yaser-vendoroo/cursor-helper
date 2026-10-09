@@ -145,7 +145,7 @@ Rules:
 
 ## Jira required fields before In Review
 
-**Applies whenever** a flow moves a VAP task to **In Review** — including post-Slack confirmation, **y-git-create-pr** Task PR step 17, and **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` Step P2**.
+**Applies whenever** a flow moves a VAP task to **In Review** — including post-Slack confirmation, **y-git-create-pr** Task PR step 17, and a project E2E rule’s post-E2E handoff.
 
 **Do not** call **`transitionJiraIssue`** until **all ten** required fields below are filled. If any are missing, **stop**, list them, and **wait** for the user to update Jira — then **re-fetch** and re-check. There is **no** “proceed anyway” skip for these fields.
 

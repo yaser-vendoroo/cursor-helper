@@ -8,4 +8,4 @@ Read and follow **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**
 
 **Q0:** Resiroo → **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`** · PMRoo → **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`**
 
-Final report: **`.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`**
+Final report: **`.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`**

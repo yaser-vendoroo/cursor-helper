@@ -15,7 +15,7 @@ This is **interactive verification**: read the code, choose cases, **run them** 
 ## What this is not
 
 - **Not** a substitute for automated tests when the user explicitly asks for `pytest` or CI.
-- **Not** full product E2E (agent flows, UI journeys). When generative-search E2E is in scope, use **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**.
+- **Not** full product E2E (agent flows, UI journeys). When a project E2E pack is in scope, use that pack’s `y-tst-e2e*` entry.
 - **Not** permission to refactor unrelated code or “fix” style without a separate request.
 - **Not** an excuse to skip reading the implementation—cases must map to real branches and contracts.
 
@@ -52,7 +52,7 @@ This keeps **verification** (what does it do today?) separate from **remediation
 
    - **Unit:** `module.Class` (or function)
    - **Environment:** where it ran (host vs container), relevant env flags (no secrets)
-   - **Cases run:** **numbered** list — **Case 1 — …** → pass / fail / skipped (same numbering as `cursor_workspace/` artifact). When a case exercises a **method** (or callable), include **arguments** and **return value** (or exception) in short form so direction of data flow is obvious.
+   - **Cases run:** **numbered** list — **Case 1 — …** → pass / fail / skipped (same numbering as `cursor_workspace/` artifact). For **every** case (including skipped), add a short **Setup / Prerequisites** line: what must be true to **judge** the case (env **names**, Compose vs host, credentials present/absent — redacted). When a case exercises a **method** (or callable), include **arguments** and **return value** (or exception) in short form so direction of data flow is obvious.
    - **Notable behavior:** 2–4 sentences on correctness vs code intent
    - **Risks / gaps:** what was **not** exercised and why
    - **Artifact:** path to the Markdown file under **`cursor_workspace/ai_test/`** (e.g. `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verification.md`)
@@ -82,6 +82,7 @@ Examples: `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verificat
 - **Title (H1)** — must start with the same **`YYYYMMDD-HHMMSS`** run timestamp as the filename, then unit import path and environment. Example: `# 20260730-161245 — services.roo.foo.BarService — manual verification (container roo-api)`.
 - **Cases overview (required)** — near the top of the report (after title/metadata), include **all** cases exercised in this run as a **markdown table** or a **single list**. For **each** case, state clearly:
   - **What is tested** — short description of the scenario (inputs, env, or branch).
+  - **Setup / Prerequisites** — one line or a short column: what must be true to **judge** this case (env **names**, Compose vs host, credentials present/absent — redacted). Write **`none`** only when truly none.
   - **Expected result** — what correct behavior should look like (return shape, status, side effect, or “should raise …”), **before** you compare to what you observed.
   - When the case calls a **method** or other **callable** on the unit under test, also include **arguments passed** and **value returned** (see **Method calls** below) — either in the overview row or by reference to the detail section for that case.
   - You may add an **Outcome** column or suffix (pass / fail / skipped) if it fits the same table or list; otherwise record outcome in the detailed sections below.
@@ -92,9 +93,9 @@ Examples: `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verificat
   - **Return value** — what was returned: `None`, a repr/string summary, or structured fields (e.g. dataclass fields, dict keys). If the call **raises**, record **exception type** and **message** instead of a return.
   This makes **data direction** (inputs → outputs) auditable without rereading the script.
 - **Numbered cases (detail)** — **Case 1**, **Case 2**, … — **same numbers and names** as in the overview and in the chat summary. Expand with evidence (HTTP, logs, parsed values) under each heading or subsection. **Repeat** args and return for each method exercised here if not already fully shown in the overview.
-- Per case (when applicable):
+- Per case — **Intent** and **Setup / Prerequisites** are **required** on **every** numbered case (including skipped). Other bullets below only when they apply:
   - **Intent** — what behavior was checked.
-  - **Setup** — env vars (names only, values redacted or “set” / “unset”), command used to run (e.g. `docker exec … python -c '…'`).
+  - **Setup / Prerequisites** — what must be true to **judge** the case: env **names** (values “set” / “unset” or redacted), Compose vs host, credentials present/absent (**no secrets**). Include the command used to run when it is part of judging fairness (e.g. `docker exec … python -c '…'`). Write **`none`** only when a bucket is truly empty. Same quality bar as **y-tst-test-case** (another person can tell if the case was valid).
   - **Request (API / network)** — when the unit performs HTTP or similar calls, document clearly:
     - **Method + full URL** (or path template). For query params, list **names** and **redacted** values (e.g. `key=<REDACTED>`, `q=New+York`).
     - **Request body** — full shape; for JSON, paste a **redacted** example (no API keys, bearer tokens, or PII).
@@ -107,7 +108,7 @@ Examples: `cursor_workspace/ai_test/<unit-slug>/20260730-161245-manual-verificat
   - **Result** — pass / fail / skipped and **why**.
 - **Appendix (optional)** — links to source files, relevant env keys from `.env.example`, curl equivalents for replay (without real keys).
 
-If a case was **skipped** (no network, no key), document **Case N — Skipped** with the blocker.
+If a case was **skipped** (no network, no key), document **Case N — Skipped** with the blocker **and** **Setup / Prerequisites** (what was missing vs what would have been required to run).
 
 Do **not** commit large binary logs; paste **short** relevant lines only. **Redact** secrets consistently in URL, headers, and bodies.
 

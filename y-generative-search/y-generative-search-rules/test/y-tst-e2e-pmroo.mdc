@@ -9,7 +9,7 @@ Use this rule for **all** PMRoo (Property Manager) end-to-end manual test runs �
 
 **Entry point:** When starting from **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **PMRoo** first, then follow this rule. When PMRoo is already clear, invoke this rule **directly** (skip Q0).
 
-Final report format: `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+Final report format: `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`.
 
 Skill reference: [`.cursor/skills/roo-chat-testing/SKILL.md`](../../../.cursor/skills/roo-chat-testing/SKILL.md).
 
@@ -204,7 +204,7 @@ For local mock runs, `status=pending` is normal (n8n off) — do not fail classi
 | Payload fixtures | `cursor_workspace/` |
 | Mock seed | `cursor_workspace/e2e_seed/` |
 
-Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-pmroo-report.md` (full) and `...-pmroo-report-compact.md` (shareable). H1: `E2E Report - <JIRA> - <YYYYMMDD-HHMM> - <scenario>` — see `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-pmroo-report.md` (full) and `...-pmroo-report-compact.md` (shareable). Optional third file `...-pmroo-report-qa.md` (Jira Test Samples) — Detailed and Compact stay required. H1: `E2E Report - <JIRA> - <YYYYMMDD-HHMM> - <scenario>` — see `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`
 
 ---
 
@@ -218,7 +218,7 @@ Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-pmroo-report.md` (
 | `.cursor/rules/y-generative-search-rules/marketplace/y-mp-work-order.mdc` | **Opt-in remote only** — create WO via live MP API |
 | `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` | **Opt-in remote only** — PM file attachments (real S3) |
 | `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
-| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc` | Final report |
 | `.cursor/rules/qa-jira-sync.mdc` | Post results to Jira (optional) |
 | Skill [`roo-chat-testing`](../../../.cursor/skills/roo-chat-testing/SKILL.md) | N-trial repro, deepeval promotion |
 

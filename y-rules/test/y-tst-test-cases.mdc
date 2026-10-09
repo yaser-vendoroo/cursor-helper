@@ -22,7 +22,7 @@ Do **not** duplicate acceptance criteria prose here; **reference criterion numbe
 
 For **one standalone test case** in chat only, use **`.cursor/rules/y-rules/test/y-tst-test-case.mdc`** directly.
 
-Do **not** use this rule for E2E run reports. When generative-search rules are installed, use `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+Do **not** use this rule for E2E run reports. Use `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`.
 
 ## Artifact location
 
@@ -78,9 +78,11 @@ Every test case **must** include all fields from **`.cursor/rules/y-rules/test/y
 ### TST-<AREA>-<NNN> — <Short Title>
 
 - **Goal:** <what this validates; reference criteria numbers when useful, e.g. “criteria 1, 4”>
-- **Preconditions:**
-  - <condition 1>
-  - <condition 2>
+- **Setup / Prerequisites:** (alias **Preconditions**)
+  - **Environment:** <e.g. MP (Testing)>
+  - **Existing data:** <WO / tenant / prior TST-* or none>
+  - **Role / access:** <who or which identity; no secrets>
+  - **Dependent work:** <Jira key / flag / seed or none>
 - **Steps:**
   - <step 1>
   - <step 2>
@@ -93,6 +95,7 @@ Every test case **must** include all fields from **`.cursor/rules/y-rules/test/y
 
 **Per-case rules** (from `.cursor/rules/y-rules/test/y-tst-test-case.mdc`, applied here):
 
+- Follow **Setup / Prerequisites** quality bar in **y-tst-test-case.mdc** — another person must be able to judge if the case is fair to run. Write **`none`** only when a bucket is truly empty.
 - Short bullets; one action per step.
 - **Expected result** must be pass/fail measurable (no vague “works correctly”).
 - **Evidence** must be practical (logs, ids, screenshots, API responses, transcript snippets).
@@ -128,7 +131,7 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 - **Scope:** test cases only; no product essays or code paths.
 - **Title Case:** test case titles in `###` headings.
 - **User messages:** write natural opener text in **Steps** when the scenario is conversational (quoted or after “Report:”).
-- **Environment:** mention staging, local, or the relevant stack in preconditions when it matters; do not duplicate full E2E runbooks. When generative-search E2E is in scope, see `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` at execution time.
+- **Environment:** use **Setup / Prerequisites** on each case (see **y-tst-test-case.mdc**). Do not duplicate full E2E runbooks. When a project E2E pack is installed, see that pack’s `y-tst-e2e*` entry at execution time.
 
 ---
 
@@ -136,7 +139,7 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 
 - [ ] Header links to correct Jira key and the sibling `testing-criteria-<jira-key>-<YYYYMMDD-HHMM>.md` file.
 - [ ] Every case has a unique `TST-<AREA>-<NNN>` code.
-- [ ] Every case includes Goal, Preconditions, Steps, Expected result, Evidence (bold labels).
+- [ ] Every case includes Goal, Setup / Prerequisites, Steps, Expected result, Evidence (bold labels). Setup meets the **y-tst-test-case** quality bar.
 - [ ] Each case maps to at least one acceptance criterion (named in Goal).
 - [ ] No acceptance criteria tables or definition-of-done duplicated from the criteria doc.
 - [ ] File tracked in git.
@@ -149,8 +152,8 @@ Typical case count: **~6–12** for a focused behavior change; fewer if scope is
 |------|-----|
 | `.cursor/rules/y-rules/test/y-tst-test-case.mdc` | Single test case field definitions and quality checks |
 | `.cursor/rules/y-rules/test/y-tst-testing-criteria.mdc` | Parent Testing Criteria document structure |
-| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case (when GS pack is installed) |
-| `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc` | GS E2E entry point — Q0 Resiroo vs PMRoo (when GS pack is installed) |
+| `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc` | Report after executing a case. **Detailed** links to this file under **Related documents**; **QA** (`-qa.md`) mirrors **every case in this document** for Jira **Test Samples** (team-facing, no noise; no doc paths in the paste). |
+| Installed project pack `y-tst-e2e*` | E2E entry point (when a project pack is installed) |
 
 ## Example reference
 

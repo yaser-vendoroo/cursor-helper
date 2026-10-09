@@ -9,7 +9,7 @@ Use this rule for **all** ResiRoo end-to-end manual test runs. It replaces the a
 
 **Entry point:** When starting from **`.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`**, answer Q0 with **Resiroo** first, then follow this rule. When Resiroo is already clear, invoke this rule **directly** (skip Q0).
 
-Final report format: `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`.
+Final report format: `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`.
 
 ---
 
@@ -201,7 +201,7 @@ Seed layout and mock stack: [`mp_mock/README.md`](../../../mp_mock/README.md).
 | Seed data | `cursor_workspace/e2e_seed/` |
 | Payload fixtures | `cursor_workspace/` (not repo root `ai_tests/`) |
 
-Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) and `...-report-compact.md` (shareable). H1: `E2E Report - <JIRA> - <YYYYMMDD-HHMM> - <scenario>` — see `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) and `...-report-compact.md` (shareable). Optional third file `...-report-qa.md` (Jira Test Samples) — Detailed and Compact stay required. H1: `E2E Report - <JIRA> - <YYYYMMDD-HHMM> - <scenario>` — see `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`
 
 ---
 
@@ -217,7 +217,7 @@ Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) 
 | **.cursor/rules/y-generative-search-rules/resiroo/y-maintenance-work-order.mdc** | Scenario text |
 | `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` | Image URLs |
 | `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc` | Transcript formatting |
-| `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc` | Final report |
 | `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc` | Post-E2E Slack PR notification (optional) |
 | `.cursor/rules/y-rules/git/y-git-create-pr.mdc` | Open Task PR when none exists yet |
 | `.cursor/rules/qa-jira-sync.mdc` | Post E2E verdict comment to Jira (optional) |
@@ -226,7 +226,7 @@ Filenames: `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (full) 
 
 ## Post-E2E handoff (optional — after final report)
 
-Run **only after** the E2E report is written under **`cursor_workspace/ai_test/e2e/`** per `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`. Do **not** skip the report to jump straight to Slack or Jira.
+Run **only after** the E2E report is written under **`cursor_workspace/ai_test/e2e/`** per `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`. Do **not** skip the report to jump straight to Slack or Jira.
 
 ### When this applies
 

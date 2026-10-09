@@ -15,7 +15,7 @@ Product owners define **what must be true**; QA defines **how to test it** (see 
 - Domain-expert or PO review follow-ups
 - Handoff from implementation to QA before release sign-off
 
-Do **not** use this rule for E2E run reports. When generative-search rules are installed, use `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc` (and conversation formatting via `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`).
+Do **not** use this rule for E2E run reports. Use `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`. Conversation formatting from DB exports (generative-search only): `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`.
 
 ---
 
@@ -209,5 +209,5 @@ For **Slack** and **Jira** field excerpts, use the same DoD content but **omit**
 
 - Test cases document: `.cursor/rules/y-rules/test/y-tst-test-cases.mdc`
 - Single test case fields: `.cursor/rules/y-rules/test/y-tst-test-case.mdc`
-- E2E evidence and run artifacts (generative-search, when installed): `.cursor/rules/y-generative-search-rules/insight/y-ins-e2e-report.mdc`
+- E2E evidence and run artifacts: `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`
 - Transcript formatting from DB exports (generative-search, when installed): `.cursor/rules/y-generative-search-rules/insight/y-ins-conversation.mdc`

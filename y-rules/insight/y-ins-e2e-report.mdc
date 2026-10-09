@@ -1,7 +1,7 @@
 ---
 description: >-
-  Reusable final markdown report structure for Marketplace and local ResiRoo/PMRoo
-  E2E runs — full internal report plus a compact shareable variant for other teams.
+  Reusable final markdown report structure for E2E runs — full internal report,
+  compact shareable variant, and optional QA Test Samples file for Jira.
 alwaysApply: false
 ---
 
@@ -9,27 +9,28 @@ alwaysApply: false
 
 Use this rule when an E2E or manual-E2E run needs a final report artifact.
 
-This is a shared report contract for:
-
-- Unified ResiRoo and PMRoo E2E flows — entry `.cursor/rules/y-generative-search-rules/test/y-tst-e2e.mdc`; runbooks `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc` · `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-pmroo.mdc`
-
-Invoking rules can add extra required fields for their scenario.
+This is a shared report contract. Any project's installed E2E entry rule (`y-tst-e2e*`) can invoke it. Invoking project rules add extra required fields for their scenario.
 
 ---
 
 ## Report artifact policy
 
-- Output **two Markdown report files** per run:
+- Output **three Markdown report files** per run (always write **1** then **2**; **3** is extra and must not replace them):
   1. **Full report** — complete internal record (local setup, execution detail, issues).
   2. **Compact report** — shareable with other teams; sanitized per [Compact shareable report](#compact-shareable-report) below.
-- Save both under **`cursor_workspace/`** (invoking rule can require a specific subdirectory, e.g. `cursor_workspace/ai_test/e2e/`).
+  3. **QA Test Samples report** — QA-aligned paste for Jira **Test Samples** (full test-cases doc coverage, team-facing, no noise); see [QA Test Samples report](#qa-test-samples-report). If that file is skipped (missing test-cases doc and user stops, or user declines), **still keep files 1 and 2**.
+- Save all of these report files under **`cursor_workspace/`** (invoking rule can require a specific subdirectory, e.g. `cursor_workspace/ai_test/e2e/`). The QA file uses the **same folder**.
 - Do not overwrite previous reports.
 - Filename must include **Jira key**, **date + time** as **`YYYYMMDD-HHMM`** (24-hour **local** time when the run finished; minute precision; no separators in the date), and a short scenario slug.
 - **Filename pattern:** `E2E-Report-<JIRA>-<YYYYMMDD-HHMM>-<scenario-slug>-report.md` (use `NO-TICKET` when no Jira key).
 - Compact file uses the **same basename** as the full report with **`-compact`** immediately before `.md` (for example `E2E-Report-VAP-2325-20260730-1612-leak-check-report-compact.md` when the full file is `E2E-Report-VAP-2325-20260730-1612-leak-check-report.md`).
-- Write the **full report first**, then produce the **compact report** from it (same facts, sanitized presentation).
-- **Report type** in **Metadata** must be exactly **`Detailed`** (full file) or **`Compact`** (shareable file) — no other values.
-- If a value is not verified, write **`(not verified)`** explicitly in both files.
+- QA file uses the **same basename** as the full report with **`-qa`** immediately before `.md` (for example `E2E-Report-VAP-2325-20260730-1612-leak-check-report-qa.md`).
+- Write the **full report first**, then produce the **compact report** from it (same facts, sanitized presentation). Then write the **QA** file from those facts plus the test-cases doc (path rules in [QA Test Samples report](#qa-test-samples-report)). Never skip full or compact in order to write QA.
+- **Report type** in **Metadata** (Detailed and Compact files only):
+  - Full file: exactly **`Detailed`**
+  - Compact file: exactly **`Compact`**
+  The QA file has **no Metadata** and **no Report type** field.
+- If a value is not verified, write **`(not verified)`** explicitly in every report file.
 
 ---
 
@@ -83,8 +84,29 @@ Place the H1 **before** the **Metadata** section.
 - **Report type:** `Detailed` (internal full report — use `Compact` only in the shareable variant)
 - Date/time (local timezone)
 - Flow/rule used
-- Environment (e.g. `Local + mp_mock (PMRoo)`, `testing MP`, `local docker`, `mixed`, etc.)
+- Environment (e.g. `Local + simulator`, `MP (Testing)`, `local docker`, `mixed`; ResiRoo/PMRoo examples: `Local + mp_mock (PMRoo)`)
 - Scenario name
+
+### Related documents (Detailed only)
+
+Include **Markdown links** to documents that help trace this run. Omit bullets for files that do not exist or were not used. **Do not** copy this section into Compact or QA.
+
+**Link targets are relative to the report file**, not the repo root — Markdown resolves a relative link from the file's own folder. Show the repo path as the label. Example from `cursor_workspace/ai_test/e2e/` (three levels below the repo root):
+
+**Include when the file exists:**
+
+- **Test cases:** [`docs/<JIRA-KEY>/test-cases.md`](../../../docs/<JIRA-KEY>/test-cases.md)
+- **Testing criteria:** [`docs/<JIRA-KEY>/testing-criteria.md`](../../../docs/<JIRA-KEY>/testing-criteria.md)
+
+Use the real test-docs folder of the run (for example `docs/tickets/<JIRA-KEY>/` when the invoking rule or the user chose it).
+
+**Include when they exist and were used for this run:**
+
+- Plan or RFC paths cited for the ticket (for example `docs/<JIRA-KEY>/...`, `cursor_workspace/rfc/...`)
+- Invoked E2E runbook or insight rules (for example `.cursor/rules/y-vencom-rules/test/y-tst-e2e-vencom.mdc` or `.cursor/rules/y-generative-search-rules/test/y-tst-e2e-resiroo.mdc`)
+- PR URL, branch name, or other handoff links that help the author or reviewer find context
+
+Use normal Markdown links (`[label](path-or-url)`). Targets are paths relative to the report file, or absolute URLs. No secrets in link text or targets.
 
 ### Goal and scope
 
@@ -145,19 +167,30 @@ Summary must include:
 - Test case code
 - Environment label (single value; examples: `Local`, `Local + Mock`, `MP (Testing)`; include ingress when relevant: `Local / RabbitMQ`, `Local / Chat API`)
 - Work order
+- **Setup / Prerequisites** — what had to be true **before** this case (quality bar: another person can judge if the case was fair). Same buckets as **y-tst-test-case**: environment, existing data/entities, role/access, dependent work. Write **`none`** only when a bucket is truly empty. **No secrets.**
 - Pass/Fail result
 
-For these three Summary fields, always render them as bullet lines (not a table):
+For these Summary fields, always render them as bullet lines (not a table):
 
 - Environment
 - Work order
+- Setup / Prerequisites
 - Pass/Fail result
 
 Required bullet format:
 
 - **Environment:** `<environment>`
 - **Work order:** `<work order>`
+- **Setup / Prerequisites:**
+  - **Environment:** `<same or more specific than the Environment field>`
+  - **Existing data:** `<WO / tenant / prior TST-* or none>`
+  - **Role / access:** `<who or which identity; no secrets>`
+  - **Dependent work:** `<Jira key / flag / seed or none>`
 - **Pass/Fail result:** `<pass/fail result>`
+
+Place **Setup / Prerequisites** after Environment / Work order and **before** Pass/Fail.
+
+**Full report:** Setup / Prerequisites **may** include local facts that were true for that case (host vs container, compose). **Compact report:** team-facing setup only (see compact Summary below).
 
 For conversation output in this section, follow [Summary transcript format](#summary-transcript-format).
 
@@ -182,17 +215,18 @@ Do **not** include these sections in the compact report:
 Strip or rewrite anything that only makes sense on the author’s machine or in their local checkout. In the compact report, do **not** include:
 
 - Repo paths, `cursor_workspace/` paths, or links to local files
+- Links to `docs/.../test-cases.md`, `testing-criteria.md`, plan/RFC docs, or `.mdc` rule paths (those stay in **Detailed** only — see [Related documents (Detailed only)](#related-documents-detailed-only))
 - References to Cursor rules, slash commands, or `.mdc` / `.md` rule files
 - `localhost`, loopback URLs, host ports, or internal API base URLs
 - Docker Compose service names, container names, image tags, or local stack topology
-- Local app/process names used only for dev (for example internal worker/queue consumer labels) unless they are the **product name** other teams already use (e.g. **Marketplace**, **ResiRoo**, **PMRoo**)
+- Local app/process names used only for dev (for example internal worker/queue consumer labels) unless they are the **product name** other teams already use (e.g. **Marketplace**, **VenCom**, **ResiRoo**, **PMRoo**)
 - Machine spec, OS, shell, IDE, or agent tooling
 - RabbitMQ queue/vhost names, debounce timings, `docker compose` commands, Makefile targets, or similar runbook steps
 - Credentials, tokens, or secret env values (same as full report)
 
 When evidence in the full report cites local infrastructure, rewrite the compact **Verification evidence** as **observable outcomes** only (WO state, message content, pass/fail checks against shared environments such as **MP (Testing)**).
 
-Use **team-facing environment labels** in **Metadata** and Summary (for example `MP (Testing)`, `Staging`) — not `local docker`, `mp_mock`, or compose profile names.
+Use **team-facing environment labels** in **Metadata** and Summary (for example `MP (Testing)`, `Staging`) — not `local docker`, `mp_mock`, simulator compose profiles, or other internal stack names.
 
 For **Images** in Summary: include only **fetchable HTTPS URLs** that recipients can open (typically Marketplace/S3 testing URLs). Omit localhost or signed URLs that expire or require the author’s network.
 
@@ -233,6 +267,56 @@ Same fields as the full report (only those that apply) — these are usually saf
 
 Same structure and [Summary transcript format](#summary-transcript-format) as the full report, with **team-facing Environment** labels in each case block.
 
+**Setup / Prerequisites** in the compact Summary must stay **team-facing**: same buckets (environment, existing data, role/access, dependent work), but **no** localhost, Docker, compose, rule-file paths, or other local-only detail (see [Content to omit or sanitize](#content-to-omit-or-sanitize)). Full-report local setup may stay in the **Detailed** file only.
+
+---
+
+## QA Test Samples report
+
+**Audience:** QA (and anyone filling Jira **Test Samples**).
+
+**Purpose:** a **QA-aligned** view of **`docs/<JIRA-KEY>/test-cases.md`** — **every case in that document**, in the document’s order, with pass/fail (or **Not run**) from this run. Same outcomes as Detailed/Compact, but **team-facing** and **without noise** (no local setup, transcripts, rule paths, or operational detail). Not a transcript dump. Not a replacement for Detailed or Compact.
+
+**Coverage:** mirror the **entire** test-cases document. Use each case’s **code and title from the doc** (for example `TST-BUG-001` when the doc uses that convention — not limited to a `TST-*` prefix). Do **not** cherry-pick a subset of cases for QA.
+
+**Test-cases doc path:** `docs/<JIRA-KEY>/test-cases.md` by default, or the path the invoking rule or the user chose (for example `docs/tickets/<JIRA-KEY>/test-cases.md`). The rest of this section calls it the test-cases doc.
+
+**When:** after the full and compact files exist. Source cases **only** from that test-cases doc (same order as the doc).
+
+If the test-cases doc is **missing:** **AskQuestion** — continue without the QA file / stop QA file only. **Do not** invent case codes. **Do not** skip or delete Detailed and Compact.
+
+**Filename and title:**
+
+- File: same basename as the full report with **`-qa`** immediately before `.md`.
+- H1: same pattern as [Document title (both reports)](#document-title-both-reports), then ` - QA` at the end.
+- **No `## Metadata` section** and **no `Report type` field** in this file. Filename `-qa.md` is enough. Detailed and Compact **keep** their Metadata (including `Detailed` / `Compact`).
+
+**After H1 (plain bullets, no heading):**
+
+- **Environment:** team-facing (same compact sanitization)
+- **Overall:** pass / fail / partial
+- **Counts:** passed / failed / not run (over **all** cases in the test-cases doc)
+- **Cases covered:** one bullet per case in doc order: code, title, Pass / Fail / Not run
+
+Do **not** include **Work item** or **Source** (path to test-cases.md). The H1 already has the Jira key. QA does not need the local doc path.
+
+**Per test case (required — every case in the test-cases doc, same order; keep each block short):**
+
+```markdown
+### <Case code> — <Title>
+
+- **Goal:** <one short line from the test-cases doc>
+- **Setup / Prerequisites:** <one line: env, data, role; or none>
+- **Pass/Fail:** Pass | Fail | Not run
+- **Expected vs observed:** <one line>
+```
+
+Use the **case code and title exactly as in the test-cases doc** (heading `### …`). Setup: one line, quality bar from `.cursor/rules/y-rules/test/y-tst-test-case.mdc` (env, data, role). Write **`none`** only when honest. Team-facing only (no localhost, Docker, compose, rule-file paths, secrets).
+
+**Omit (noise):** `## Metadata`, Report type, **Work item**, **Source**, transcripts, images, WO dumps, What was executed, Issues/next actions, Docker, localhost, `.mdc` paths, secrets. Do **not** paste full test-cases.md steps.
+
+Cases executed in this run that are **not** in the test-cases doc: omit here (they stay in Detailed/Compact only). **Every** case in the test-cases doc must appear in the QA file; cases that were **not** executed in this run: **Not run**.
+
 ---
 
 ## Summary transcript format
@@ -260,7 +344,7 @@ Preferred transcript style:
   - `- **IsEmergency:** ... | **IsFrustrated:** ... | **IsPhoneCallRequested:** ...`
 - Do not add a parent bullet such as `Details:` for these two lines.
 - When a transcript message includes attached or analyzed images (for example RabbitMQ `ImageUrls`, Marketplace uploads, or stored `messages.images`), add an **Images** field **after** **Content** (user messages) or after the other assistant fields for that block. Omit **Images** when the message has no images.
-- **Images** format (use fetchable HTTPS URLs when available; resolve S3 `DocType` + `FileName` to public URL per `.cursor/rules/y-generative-search-rules/marketplace/y-upload-photo.mdc` if needed):
+- **Images** format (use fetchable HTTPS URLs when available; resolve S3 keys to public URLs per the invoking project's upload or attachment rule if needed):
 
 ```markdown
 - **Images:**
@@ -278,4 +362,6 @@ Preferred transcript style:
 - Do not expose tokens, passwords, or secret env values.
 - Include only non-sensitive evidence needed for verification.
 - Keep language concise and professional (B2 English).
-- The **compact** report is the default artifact to paste into Slack, Jira, or email for other teams; keep the **full** report for local PR handoff and author traceability.
+- The **Detailed** report keeps **Related documents** links (test-cases, testing-criteria, runbooks, PRs) for author and reviewer traceability.
+- The **compact** report is the default artifact to paste into Slack, Jira comments, or email for other teams; keep the **Detailed** report for local PR handoff and doc links.
+- The **QA Test Samples** file covers the **full** test-cases document for QA (team-facing, no noise) and is **only** for pasting into the Jira **Test Samples** field. Do not use it as a substitute for Compact.
