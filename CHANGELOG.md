@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-09
+
 ### Added
 
 - `/y-agt-ticket-risks` — after a ticket plan is ready, check `testing` and open PRs for unreleased dependency and override risk; confidence and risk 0–5; warn only; optional plan section
@@ -24,14 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/y-git-create-pr` adds a simple Mermaid diagram under Description when the PR changes a flow (agent picks the size, no huge diagrams); hotfix and release PRs usually skip it
 - `/y-git-commit-message` and `/y-git-commits` — commit body uses **material-point** bullets (no fixed 1–2 cap); omit body when the subject is enough; still avoid file lists and over-explaining
 - E2E **Detailed** report adds **Related documents** with links to `test-cases.md`, `testing-criteria.md`, and other traceability docs; **Compact** and **QA** still omit those paths
-- `/y-ins-e2e-report` is shared (`y-rules/insight/`) so VenCom and generative-search use one report format; shared test/plan rules no longer hardcode the generative-search E2E pack
+- `/y-ins-e2e-report` is shared (`y-rules/insight/`) so VenCom and generative-search use one report format; shared test/plan rules no longer hardcode the generative-search E2E pack. **Action:** update references from `y-generative-search-rules/insight/y-ins-e2e-report` to `y-rules/insight/y-ins-e2e-report` (see README migration table)
 - `/y-team-task-estimate` can score **Dev**, **QA**, or **both** (default both); QA uses the same Fibonacci `1 2 3 5 8` and writes **QA Story Point** plus `y-ai-qa-storypoint` / `y-ai-qa-sp-confidence-<n>` labels
 - Code docs treat public and private Python methods equally (no public-only default)
 - Test cases, E2E Summary, and unit-of-code reports require per-case **Setup / Prerequisites** so a second person can judge fairness (no secrets; compact E2E stays team-facing)
 
 ### Removed
 
-- `y-python-readability-pep8` — its naming, PEP 8, import, and spacing guidance moved into `y-dev-engineering` (Python layout applies to `.py` edits only)
+- `y-python-readability-pep8` — its naming, PEP 8, import, and spacing guidance moved into `y-dev-engineering` (Python layout applies to `.py` edits only; no longer always on). **Action:** replace any `@y-python-readability-pep8` references with `@y-dev-engineering`
 
 ## [1.4.0] - 2026-08-27
 
