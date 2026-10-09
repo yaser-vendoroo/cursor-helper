@@ -1,0 +1,123 @@
+---
+description: >-
+  VenCom E2E entry — Local MP, Local simulator, or MP Testing; mandatory
+  AskQuestion pre-flight; artifacts under cursor_workspace/ai_test/e2e/.
+alwaysApply: false
+---
+
+# VenCom E2E testing (`y-tst-e2e-vencom`)
+
+**Entry point** for VendorCOM end-to-end runs. This rule does **not** copy runbooks — it links to repo docs and shared `y-rules`. Feature sub-rules (for example owner report) add the **how** for their layers.
+
+Final report: `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`.
+
+**Direct invoke:** if the user already named a sub-rule (e.g. `/y-tst-e2e-vencom-owner-report`), still run **this** pre-flight first, then follow the sub-rule.
+
+Do **not** invent work-order ids. Use ids from the MP API response, the simulator run, a harness fixture, or user-supplied verified values.
+
+---
+
+## Mandatory pre-flight (AskQuestion only)
+
+**Do not start any E2E step until applicable questions are answered.**
+
+### Q0 — Test-docs
+
+Check whether `docs/<JIRA-KEY>/test-cases.md` exists, **or** a user-chosen ticket path such as `docs/tickets/<JIRA-KEY>/test-cases.md` (`NO-TICKET` → skip to Q1). Use the path the user named for the shared report; do not force `docs/<KEY>/` when they already chose another folder.
+
+| Option | Meaning |
+|--------|---------|
+| **Create criteria and cases first** (recommended when missing) | Follow `.cursor/rules/y-rules/test/y-tst-testing-criteria.mdc` then `.cursor/rules/y-rules/test/y-tst-test-cases.mdc`. Resume this rule after the files exist. |
+| **Run without them** | Continue. The shared report **skips** its QA (`-qa.md`) file. Detailed and Compact still required. |
+| **Stop** | Do not start the run. |
+
+When the doc exists (including `docs/tickets/<JIRA-KEY>/`), execute **every case** in it **in document order**. Skip cases that do not match Q1/Q2; record **Not run** with the reason. This rule does **not** define cases.
+
+### Q1 — Environment
+
+| Option | Stack |
+|--------|--------|
+| **Local MP** (recommended when a local Marketplace runs on this machine) | Local Marketplace API + its RabbitMQ; VenCom `BASE_URL` / `RBTMQ_*` point at them. Start and stop stacks with the machine's local gateway scripts when they exist, not with ad-hoc `docker compose` calls. |
+| **Local (simulator)** | `docker-compose.yml` + `docker-compose.test.yml` — see [docs/testing/local-manual-scenarios.md](../../../docs/testing/local-manual-scenarios.md) |
+| **MP Testing (marketplace mode)** | Marketplace-wired stack — see [docs/operations/test-harness.md](../../../docs/operations/test-harness.md) and [docs/testing/harness-e2e-scenarios.md](../../../docs/testing/harness-e2e-scenarios.md) |
+
+### Q2 — Driver
+
+| Option | When |
+|--------|------|
+| **Manual MP API** | Local MP only — create the work order and service through the MP API, approve VenCom drafts in MP, inject participant replies per `.cursor/rules/y-vencom-rules/test/y-vencom-inbound-payload.mdc` |
+| **Manual simulator API** | Local simulator only — `publish-init` / `inject` / `inject-raw` on `:8090` |
+| **Harness canned scenario** | `e2e_*` health checks (UI, CLI, or JSON API) |
+| **Harness directed aim** | Director drives the conversation from a plain-language aim |
+| **Render only (report_pdf CLI)** | PDF content without the swarm (`python -m subprojects.report_pdf.cli`) |
+
+**Blocked:** simulator API on anything but Local simulator; Manual MP API on anything but Local MP; marketplace-mode harness on a simulator-wired stack. The harness Mode must match how the stack was started.
+
+---
+
+## Preconditions
+
+Follow the matching repo doc for compose commands, sanity checks, and tear-down. Do **not** paste those steps here.
+
+- **Local simulator:** overlay `docker-compose.test.yml` (simulator `:8090`, harness `:7864`). Confirm `worker_background_processing` is running when the ticket needs PDF generation.
+- **Local MP:**
+  - **Compose hygiene:** never run compose with a stray `COMPOSE_PROJECT_NAME` in the shell; it can attach one project's services to another. Read container names and the Flower URL from `docker ps` — they depend on how the stack was started.
+  - **Queues:** VenCom uses the same queue names Marketplace uses (no per-checkout suffix). `aiVendorComQueue` and `inboundQueue` each have exactly **one** consumer. Run one VenCom stack at a time for message flows.
+  - **S3:** VenCom `AWS_S3_BUCKET_PATH` must equal Marketplace's bucket path. MP downloads VenCom attachments with its own path; a mismatch drops the file without an error.
+  - **Real-send guard:** before approving any draft in MP, confirm the local MP cannot deliver SMS or email (no consumer or binding for its notification / integrator queues). If it could, stop and **AskQuestion**.
+  - **Working hours:** outbound sends can be held until the location's next working hour. Run during those hours, or advance the send per the payload rule.
+  - **Fixtures:** pick a client whose vendor list API returns vendors and whose tier fits the feature. Record the choice in the report.
+- **MP Testing:** `HARNESS_TARGET_ENV` must be in `HARNESS_ALLOWED_TARGET_ENVS`.
+- **LLM:** real swarm turns call paid APIs. Warn once before the first case that costs money.
+- **PDF / S3:** report generation needs Edge in the app image and a test `AWS_S3_*` bucket. Gate-only cases may skip S3.
+
+---
+
+## Verification basics
+
+Per case, collect only what the case needs (no secrets):
+
+- `messages_queue` — `status`, `category` (`initial`, `vendor_assignment_request`, later turns)
+- `sending_message` — outbound text, `send_time`, validator score and retries
+- `message_attachments` — `document_type` when relevant
+- Flower and worker logs for the Celery task name in the case
+- **Local MP:** the MP side of each hop — chat messages (status, documents) through the MP API or a read-only query on the local MP database
+- Simulator timeline (`/__sim/runs/{id}/events`) or harness run report
+
+When a flow crosses services, name the **hop** that failed (for example MP publish, tagging, draft approval, validator, Celery task, storage, MP attachment) and give its evidence.
+
+**Inbound `AdditionalData` overrides** (local only): `.cursor/rules/y-vencom-rules/test/y-vencom-inbound-payload.mdc`.
+
+---
+
+## Artifacts
+
+Save under **`cursor_workspace/ai_test/e2e/`**. Filenames and H1 follow `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc`.
+
+---
+
+## Optional post-E2E handoff
+
+Run **only after** the Detailed + Compact reports exist. Do **not** copy Slack or Jira steps here.
+
+1. **AskQuestion:** Send Slack / Skip / other — on Send, follow `.cursor/rules/y-rules/slack/y-slack-pr-ready-for-review.mdc`. If there is no PR, mention `.cursor/rules/y-rules/git/y-git-create-pr.mdc` first.
+2. **AskQuestion:** Move Jira to In Review? **Yes** only after that rule’s required-fields check.
+
+---
+
+## Security
+
+- Never print `.env` values, tokens, SMTP passwords, or S3 keys. Redact them in reports.
+- Do not print config files that can hold credentials (for example `appsettings*.json`). Print key names only, and check the masking on a harmless key first.
+
+---
+
+## Sub-rules
+
+| Rule | When |
+|------|------|
+| `.cursor/rules/y-vencom-rules/test/y-vencom-inbound-payload.mdc` | Envelope shape; participant replies; local `AdditionalData` override; deferred sends |
+| `.cursor/rules/y-vencom-rules/test/y-tst-e2e-vencom-owner-report.mdc` | Owner Decision Report layers |
+| `.cursor/rules/y-rules/insight/y-ins-e2e-report.mdc` | Final report |
+| `.cursor/rules/y-rules/test/y-tst-testing-criteria.mdc` | Criteria doc (Q0 create path) |
+| `.cursor/rules/y-rules/test/y-tst-test-cases.mdc` | Cases doc (Q0 create path) |

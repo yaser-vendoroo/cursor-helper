@@ -1,0 +1,100 @@
+---
+description: >-
+  VenCom inbound envelope pointers, participant replies, local-only
+  AdditionalData override, and local-only deferred-send advance for E2E.
+  Never use on shared DBs.
+alwaysApply: false
+---
+
+# VenCom inbound payload (`y-vencom-inbound-payload`)
+
+Use during VenCom E2E when you need the **wire shape** of an inbound message, a **participant reply** without a real SMS/email gateway, a **local-only** `AdditionalData` override for keys the source does not emit yet, or a **local-only** advance of a deferred send.
+
+Do **not** copy payload builders into this rule. Source of truth:
+
+- Envelope and participant messages: [test_harness/payloads.py](../../../test_harness/payloads.py)
+- Publishing to the agent inbound queue: [test_harness/broker.py](../../../test_harness/broker.py) (`publish_inbound`)
+- Marketplace API calls (work order, service, chat, draft approval): [test_harness/environments/marketplace_client.py](../../../test_harness/environments/marketplace_client.py)
+- Init `AdditionalData` (vendor-assigned, simulator): `build_synthetic_init` in [test_harness/simulator/outbound_handlers.py](../../../test_harness/simulator/outbound_handlers.py)
+- Simulator routes: `POST /__sim/runs`, `publish-init`, `inject`, `inject-raw` in [test_harness/simulator/routes/control.py](../../../test_harness/simulator/routes/control.py)
+
+---
+
+## Envelope shape
+
+Inbound queue messages use:
+
+- `OperationType`
+- `MessageJObject` — JSON **string** on the wire; nested object after persist
+- `ObjectId` (work order id)
+- `ObjectType` (typically `AIVendorCom`)
+- `RoutingKey`
+
+`messages_queue.message` is JSONB. After ingest, `MessageJObject` is a nested object (`message->'MessageJObject'->'AdditionalData'`). Primary key: `message_id`.
+
+---
+
+## Participant messages
+
+- **Simulator — `inject`:** role, channel, content — the simulator builds the envelope.
+- **Simulator — `inject-raw`:** full envelope when you must set fields `inject` does not expose.
+- **Local MP:** build the reply with `build_participant_message` and publish it with `publish_inbound` (same shape Marketplace forwards to `aiVendorComQueue`). Take sender and receiver identities from VenCom's own last outbound to that contact (`sending_message` → `Sender` / `Reciever`): the init `UserDetails` carries ids only, not phone or email. Never print the contact values.
+
+Prefer the builders over hand-written JSON.
+
+---
+
+## Local-only AdditionalData override
+
+For keys the inbound source does **not** include yet (example: `OwnerDecisionReportSettings` from a simulator or a Marketplace branch that does not publish it):
+
+1. Confirm VenCom's database is **local** (a local container or its alias, for example `db`, `vendorcom-postgres`, or host-mapped localhost). **Never** run this on shared testing, aidev, or production.
+2. Wait until the tagged `initial` or `vendor_assignment_request` row exists. Apply the override while it is still `queued` when possible, so the first swarm turn already sees it.
+3. Override **before** the triggering turn (for example before injecting an over-NTE estimate), then verify with a SELECT.
+
+```sql
+UPDATE public.messages_queue
+SET message = jsonb_set(
+  message,
+  '{MessageJObject,AdditionalData,OwnerDecisionReportSettings}',
+  '{"Enabled": false}'::jsonb,
+  true
+)
+WHERE message_id = (
+  SELECT message_id FROM public.messages_queue
+  WHERE work_order_id = :work_order_id
+    AND category IN ('initial', 'vendor_assignment_request')
+  ORDER BY created_at DESC
+  LIMIT 1
+);
+```
+
+Replace the JSON value with the PascalCase object the case needs. Path pattern: `{MessageJObject,AdditionalData,<Key>}`.
+
+Load credentials from env var **names** only (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`). Never print values.
+
+---
+
+## Local-only deferred-send advance
+
+Outbound sends can wait for the location's working hours (`sending_message.status = 'PENDING'` with a future `send_time`). On a **local** database only, you may make one such row due now:
+
+```sql
+UPDATE public.sending_message
+SET send_time = (NOW() AT TIME ZONE 'UTC')
+WHERE message_id = :message_id
+  AND work_order_id = :work_order_id
+  AND status = 'PENDING'
+  AND send_time > (NOW() AT TIME ZONE 'UTC');
+```
+
+- For reminder and no-reply rows, use the harness `DeferredMessageController` ([test_harness/deferred_messages.py](../../../test_harness/deferred_messages.py)).
+- Record every advance (row, old and new `send_time`) in the Detailed report.
+
+---
+
+## Do not
+
+- Invent work-order ids.
+- Override `AdditionalData` or advance sends on a non-local database.
+- Duplicate envelope JSON from `payloads.py` in this rule.

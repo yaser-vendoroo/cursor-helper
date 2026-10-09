@@ -1,0 +1,81 @@
+---
+description: >-
+  VenCom Owner Decision Report E2E — layers A/B/C, setting-to-layer map,
+  local override usage. Cases live in docs/<KEY>/test-cases.md.
+alwaysApply: false
+---
+
+# VenCom owner-report E2E (`y-tst-e2e-vencom-owner-report`)
+
+Run **`.cursor/rules/y-vencom-rules/test/y-tst-e2e-vencom.mdc` pre-flight first**, then this rule.
+
+This rule is the reusable **how**. Ticket cases live in `docs/<JIRA-KEY>/test-cases.md` (for VAP-3437, codes like `TST-ODR-001`), written with `.cursor/rules/y-rules/test/y-tst-test-cases.mdc`. **Do not** list cases here.
+
+PascalCase inbound keys (see [utils/owner_decision_report.py](../../../utils/owner_decision_report.py)): `Enabled`, `IncludeResidentName`, `IncludeResidentContextAndSentiment`, `CostBenchmarkMode`, `DisclaimerNotes`.
+
+---
+
+## Layer A — pipeline gate (Local MP or Local simulator)
+
+1. Create the work order and service (MP API on Local MP, or a simulator run + `publish-init`).
+2. Wait for the tagged `initial` / `vendor_assignment_request` row. Record whether the inbound payload already carries `OwnerDecisionReportSettings`. If it does not, apply the override from `.cursor/rules/y-vencom-rules/test/y-vencom-inbound-payload.mdc`.
+3. On Local MP, approve VenCom's pending drafts in MP so the conversation can continue.
+4. Inject a vendor estimate **above** the NTE (not-to-exceed) the agent applies.
+
+**Evidence:**
+
+- `tasks.generate_estimate_report_task` ran (`worker_background_processing` / Flower) and `message_attachments.document_type = 'owner_report'` exists.
+- On Local MP: the PM (or owner) chat message in MP carries the PDF document. The VenCom side alone does not prove delivery.
+- The **final** outbound text contains the required report-reference line. Check `sending_message` / the MP message, not the first tool call — validator retries can rewrite the text.
+
+---
+
+## Layer B — PDF content (report-builder replay)
+
+Prefer a **replay** of `build_vendor_estimate_report_data` for a real work order and service from Layer A, then `create_single_page_report_pdf` inside the **app** image (Edge is there). Apply each content setting on the newest inbound row, save `report_data` JSON and PDF text, then restore the original settings.
+
+A fixture-only render from [subprojects/report_pdf/fixtures/sample_report.json](../../../subprojects/report_pdf/fixtures/sample_report.json) may supplement screenshots. It does **not** replace the replay: fixtures skip settings lookup, estimate parse, and history stubs.
+
+Label stubbed `_search_client_work_orders` / `_fetch_historical_costs` as **stubbed history source**. The benchmark section needs job category data (`subCategoryName`) on the work order. Check it first; without it the section stays empty even with stubs — record that as inconclusive, not a mode pass.
+
+**Evidence:** JSON fields plus PDF text (resident name, resident context, disclaimer, cost benchmark, risk warning). Save under `cursor_workspace/ai_test/e2e/` (not the repo).
+
+---
+
+## Layer C — real Client Settings (Marketplace UI to VenCom)
+
+Canned `e2e_*` harness scenarios are **simulator-only** ([docs/testing/harness-e2e-scenarios.md](../../../docs/testing/harness-e2e-scenarios.md) section 1). **Do not** use them for Layer C.
+
+Layer C needs a Marketplace build that **publishes** `OwnerDecisionReportSettings` in the VenCom init payload. Showing and saving the setting in the Client Settings UI does not prove that.
+
+1. Create one work order for a client with the setting on, and confirm the key is present on the newest `initial` / `vendor_assignment_request` row. If it is absent, record a Marketplace publishing gap, use Layer A with the override, and mark Layer C cases **Not run**.
+2. Toggle Owner Decision Report in the Marketplace Client Settings UI.
+3. Drive an over-NTE estimate with a **marketplace-mode** run (Manual MP API, directed harness, or manual MP UI).
+4. Confirm the snapshot on the newest inbound row and the PDF on the MP message.
+
+A **C-lite** read-only contract check (a shared `messages_queue` for PascalCase keys, types, Enabled-true client count) is allowed when the UI path is not available. Zero rows is a rollout-risk result, not a parser pass.
+
+---
+
+## Setting-to-layer map
+
+| Setting / behaviour | Layers that can judge it |
+|---------------------|--------------------------|
+| `Enabled` gate, latest row wins, fail-open when missing or malformed | A or C |
+| `IncludeResidentName`, `IncludeResidentContextAndSentiment`, `DisclaimerNotes` | B, A, or C |
+| `CostBenchmarkMode` and risk-warning coupling | **B or C only** |
+
+---
+
+## Case authoring hint
+
+Each case’s **Setup / Prerequisites** line names its layer: `Local MP`, `Local simulator`, `Replay`, `Contract check`, or `MP Testing`. Use the existing `.cursor/rules/y-rules/test/y-tst-test-case.mdc` format — no extra field.
+
+---
+
+## Known limits
+
+- The simulator has no `WorkOrder/SearchIds` (or bulk WO) endpoint. Benchmark, history, and issue-frequency sections are empty in simulator runs. Use Layer B or C for cost-benchmark modes.
+- The NTE the agent applies can come from client or location rules when the location NTE field is empty. Size the over-NTE quote from what the agent states, not only from the payload field.
+
+Do **not** change VenCom product code in an E2E session unless the user asks after the report.
