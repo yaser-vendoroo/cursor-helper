@@ -1,7 +1,8 @@
 ---
 description: >-
   Default location for agent-created docs and scratch files: cursor_workspace/
-  (local, gitignored). Use repo paths only when the user wants committed docs.
+  (local, ignored through .git/info/exclude). Use repo paths only when the user
+  wants committed docs.
 alwaysApply: true
 ---
 
@@ -16,8 +17,16 @@ When a **y-*** rule or the Cursor agent **creates a document or scratch artifact
 Write at the **project root** under **`cursor_workspace/`** — local Cursor output, **not** committed.
 
 - **`mkdir -p`** the subdir before writing.
-- Ensure **`cursor_workspace/`** is in the project **`.gitignore`** (add if missing).
+- Ensure **`cursor_workspace/`** is in the clone's **`.git/info/exclude`** (add if missing). Do **not** add it to the project **`.gitignore`**.
 - Prefer unique names (slug + timestamp) when runs might collide.
+
+## Local-only files — `.git/info/exclude`, never `.gitignore`
+
+Files that exist only on this machine do not belong to the project: `cursor_workspace/`, local env or key files created for a check (e.g. `langfuse-testing.env`), scratch dumps.
+
+- Ignore them through **`.git/info/exclude`** (local to the clone, never committed). Check with `git check-ignore -v <path>`.
+- **Never** edit the project **`.gitignore`** for them. Change `.gitignore` only when the user asks or the ignore rule is meant for the whole team.
+- When unsure whether a file is local-only or belongs to the project, **`AskQuestion`** before you choose.
 
 ## Exception — repo path
 
